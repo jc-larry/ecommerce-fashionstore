@@ -1,0 +1,88 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  background: #F7F3F0;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border: 1px solid #EFE7E3;
+  border-radius: 18px;
+  padding: 2.5rem;
+  box-shadow: 0 18px 48px rgba(43, 31, 29, 0.10);
+}
+
+.brand-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #C66F5C;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+}
+
+.brand-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2B1F1D;
+}
+
+.brand-subtitle {
+  font-size: 0.85rem;
+  color: #8C7E7B;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2B1F1D;
+  margin-bottom: 0.35rem;
+}
+
+.form-control {
+  border-radius: 10px;
+  border: 1px solid #E3DAD6;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.92rem;
+}
+
+.strength-box {
+  background: #FAF6F4;
+  border: 1px solid #EFE7E3;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.req {
+  font-size: 0.82rem;
+  color: #A0938F;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.2rem;
+}
+
+.req i { font-size: 0.9rem; }
+
+.req.met { color: #2E7D32; }
+
+.check-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(46, 125, 50, 0.12);
+  color: #2E7D32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}

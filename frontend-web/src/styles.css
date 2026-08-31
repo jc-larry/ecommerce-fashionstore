@@ -1,0 +1,228 @@
+/* ================================================================
+   FashionStore — Global Styles
+   Tipografía Inter · Paleta terracota/marrón premium
+   ================================================================ */
+
+/* --- CSS Reset & Variables --- */
+:root {
+  /* Paleta principal */
+  --color-primary: #C66F5C;
+  --color-primary-dark: #A95848;
+  --color-primary-light: #D98C7D;
+  --color-accent: #2B1F1D;
+  --color-bg: #FCFBFA;
+  --color-surface: #FFFFFF;
+  --color-text: #2B1F1D;
+  --color-text-secondary: #706361;
+  --color-border: #D4CECB;
+  --color-muted: #8C7E7B;
+
+  /* Gradientes */
+  --gradient-primary: linear-gradient(135deg, #C66F5C 0%, #A95848 100%);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(43, 31, 29, 0.06);
+  --shadow-md: 0 4px 12px rgba(43, 31, 29, 0.08);
+  --shadow-lg: 0 8px 32px rgba(43, 31, 29, 0.12);
+
+  /* Bordes */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Transiciones */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-smooth: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ================================================================
+   Overrides de Bootstrap 5 con la paleta terracota de FashionStore
+   ================================================================ */
+:root {
+  --bs-primary: #C66F5C;
+  --bs-primary-rgb: 198, 111, 92;
+  --bs-link-color: #C66F5C;
+  --bs-link-hover-color: #A95848;
+  --bs-body-bg: #FCFBFA;
+  --bs-body-color: #2B1F1D;
+  --bs-body-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bs-border-color: #D4CECB;
+}
+
+.btn-primary {
+  --bs-btn-bg: #C66F5C;
+  --bs-btn-border-color: #C66F5C;
+  --bs-btn-hover-bg: #A95848;
+  --bs-btn-hover-border-color: #A95848;
+  --bs-btn-active-bg: #97493B;
+  --bs-btn-active-border-color: #97493B;
+  --bs-btn-disabled-bg: #D98C7D;
+  --bs-btn-disabled-border-color: #D98C7D;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #C66F5C;
+  --bs-btn-border-color: #C66F5C;
+  --bs-btn-hover-bg: #C66F5C;
+  --bs-btn-hover-border-color: #C66F5C;
+  --bs-btn-active-bg: #A95848;
+}
+
+.text-primary { color: #C66F5C !important; }
+.bg-primary { background-color: #C66F5C !important; }
+.form-check-input:checked {
+  background-color: #C66F5C;
+  border-color: #C66F5C;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: #C66F5C;
+  box-shadow: 0 0 0 0.2rem rgba(198, 111, 92, 0.15);
+}
+.link-primary,
+a { color: #C66F5C; }
+a:hover { color: #A95848; }
+
+/* Utilidades que usan las plantillas y no existen en Bootstrap */
+.cursor-pointer { cursor: pointer; }
+.fw-500 { font-weight: 500; }
+
+/* ---- Patrón común de pantallas del panel administrativo ---- */
+.admin-page { padding: 0.25rem; }
+
+.admin-table { margin-bottom: 0; }
+.admin-table > thead { background-color: #FBEAE8; }
+.admin-table > thead th {
+  color: #C66F5C;
+  font-size: 0.75rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 0;
+  padding: 0.9rem 0.75rem;
+  white-space: nowrap;
+}
+.admin-table > tbody td {
+  padding: 0.85rem 0.75rem;
+  vertical-align: middle;
+  border-color: #F1EBE8;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+.pill-ok   { background: rgba(46, 125, 50, 0.12); color: #2E7D32; }
+.pill-ok .pill-dot { background: #2E7D32; }
+.pill-off  { background: rgba(198, 111, 92, 0.14); color: #A95848; }
+.pill-off .pill-dot { background: #A95848; }
+.pill-role { background: rgba(198, 111, 92, 0.12); color: #A95848; }
+
+/* Panel deslizante para formularios de alta/edición */
+.slide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 31, 29, 0.35);
+  z-index: 1040;
+}
+.slide-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 420px;
+  max-width: 92vw;
+  background: #fff;
+  z-index: 1050;
+  box-shadow: -12px 0 40px rgba(43, 31, 29, 0.18);
+  display: flex;
+  flex-direction: column;
+}
+.slide-panel-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #F1EBE8;
+}
+.slide-panel-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.slide-panel-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #F1EBE8;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-dark);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* --- Utilidades comunes --- */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Scrollbar premium */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}

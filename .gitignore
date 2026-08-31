@@ -1,0 +1,27 @@
+# ===== Backend (Python / FastAPI) =====
+backend/venv/
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+backend/.env
+backend/*.db
+backend/*.sqlite3
+
+# ===== Frontend Web (Angular) =====
+frontend-web/node_modules/
+frontend-web/dist/
+frontend-web/.angular/
+frontend-web/*.log
+
+# ===== Móvil (Flutter) =====
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.idea/
+
+# ===== Editores / SO =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,102 @@
+<div class="admin-page">
+  <h3 class="fw-bold mb-4">Registro de Mercadería</h3>
+
+  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-success py-2 small" *ngIf="success">{{ success }}</div>
+
+  <div class="row g-4">
+    <!-- Formulario de ingreso -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-4">Ingreso de Nueva Mercadería</h5>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted">Proveedor</label>
+              <select class="form-select" [(ngModel)]="supplierId">
+                <option [ngValue]="null" disabled>Selecciona un proveedor…</option>
+                <option *ngFor="let s of suppliers" [ngValue]="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted">Sucursal destino</label>
+              <select class="form-select" [(ngModel)]="branchId">
+                <option [ngValue]="null" disabled>Selecciona una sucursal…</option>
+                <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive mb-3">
+            <table class="table align-middle admin-table">
+              <thead>
+                <tr>
+                  <th>Variante (prenda · color · talla · SKU)</th>
+                  <th style="width: 110px;">Cantidad</th>
+                  <th style="width: 140px;">Costo unitario</th>
+                  <th class="text-end" style="width: 120px;">Subtotal</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of rows; let i = index">
+                  <td>
+                    <select class="form-select form-select-sm" [(ngModel)]="r.variant_id">
+                      <option [ngValue]="null" disabled>Selecciona…</option>
+                      <option *ngFor="let v of variants" [ngValue]="v.id">{{ v.label }}</option>
+                    </select>
+                  </td>
+                  <td><input type="number" min="1" class="form-control form-control-sm" [(ngModel)]="r.quantity"></td>
+                  <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" [(ngModel)]="r.unit_cost"></td>
+                  <td class="text-end fw-bold small">Bs. {{ subtotal(r) | number:'1.2-2' }}</td>
+                  <td><button class="btn btn-sm btn-light border" (click)="removeRow(i)"><i class="bi bi-trash"></i></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button class="btn btn-sm btn-outline-primary mb-4" (click)="addRow()">
+            <i class="bi bi-plus-lg me-1"></i> Añadir prenda
+          </button>
+
+          <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-4">
+            <span class="text-muted small">Total calculado del ingreso</span>
+            <h4 class="fw-bold mb-0 text-primary">Bs. {{ total | number:'1.2-2' }}</h4>
+          </div>
+
+          <button class="btn btn-primary w-100 py-2 fw-bold" [disabled]="saving" (click)="register()">
+            <span *ngIf="!saving">Registrar Ingreso de Mercadería</span>
+            <span *ngIf="saving" class="spinner-border spinner-border-sm" role="status"></span>
+          </button>
+
+          <p class="text-muted small mt-2 mb-0" *ngIf="variants.length === 0">
+            No hay variantes de prenda. Crea prendas con variantes en «Catálogo» primero.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ingresos recientes -->
+    <div class="col-lg-4">
+      <h6 class="fw-bold mb-3">Ingresos Recientes</h6>
+      <div class="d-flex flex-column gap-3">
+        <div class="text-muted small" *ngIf="recentEntries.length === 0">Sin ingresos registrados aún.</div>
+        <div class="card shadow-sm border-0 rounded-4" *ngFor="let e of recentEntries">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold">{{ e.ref }}</span>
+              <span class="pill pill-ok"><span class="pill-dot"></span>Completado</span>
+            </div>
+            <div class="text-muted small mb-1">{{ e.items }} línea(s)</div>
+            <div class="text-muted small mb-2">Fecha: {{ e.date | date:'dd/MM/yyyy HH:mm' }}</div>
+            <div class="d-flex justify-content-between align-items-end">
+              <span class="text-muted small">Valor total</span>
+              <span class="fw-bold text-primary">Bs. {{ e.total | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

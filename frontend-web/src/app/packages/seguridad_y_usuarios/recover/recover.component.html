@@ -1,0 +1,77 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="text-center mb-4">
+      <div class="brand-badge mx-auto mb-3"><i class="bi bi-key-fill"></i></div>
+      <h1 class="brand-title mb-1">
+        {{ step === 2 ? 'Nueva contraseña' : 'Recuperar contraseña' }}
+      </h1>
+      <p class="brand-subtitle mb-0">
+        {{ step === 2
+          ? 'Define tu nueva contraseña. Este enlace vence 5 minutos después de haberlo solicitado.'
+          : 'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.' }}
+      </p>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger py-2 small d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i> <span>{{ errorMessage }}</span>
+    </div>
+    <div *ngIf="successMessage" class="alert alert-success py-2 small d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill"></i> <span>{{ successMessage }}</span>
+    </div>
+
+    <!-- ============ PASO 1 · pedir el enlace ============ -->
+    <ng-container *ngIf="step === 1">
+      <!-- 1a · formulario de correo -->
+      <form *ngIf="!requested" (ngSubmit)="onRequestLink()" novalidate>
+        <label class="field-label">Correo Electrónico</label>
+        <input type="email" class="form-control" name="email" [(ngModel)]="email"
+               placeholder="ejemplo@correo.com" autocomplete="email" required>
+
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-4" [disabled]="loading">
+          <span *ngIf="!loading">Enviar enlace de recuperación</span>
+          <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status"></span>
+        </button>
+      </form>
+
+      <!-- 1b · confirmación "revisa tu correo" -->
+      <div *ngIf="requested" class="text-center py-2">
+        <div class="check-circle mx-auto mb-3"><i class="bi bi-envelope-check"></i></div>
+        <p class="mb-1 fw-500">Revisa tu correo</p>
+        <p class="text-muted small mb-0">
+          Si <strong>{{ email }}</strong> está registrado, te llegó un enlace para crear tu
+          nueva contraseña. Ábrelo desde tu bandeja de entrada (revisa también spam).
+          El enlace <strong>vence en 5 minutos</strong>.
+        </p>
+      </div>
+    </ng-container>
+
+    <!-- ============ PASO 2 · nueva contraseña (solo desde el enlace) ============ -->
+    <form *ngIf="step === 2" (ngSubmit)="onResetPassword()" novalidate>
+      <label class="field-label">Nueva contraseña</label>
+      <input type="password" class="form-control" name="newPassword" [(ngModel)]="newPassword"
+             placeholder="••••••••" autocomplete="new-password" required>
+
+      <div class="strength-box mt-2">
+        <small class="d-block text-muted fw-bold mb-1">Requisitos de seguridad</small>
+        <div class="req" [class.met]="hasMinLength"><i class="bi" [ngClass]="hasMinLength ? 'bi-check-circle-fill' : 'bi-circle'"></i> Mínimo 8 caracteres</div>
+        <div class="req" [class.met]="hasUppercase"><i class="bi" [ngClass]="hasUppercase ? 'bi-check-circle-fill' : 'bi-circle'"></i> Una mayúscula</div>
+        <div class="req" [class.met]="hasLowercase"><i class="bi" [ngClass]="hasLowercase ? 'bi-check-circle-fill' : 'bi-circle'"></i> Una minúscula</div>
+        <div class="req" [class.met]="hasNumber"><i class="bi" [ngClass]="hasNumber ? 'bi-check-circle-fill' : 'bi-circle'"></i> Un número</div>
+        <div class="req" [class.met]="hasSpecial"><i class="bi" [ngClass]="hasSpecial ? 'bi-check-circle-fill' : 'bi-circle'"></i> Un carácter especial (&#64;$!%*?&amp;)</div>
+      </div>
+
+      <label class="field-label mt-3">Confirmar nueva contraseña</label>
+      <input type="password" class="form-control" name="confirmPassword" [(ngModel)]="confirmPassword"
+             placeholder="••••••••" autocomplete="new-password" required>
+
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-4" [disabled]="loading">
+        <span *ngIf="!loading">Restablecer contraseña</span>
+        <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status"></span>
+      </button>
+    </form>
+
+    <p class="text-center mt-4 mb-0">
+      <a routerLink="/login" class="small fw-500"><i class="bi bi-arrow-left"></i> Volver al inicio de sesión</a>
+    </p>
+  </div>
+</div>

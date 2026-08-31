@@ -1,0 +1,90 @@
+<!-- Contenedor general del Admin (solo personal con rol de panel) -->
+<div *ngIf="authService.isLoggedIn() && authService.isAdminUser()" class="admin-layout">
+
+  <!-- SIDEBAR LATERAL -->
+  <aside class="sidebar shadow-sm">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🛍️</div>
+      <div class="brand-text">
+        <h5 class="mb-0 fw-bold">FashionStore</h5>
+        <small class="text-muted" style="font-size: 0.65rem; letter-spacing: 1px;">E-COMMERCE ADMIN</small>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin/dashboard" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-grid-1x2"></i> Dashboard
+      </a>
+      <a routerLink="/admin/usuarios" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-people"></i> Usuarios y Roles
+      </a>
+      <a routerLink="/admin/branches" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-shop"></i> Sucursales
+      </a>
+      <a routerLink="/admin/products" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-tag"></i> Catálogo
+      </a>
+      <a routerLink="/admin/suppliers" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-truck"></i> Proveedores
+      </a>
+      <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-person-badge"></i> Empleados
+      </a>
+      <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-box-seam"></i> Mercadería
+      </a>
+      <a routerLink="/admin/audit" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-shield-check"></i> Auditoría
+      </a>
+    </nav>
+
+    <div class="sidebar-footer mt-auto p-3 border-top">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center"
+               style="width: 32px; height: 32px; font-size: 0.8rem; background-color: #C66F5C;">
+            {{ userInitials }}
+          </div>
+          <div style="line-height: 1.2;">
+            <div class="fw-bold" style="font-size: 0.85rem;">{{ userName }}</div>
+            <span class="badge text-primary bg-primary bg-opacity-10" style="font-size: 0.6rem;">{{ userRole }}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-light text-muted border-0" (click)="onLogout()" title="Cerrar Sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-content">
+    <!-- TOPBAR -->
+    <header class="topbar shadow-sm">
+      <h4 class="mb-0 fw-bold route-title">{{ routeTitle }}</h4>
+
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Buscar...">
+        </div>
+        <button class="btn btn-light rounded-circle btn-icon">
+          <i class="bi bi-bell"></i>
+        </button>
+        <div class="country-selector border rounded px-3 py-1 bg-white">
+          <span class="me-2">🇧🇴</span> <span style="font-size: 0.85rem; font-weight: 500;">Bolivia (BO)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ÁREA DE RUTAS -->
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>
+
+<!-- Pantallas de autenticación y tienda del cliente (sin chrome de administración) -->
+<div *ngIf="!(authService.isLoggedIn() && authService.isAdminUser())">
+  <router-outlet></router-outlet>
+</div>

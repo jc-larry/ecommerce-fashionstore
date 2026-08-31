@@ -1,0 +1,56 @@
+<div class="admin-page">
+  <h3 class="fw-bold mb-4">Dashboard</h3>
+
+  <div class="card border-0 rounded-4 text-white mb-4" style="background-color: #C66F5C;">
+    <div class="card-body p-4">
+      <h4 class="fw-bold mb-2">¡Bienvenid@ de vuelta, {{ userName }}!</h4>
+      <p class="mb-0 text-white-50">
+        Resumen de las operaciones clave de FashionStore en todo el territorio boliviano.
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-3" *ngFor="let s of stats">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-muted small fw-bold">{{ s.label }}</span>
+            <div class="d-flex align-items-center justify-content-center rounded"
+                 style="width: 28px; height: 28px; background: rgba(198,111,92,0.12); color: #C66F5C;">
+              <i class="bi {{ s.icon }} small"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold mb-0">{{ loading ? '—' : s.value }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Actividad Reciente en la Plataforma</h5>
+        <a routerLink="/admin/audit" class="btn btn-sm btn-light border fw-bold">Ver Auditoría Completa</a>
+      </div>
+
+      <p class="text-muted small mb-0" *ngIf="!loading && recentLogs.length === 0">
+        Todavía no hay actividad registrada.
+      </p>
+
+      <ul class="list-unstyled mb-0">
+        <li class="d-flex justify-content-between py-3 border-bottom align-items-center"
+            *ngFor="let l of recentLogs">
+          <div class="d-flex align-items-center gap-3">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #C66F5C;"></span>
+            <div>
+              <span class="fw-bold text-dark">{{ l.action }}</span>
+              <span class="text-muted ms-2">en {{ l.table_name }} #{{ l.row_id }}</span>
+            </div>
+          </div>
+          <span class="text-muted small">{{ l.timestamp | date:'dd/MM HH:mm' }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

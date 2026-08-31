@@ -1,0 +1,112 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Usuarios y Roles</h3>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="input-group input-group-sm" style="width: 240px;">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" class="form-control" placeholder="Buscar por nombre o email…" [(ngModel)]="search">
+      </div>
+      <select class="form-select form-select-sm" style="width: 150px;" [(ngModel)]="roleFilter">
+        <option value="TODOS">Rol: Todos</option>
+        <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+      </select>
+      <button class="btn btn-primary btn-sm fw-bold" (click)="openNew()">
+        <i class="bi bi-plus-lg me-1"></i> Nuevo Usuario
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover admin-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="!loading && filteredUsers.length === 0">
+              <td colspan="5" class="text-center text-muted py-4">Sin usuarios para mostrar.</td>
+            </tr>
+            <tr *ngFor="let u of filteredUsers">
+              <td class="fw-bold">{{ u.first_name }} {{ u.last_name }}</td>
+              <td class="text-muted">{{ u.email }}</td>
+              <td><span class="pill pill-role">{{ rolesLabel(u) }}</span></td>
+              <td>
+                <span class="pill" [ngClass]="u.is_active ? 'pill-ok' : 'pill-off'">
+                  <span class="pill-dot"></span>{{ u.is_active ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-light border fw-bold me-2" (click)="openEdit(u)">Editar</button>
+                <button class="btn btn-sm btn-light border text-danger fw-bold"
+                        [disabled]="!u.is_active" (click)="deactivate(u)">Desactivar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel de alta / edición -->
+<ng-container *ngIf="showForm">
+  <div class="slide-overlay" (click)="closeForm()"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar usuario' : 'Nuevo usuario' }}</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold">Nombre</label>
+          <input class="form-control" [(ngModel)]="form.first_name">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold">Apellido</label>
+          <input class="form-control" [(ngModel)]="form.last_name">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-bold">Correo electrónico</label>
+          <input type="email" class="form-control" [(ngModel)]="form.email">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-bold">Teléfono</label>
+          <input class="form-control" [(ngModel)]="form.phone">
+        </div>
+        <div class="col-12" *ngIf="!editingId">
+          <label class="form-label small fw-bold">Contraseña</label>
+          <input type="password" class="form-control" [(ngModel)]="form.password">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-bold d-block">Roles</label>
+          <div class="form-check form-check-inline" *ngFor="let r of roles">
+            <input class="form-check-input" type="checkbox"
+                   [checked]="form.role_names.includes(r)" (change)="toggleRole(r)" [id]="'role-' + r">
+            <label class="form-check-label small" [for]="'role-' + r">{{ r }}</label>
+          </div>
+        </div>
+        <div class="col-12" *ngIf="editingId">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="activo" [(ngModel)]="form.is_active">
+            <label class="form-check-label small" for="activo">Cuenta activa</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
+      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+    </div>
+  </div>
+</ng-container>

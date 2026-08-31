@@ -1,0 +1,71 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="text-center mb-4">
+      <div class="brand-badge mx-auto mb-3"><i class="bi bi-bag-heart-fill"></i></div>
+      <h1 class="brand-title mb-1">FashionStore</h1>
+      <p class="brand-subtitle mb-0">Inicia sesión en tu cuenta</p>
+    </div>
+
+    <form (submit)="onSubmit($event)" novalidate>
+      <div class="mb-3">
+        <label for="email" class="field-label">Correo Electrónico</label>
+        <div class="field-wrap">
+          <i class="bi bi-envelope field-icon"></i>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-control"
+            [(ngModel)]="email"
+            placeholder="admin@fashionstore.bo"
+            autocomplete="username"
+            required />
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="password" class="field-label">Contraseña</label>
+        <div class="field-wrap">
+          <i class="bi bi-lock field-icon"></i>
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            id="password"
+            name="password"
+            class="form-control has-toggle"
+            [(ngModel)]="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required />
+          <button type="button" class="toggle-btn" (click)="togglePassword()"
+                  [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+            <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="rememberMe" name="rememberMe" [(ngModel)]="rememberMe" />
+          <label class="form-check-label small text-muted" for="rememberMe">Recordarme</label>
+        </div>
+        <a routerLink="/recover" class="small fw-500 link-recover">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <div class="alert alert-danger py-2 small d-flex align-items-center gap-2" *ngIf="errorMessage">
+        <i class="bi bi-exclamation-triangle-fill"></i> <span>{{ errorMessage }}</span>
+      </div>
+      <div class="alert alert-success py-2 small d-flex align-items-center gap-2" *ngIf="successMessage">
+        <i class="bi bi-check-circle-fill"></i> <span>{{ successMessage }}</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" [disabled]="loading">
+        <span *ngIf="!loading">Iniciar Sesión</span>
+        <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status"></span>
+      </button>
+    </form>
+
+    <p class="text-center text-muted small mt-4 mb-0">
+      ¿Eres cliente? <a routerLink="/register" class="fw-500">Crea tu cuenta</a>
+    </p>
+  </div>
+</div>

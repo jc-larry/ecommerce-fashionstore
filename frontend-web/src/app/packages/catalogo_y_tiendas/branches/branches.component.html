@@ -1,0 +1,126 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Sucursales</h3>
+    <button class="btn btn-primary btn-sm fw-bold" (click)="openNew()">
+      <i class="bi bi-plus-lg me-1"></i> Nueva Sucursal
+    </button>
+  </div>
+
+  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-secondary" role="status"></div>
+  </div>
+
+  <div *ngIf="!loading" class="row g-4">
+    <div *ngIf="branches.length === 0" class="col-12 text-center py-4 text-muted">
+      No hay sucursales registradas.
+    </div>
+
+    <div class="col-md-6" *ngFor="let branch of branches">
+      <div class="card h-100 border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <h5 class="fw-bold mb-1">{{ branch.name }}</h5>
+            <span class="pill" [ngClass]="branch.is_active ? 'pill-ok' : 'pill-off'">
+              <span class="pill-dot"></span>{{ branch.is_active ? 'Activo' : 'Inactivo' }}
+            </span>
+          </div>
+
+          <div class="text-muted small mt-3 mb-1">
+            <i class="bi bi-geo-alt me-2"></i>{{ branch.address }}
+          </div>
+          <div class="text-muted small mb-1">
+            <i class="bi bi-person me-2"></i>Encargado: <span class="fw-bold text-dark">{{ managerOf(branch) }}</span>
+          </div>
+          <div class="text-muted small mb-2">
+            <i class="bi bi-telephone me-2"></i>{{ branch.phone || 'Sin teléfono' }}
+          </div>
+
+          <div class="d-flex flex-wrap gap-1 mb-3" *ngIf="branch.employees?.length">
+            <span class="pill pill-role" *ngFor="let e of branch.employees">
+              {{ e.first_name }} {{ e.last_name }}
+              <i class="bi bi-x cursor-pointer" (click)="removeEmployee(branch, e)"></i>
+            </span>
+          </div>
+
+          <div class="d-flex gap-2 border-top pt-3">
+            <button class="btn btn-sm btn-light border flex-grow-1 fw-bold" (click)="openEdit(branch)">Editar</button>
+            <button class="btn btn-sm btn-light border flex-grow-1 fw-bold" (click)="openAssign(branch)">Asignar empleado</button>
+            <button class="btn btn-sm btn-light border text-danger fw-bold" (click)="deactivate(branch)">Desactivar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel alta / edición -->
+<ng-container *ngIf="showForm">
+  <div class="slide-overlay" (click)="closeForm()"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar sucursal' : 'Nueva sucursal' }}</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Nombre de la sucursal</label>
+        <input class="form-control" [(ngModel)]="form.name">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Dirección</label>
+        <input class="form-control" [(ngModel)]="form.address">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Teléfono</label>
+        <input class="form-control" [(ngModel)]="form.phone">
+      </div>
+      <div class="row g-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold">Latitud</label>
+          <input type="number" step="any" class="form-control" [(ngModel)]="form.latitude">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold">Longitud</label>
+          <input type="number" step="any" class="form-control" [(ngModel)]="form.longitude">
+        </div>
+      </div>
+      <div class="form-check form-switch mt-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="brActive" [(ngModel)]="form.is_active">
+        <label class="form-check-label small fw-bold" for="brActive">Sucursal activa</label>
+      </div>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
+      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+    </div>
+  </div>
+</ng-container>
+
+<!-- Modal asignar empleado -->
+<ng-container *ngIf="assignBranch">
+  <div class="slide-overlay" (click)="closeAssign()"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">Asignar empleado · {{ assignBranch.name }}</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="closeAssign()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <label class="form-label small fw-bold">Empleado (encargado o cajero)</label>
+      <select class="form-select" [(ngModel)]="assignUserId">
+        <option [ngValue]="null" disabled>Selecciona un empleado…</option>
+        <option *ngFor="let u of staff" [ngValue]="u.id">
+          {{ u.first_name }} {{ u.last_name }} — {{ u.roles?.[0]?.name }}
+        </option>
+      </select>
+      <p class="text-muted small mt-2" *ngIf="staff.length === 0">
+        No hay usuarios con rol ENCARGADO o CAJERO. Créalos primero en «Usuarios y Roles».
+      </p>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="closeAssign()">Cancelar</button>
+      <button class="btn btn-primary fw-bold" [disabled]="!assignUserId" (click)="confirmAssign()">Asignar</button>
+    </div>
+  </div>
+</ng-container>

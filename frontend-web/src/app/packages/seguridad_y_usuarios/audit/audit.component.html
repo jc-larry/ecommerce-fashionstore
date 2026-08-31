@@ -1,0 +1,51 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Bitácora de Auditoría</h3>
+    <div class="d-flex gap-2 align-items-center">
+      <select class="form-select form-select-sm" style="width: 160px;" [(ngModel)]="actionFilter">
+        <option value="TODOS">Acción: Todas</option>
+        <option *ngFor="let a of actions" [value]="a">{{ a }}</option>
+      </select>
+      <button class="btn btn-sm btn-light border fw-bold" (click)="load()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover admin-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Acción</th>
+              <th>Tabla</th>
+              <th>Registro</th>
+              <th>Detalle</th>
+              <th>IP</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="7" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="!loading && filtered.length === 0">
+              <td colspan="7" class="text-center text-muted py-4">Sin eventos registrados.</td>
+            </tr>
+            <tr *ngFor="let l of filtered">
+              <td class="text-muted small">{{ l.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+              <td class="small">{{ l.user_id ?? 'Sistema' }}</td>
+              <td><span class="pill pill-role">{{ l.action }}</span></td>
+              <td class="text-muted small">{{ l.table_name }}</td>
+              <td class="text-muted small">#{{ l.row_id }}</td>
+              <td class="text-muted small text-truncate" style="max-width: 320px;">{{ summary(l.new_values) }}</td>
+              <td class="text-muted small">{{ l.ip_address || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

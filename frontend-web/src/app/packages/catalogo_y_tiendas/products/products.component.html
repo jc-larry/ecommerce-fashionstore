@@ -1,0 +1,199 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Catálogo de Prendas</h3>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="input-group input-group-sm" style="width: 220px;">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" class="form-control" placeholder="Buscar prenda…" [(ngModel)]="search">
+      </div>
+      <button class="btn btn-primary btn-sm fw-bold" (click)="openNew()">
+        <i class="bi bi-plus-lg me-1"></i> Nueva Prenda
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+
+  <div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover admin-table">
+          <thead>
+            <tr>
+              <th>Prenda</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Temporada</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="!loading && filtered.length === 0">
+              <td colspan="6" class="text-center text-muted py-4">Aún no hay prendas registradas.</td>
+            </tr>
+            <tr *ngFor="let p of filtered">
+              <td class="fw-bold">{{ p.name }}</td>
+              <td class="text-muted small">{{ categoryName(p) }}</td>
+              <td class="fw-bold">Bs. {{ p.base_price }}</td>
+              <td class="text-muted small">{{ seasonName(p) }}</td>
+              <td>
+                <span class="pill" [ngClass]="p.is_active ? 'pill-ok' : 'pill-off'">
+                  <span class="pill-dot"></span>{{ p.is_active ? 'Visible' : 'Oculto' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-light border fw-bold me-2" (click)="openEdit(p)">Editar</button>
+                <button class="btn btn-sm btn-light border text-danger fw-bold"
+                        [disabled]="!p.is_active" (click)="deactivate(p)">Ocultar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parámetros del catálogo -->
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body p-4">
+          <h6 class="fw-bold mb-3">Categorías</h6>
+          <ul class="list-unstyled small mb-3">
+            <li class="py-1 border-bottom text-muted" *ngFor="let c of categories">{{ c.name }}</li>
+            <li class="text-muted fst-italic" *ngIf="categories.length === 0">Sin categorías</li>
+          </ul>
+          <div class="input-group input-group-sm">
+            <input class="form-control" placeholder="Nueva categoría" [(ngModel)]="quick.category">
+            <button class="btn btn-outline-primary" (click)="addCategory()">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body p-4">
+          <h6 class="fw-bold mb-3">Curva de Tallas</h6>
+          <ul class="list-unstyled small mb-3">
+            <li class="py-1 border-bottom text-muted" *ngFor="let s of sizes">Talla {{ s.name }}</li>
+            <li class="text-muted fst-italic" *ngIf="sizes.length === 0">Sin tallas</li>
+          </ul>
+          <div class="input-group input-group-sm">
+            <input class="form-control" placeholder="S, M, L…" [(ngModel)]="quick.size">
+            <button class="btn btn-outline-primary" (click)="addSize()">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body p-4">
+          <h6 class="fw-bold mb-3">Paleta de Colores</h6>
+          <ul class="list-unstyled small mb-3">
+            <li class="py-1 border-bottom text-muted d-flex align-items-center gap-2" *ngFor="let c of colors">
+              <span [style.background]="c.hex_code" style="width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #ddd;"></span>
+              {{ c.name }}
+            </li>
+            <li class="text-muted fst-italic" *ngIf="colors.length === 0">Sin colores</li>
+          </ul>
+          <div class="input-group input-group-sm">
+            <input class="form-control" placeholder="Nombre" [(ngModel)]="quick.color">
+            <input type="color" class="form-control form-control-color" [(ngModel)]="quick.colorHex">
+            <button class="btn btn-outline-primary" (click)="addColor()">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body p-4">
+          <h6 class="fw-bold mb-3">Temporadas</h6>
+          <ul class="list-unstyled small mb-3">
+            <li class="py-1 border-bottom text-muted" *ngFor="let s of seasons">{{ s.name }}</li>
+            <li class="text-muted fst-italic" *ngIf="seasons.length === 0">Sin temporadas</li>
+          </ul>
+          <input class="form-control form-control-sm mb-1" placeholder="Nombre (Primavera 2026)" [(ngModel)]="quick.season">
+          <div class="d-flex gap-1 mb-1">
+            <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonStart">
+            <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonEnd">
+          </div>
+          <button class="btn btn-outline-primary btn-sm w-100" (click)="addSeason()">Agregar temporada</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel alta / edición de prenda -->
+<ng-container *ngIf="showForm">
+  <div class="slide-overlay" (click)="closeForm()"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar prenda' : 'Nueva prenda' }}</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Nombre</label>
+        <input class="form-control" [(ngModel)]="form.name">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Descripción</label>
+        <textarea class="form-control" rows="2" [(ngModel)]="form.description"></textarea>
+      </div>
+      <div class="row g-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold">Precio base (Bs.)</label>
+          <input type="number" min="0" step="0.01" class="form-control" [(ngModel)]="form.base_price">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold">Categoría</label>
+          <select class="form-select" [(ngModel)]="form.category_id">
+            <option [ngValue]="null" disabled>Selecciona…</option>
+            <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-bold">Temporada (opcional)</label>
+          <select class="form-select" [(ngModel)]="form.season_id">
+            <option [ngValue]="null">Toda estación</option>
+            <option *ngFor="let s of seasons" [ngValue]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-4" *ngIf="!editingId">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label small fw-bold mb-0">Variantes (color · talla · SKU)</label>
+          <button class="btn btn-sm btn-outline-primary" (click)="addVariantRow()">+ Variante</button>
+        </div>
+        <div class="d-flex gap-1 mb-2" *ngFor="let v of form.variants; let i = index">
+          <select class="form-select form-select-sm" [(ngModel)]="v.color_id">
+            <option [ngValue]="null" disabled>Color</option>
+            <option *ngFor="let c of colors" [ngValue]="c.id">{{ c.name }}</option>
+          </select>
+          <select class="form-select form-select-sm" [(ngModel)]="v.size_id">
+            <option [ngValue]="null" disabled>Talla</option>
+            <option *ngFor="let s of sizes" [ngValue]="s.id">{{ s.name }}</option>
+          </select>
+          <input class="form-control form-control-sm" placeholder="SKU" [(ngModel)]="v.sku">
+          <button class="btn btn-sm btn-light border" (click)="removeVariantRow(i)"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+
+      <div class="form-check form-switch mt-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="prodActive" [(ngModel)]="form.is_active">
+        <label class="form-check-label small fw-bold" for="prodActive">Visible en el catálogo</label>
+      </div>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
+      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+    </div>
+  </div>
+</ng-container>
