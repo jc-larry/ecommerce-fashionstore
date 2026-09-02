@@ -1,3 +1,3 @@
-# Paquete logistics
+# Paquete `envios_y_logistica` — App Móvil (Flutter)
 
-Reservado para implementaci�n de casos de uso de logistics.
+Caso de uso: **CU30** (rastrear estado del pedido/envío). Ciclo 3 🔜.

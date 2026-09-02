@@ -1,3 +1,3 @@
-﻿# Paquete Proveedores - Frontend Web
-# Casos de Uso: CU08 (Gestionar proveedores)
-# Estado: Ciclo 1 - Pendiente de vista Angular
+# Subcarpeta `suppliers` (paquete `inventario_y_proveedores`)
+
+Caso de uso: **CU08** (gestionar proveedores) — Ciclo 1.

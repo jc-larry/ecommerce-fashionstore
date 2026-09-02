@@ -188,12 +188,21 @@ def recover_credentials(data: UserRecover, request: Request, db: Session = Depen
 
     # Enviar el correo con el enlace de restablecimiento (válido 5 minutos).
     reset_link = f"{settings.FRONTEND_URL}/recover?token={token}"
-    send_password_recovery_email(user.email, reset_link)
+    sent = send_password_recovery_email(user.email, reset_link)
     print(f"[DEBUG] Enlace de recuperación para {user.email}: {reset_link}")
 
     log_event(db, user.id, "RECOVER", "users", user.id, {"email": user.email}, request.client.host)
     # [CU03 - Paso 6] / [DSC003 - Paso 6] +Mensaje de éxito
-    return {"message": "Si el correo está registrado, se enviará un enlace de recuperación."}
+    response = {"message": "Si el correo está registrado, se enviará un enlace de recuperación."}
+    # Ayuda de desarrollo: si SMTP no está configurado, devolvemos el enlace para poder
+    # probar el flujo completo sin correo real. En producción (SMTP activo) NUNCA se expone.
+    if not settings.smtp_enabled:
+        response["dev_reset_link"] = reset_link
+        response["message"] = (
+            "SMTP no configurado (modo desarrollo): usa el enlace de 'dev_reset_link' "
+            "o revísalo en la consola del servidor. Vence en 5 minutos."
+        )
+    return response
 
 @router.post("/auth/reset-password")
 def reset_password(data: PasswordReset, request: Request, db: Session = Depends(get_db)):

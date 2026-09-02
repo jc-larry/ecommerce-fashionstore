@@ -1,2 +1,1 @@
-# Logistics Package (Envíos y Logística) - [CU29, CU30]
-# Implementación programada para Ciclo 3.
+# Paquete Envíos y Logística - [CU29, CU30, CU31] - Ciclo 3

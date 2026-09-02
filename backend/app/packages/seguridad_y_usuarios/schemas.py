@@ -1,17 +1,33 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional, Any
 from datetime import datetime
+
+
+def _normalize_email(value: Optional[str]) -> Optional[str]:
+    """El correo es único e insensible a mayúsculas: se guarda y se busca en minúsculas.
+
+    Evita el caso clásico de "registré Juan@Correo.com y no puedo iniciar sesión con
+    juan@correo.com": el registro (web) y el inicio de sesión (móvil) deben coordinar.
+    """
+    if value is None:
+        return None
+    return value.strip().lower()
+
 
 # --- Autenticación ---
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+    _norm_email = field_validator("email", mode="before")(_normalize_email)
+
 class UserRegister(BaseModel):
     first_name: str = Field(..., min_length=2, max_length=100)
     last_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     phone: Optional[str] = None
+
+    _norm_email = field_validator("email", mode="before")(_normalize_email)
     password: str = Field(
         ..., 
         min_length=8,
@@ -38,6 +54,8 @@ class TokenResponse(BaseModel):
 class UserRecover(BaseModel):
     email: EmailStr
 
+    _norm_email = field_validator("email", mode="before")(_normalize_email)
+
 class PasswordReset(BaseModel):
     token: str
     new_password: str = Field(
@@ -53,11 +71,13 @@ class UserCreate(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     password: str = Field(
-        ..., 
+        ...,
         min_length=8,
         description="La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial."
     )
     role_names: List[str] = []
+
+    _norm_email = field_validator("email", mode="before")(_normalize_email)
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -66,6 +86,8 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     is_active: Optional[bool] = None
     role_names: Optional[List[str]] = None
+
+    _norm_email = field_validator("email", mode="before")(_normalize_email)
 
 class RoleResponse(BaseModel):
     id: int

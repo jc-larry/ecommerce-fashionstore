@@ -1,0 +1,77 @@
+<div class="container py-4">
+  <div class="mb-3">
+    <h2 class="mb-0"><i class="bi bi-clipboard-minus me-2"></i>Ajustes de Inventario</h2>
+    <small class="text-muted">CU38 · Registro de mermas, daños, pérdidas y ajustes por conteo</small>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+  <div *ngIf="success" class="alert alert-success">{{ success }}</div>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title text-uppercase text-muted">Nuevo ajuste</h6>
+
+          <label class="form-label mt-2">Sucursal</label>
+          <select class="form-select" [(ngModel)]="branchId">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+          </select>
+
+          <label class="form-label mt-3">Prenda / Variante</label>
+          <select class="form-select" [(ngModel)]="variantId">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let v of variants" [ngValue]="v.id">{{ v.label }}</option>
+          </select>
+
+          <label class="form-label mt-3">Motivo</label>
+          <select class="form-select" [(ngModel)]="reason">
+            <option *ngFor="let r of reasons" [ngValue]="r.value">{{ r.label }}</option>
+          </select>
+
+          <label class="form-label mt-3">Cantidad (negativa para salida, positiva para sobrante)</label>
+          <input type="number" class="form-control" [(ngModel)]="quantity" />
+
+          <label class="form-label mt-3">Nota (opcional)</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="note" maxlength="255"></textarea>
+
+          <button class="btn btn-primary mt-3 w-100" (click)="register()" [disabled]="saving">
+            {{ saving ? 'Registrando…' : 'Registrar ajuste' }}
+          </button>
+          <p class="small text-muted mt-2 mb-0">
+            El ajuste se valora al costo promedio ponderado vigente y queda en la bitácora (CU36).
+            Las salidas no modifican el costo promedio.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <h6 class="text-uppercase text-muted">Ajustes recientes</h6>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Ref.</th>
+              <th>Fecha</th>
+              <th class="text-end">Cantidad</th>
+              <th class="text-end">Costo unit.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of ledger">
+              <td><code>{{ m.reference_id }}</code></td>
+              <td>{{ m.created_at | date: 'short' }}</td>
+              <td class="text-end" [class.text-danger]="m.quantity < 0">{{ m.quantity }}</td>
+              <td class="text-end">Bs {{ m.unit_cost | number: '1.2-2' }}</td>
+            </tr>
+            <tr *ngIf="ledger.length === 0">
+              <td colspan="4" class="text-center text-muted py-3">Sin ajustes registrados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -17,6 +17,7 @@ class _RecoverViewState extends State<RecoverView> {
   final _emailController = TextEditingController();
   bool _loading = false;
   bool _sent = false;
+  String? _devResetLink; // solo en modo desarrollo (backend sin SMTP)
 
   void _onRequestLink() async {
     final email = _emailController.text.trim();
@@ -43,6 +44,7 @@ class _RecoverViewState extends State<RecoverView> {
       _loading = false;
       // Mensaje neutro por seguridad: no se revela si el correo existe.
       _sent = result['success'] == true;
+      _devResetLink = result['devResetLink'] as String?;
     });
 
     if (result['success'] != true) {
@@ -126,6 +128,29 @@ class _RecoverViewState extends State<RecoverView> {
                     ],
                   ),
                 ),
+                if (_devResetLink != null && _devResetLink!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFFB300)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Modo desarrollo (sin SMTP)',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                        const SizedBox(height: 4),
+                        SelectableText(_devResetLink!,
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF5D4037))),
+                        const Text('Ábrelo en el navegador para definir la nueva contraseña.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF8C7E7B))),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,

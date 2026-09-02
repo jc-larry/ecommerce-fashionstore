@@ -20,6 +20,7 @@ export class RecoverComponent implements OnInit {
    */
   step = 1;
   requested = false;   // ya se envió el correo (paso 1 completado)
+  devResetLink = '';   // solo en desarrollo (SMTP sin configurar): enlace directo
   private token = '';  // viene únicamente de la URL (?token=...)
 
   errorMessage = '';
@@ -65,9 +66,10 @@ export class RecoverComponent implements OnInit {
 
     this.loading = true;
     this.authService.recoverCredentials(this.email).subscribe({
-      next: () => {
+      next: (res: any) => {
         this.loading = false;
         this.requested = true;
+        this.devResetLink = res?.dev_reset_link || '';
       },
       error: (err: any) => {
         this.loading = false;

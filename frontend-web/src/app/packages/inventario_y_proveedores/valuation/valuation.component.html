@@ -1,0 +1,65 @@
+<div class="container py-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+      <h2 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Valoración de Inventario</h2>
+      <small class="text-muted">CU37 · Capital invertido calculado por costo promedio ponderado</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <select class="form-select" [(ngModel)]="branchId" (change)="load()">
+        <option [ngValue]="null">Todas las sucursales</option>
+        <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+      </select>
+      <button class="btn btn-outline-secondary" (click)="load()" [disabled]="loading">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+  <div *ngIf="loading" class="text-muted">Cargando…</div>
+
+  <ng-container *ngIf="data && !loading">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Capital invertido en mercadería</div>
+        <div class="display-6 fw-bold">Bs {{ data.capital_invertido | number: '1.2-2' }}</div>
+        <div class="small text-muted">
+          {{ data.branch_id ? 'Sucursal seleccionada' : 'Consolidado de todas las sucursales' }} ·
+          Σ (stock × costo promedio ponderado)
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Prenda / Variante</th>
+            <th>SKU</th>
+            <th class="text-end">Stock</th>
+            <th class="text-end">Costo promedio</th>
+            <th class="text-end">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let it of data.items">
+            <td>{{ it.product_name }}</td>
+            <td><code>{{ it.sku }}</code></td>
+            <td class="text-end">{{ it.stock_actual }}</td>
+            <td class="text-end">Bs {{ it.avg_cost | number: '1.2-2' }}</td>
+            <td class="text-end fw-semibold">Bs {{ it.valor | number: '1.2-2' }}</td>
+          </tr>
+          <tr *ngIf="data.items.length === 0">
+            <td colspan="5" class="text-center text-muted py-3">Sin existencias registradas.</td>
+          </tr>
+        </tbody>
+        <tfoot *ngIf="data.items.length">
+          <tr>
+            <th colspan="4" class="text-end">Total</th>
+            <th class="text-end">Bs {{ data.capital_invertido | number: '1.2-2' }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </ng-container>
+</div>

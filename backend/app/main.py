@@ -9,6 +9,9 @@ from app.packages.catalogo_y_tiendas import models as catalog_models
 from app.packages.catalogo_y_tiendas.branches import models as branches_models
 from app.packages.inventario_y_proveedores.suppliers import models as suppliers_models
 from app.packages.inventario_y_proveedores.merchandise import models as merchandise_models
+# Ventas y Pagos: solo modelos en el Ciclo 1 (tablas orders/order_items/payments/invoices;
+# jerarquías MedioDePago y Comprobante). Los routers llegan en el Ciclo 2 (CU17-CU24).
+from app.packages.ventas_y_pagos import models as sales_models
 
 # Importar routers de cada paquete
 from app.packages.seguridad_y_usuarios.routers import router as security_router
@@ -19,11 +22,34 @@ from app.packages.inventario_y_proveedores.merchandise.routers import router as 
 
 # Crear tablas automáticamente al arrancar.
 # Si la conexión a PostgreSQL falla, mostramos una guía clara y detenemos el arranque.
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from app.db.session import engine, Base
 
+# Migraciones ligeras idempotentes (mientras no se adopte Alembic): añadir columnas nuevas
+# a tablas que ya existían. `create_all` solo crea tablas faltantes, no columnas.
+_COLUMN_UPGRADES = [
+    "ALTER TABLE inventory ADD COLUMN IF NOT EXISTS avg_cost NUMERIC(10, 2) NOT NULL DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS channel VARCHAR(10) NOT NULL DEFAULT 'ONLINE'",
+]
+
+# Normalización de datos: el correo es único e insensible a mayúsculas. Se pasan a
+# minúsculas las cuentas creadas antes de esta regla, salvo que colisionen con otra.
+_DATA_FIXES = [
+    """
+    UPDATE users u SET email = lower(u.email)
+    WHERE u.email <> lower(u.email)
+      AND NOT EXISTS (SELECT 1 FROM users o WHERE o.id <> u.id AND lower(o.email) = lower(u.email))
+    """,
+]
+
 try:
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        for stmt in _COLUMN_UPGRADES:
+            conn.execute(text(stmt))
+        for stmt in _DATA_FIXES:
+            conn.execute(text(stmt))
     print("[DB] Tablas creadas/verificadas correctamente en PostgreSQL.")
 except OperationalError as exc:  # pragma: no cover - depende del entorno
     raise RuntimeError(
@@ -56,15 +82,15 @@ app.add_middleware(
 # ===================================================================
 # REGISTRO DE ROUTERS POR PAQUETE UML
 # ===================================================================
-# PKG Seguridad y Usuarios   → CU01, CU02, CU03, CU04, CU05, CU36
+# PKG Seguridad y Usuarios      → CU01, CU02, CU03, CU04, CU05, CU36
 app.include_router(security_router)
-# PKG Catálogo y Tiendas     → CU07
+# PKG Catálogo y Tiendas        → CU07, CU11  (consulta pública del catálogo)
 app.include_router(catalog_router)
-# PKG Sucursales              → CU06, CU09
+# PKG Catálogo y Tiendas        → CU06 (sucursales), CU09 (empleados de sucursal)
 app.include_router(branches_router)
-# PKG Proveedores             → CU08
+# PKG Inventario y Proveedores  → CU08 (proveedores)
 app.include_router(suppliers_router)
-# PKG Inventario y Mercadería → CU10
+# PKG Inventario y Proveedores  → CU10 (ingresos), CU37 (valoración), CU38 (ajustes)
 app.include_router(merchandise_router)
 
 

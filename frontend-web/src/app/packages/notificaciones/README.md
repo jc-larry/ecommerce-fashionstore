@@ -1,3 +1,3 @@
-﻿# Paquete Notificaciones - Frontend Web
-# Casos de Uso: CU25
-# Estado: Ciclo 2
+# Paquete `notificaciones` — Frontend Web (Angular)
+
+Caso de uso: **CU40** (notificar estado en tiempo real y enviar comprobantes/confirmaciones por correo) — Ciclo 3.

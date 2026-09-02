@@ -21,7 +21,7 @@ Para garantizar la consistencia, evitar redundancias y prevenir anomalías de in
 
 A continuación se definen las tablas agrupadas por sus respectivos paquetes del sistema.
 
-### 2.1 Paquete de Seguridad y Usuarios (Security & Access Control)
+### 2.1 Paquete de Seguridad y Usuarios (Security & Access Control) — *(Ciclo 1)*
 
 #### Tabla: `roles`
 Almacena los perfiles de usuario autorizados.
@@ -94,7 +94,7 @@ CREATE TABLE audit_logs (
 
 ---
 
-### 2.2 Paquete de Catálogo y Tiendas (Catalog & Branch Management)
+### 2.2 Paquete de Catálogo y Tiendas (Catalog & Branch Management) — *(Ciclo 1)*
 
 #### Tabla: `branches`
 Sucursales físicas de la cadena.
@@ -213,7 +213,7 @@ CREATE TABLE product_images (
 
 ---
 
-### 2.3 Paquete de Inventario y Proveedores (Inventory & Supply Management)
+### 2.3 Paquete de Inventario y Proveedores (Inventory & Supply Management) — *(Ciclo 1)*
 
 #### Tabla: `suppliers`
 Proveedores de indumentaria.
@@ -228,13 +228,15 @@ CREATE TABLE suppliers (
 );
 ```
 
-#### Tabla: `inventory`
-Stock físico real y límites mínimos/máximos estructurados por Sucursal y Variante de Producto.
+#### Tabla: `inventory`  *(Ciclo 1)*
+Stock físico real, **costo promedio ponderado vigente** y límites mínimos/máximos estructurados
+por Sucursal y Variante de Producto.
 ```sql
 CREATE TABLE inventory (
     branch_id INTEGER NOT NULL,
     variant_id INTEGER NOT NULL,
     stock_actual INTEGER DEFAULT 0 NOT NULL,
+    avg_cost DECIMAL(10, 2) DEFAULT 0 NOT NULL, -- Costo promedio ponderado vigente (CU10 / CU37)
     stock_minimo INTEGER DEFAULT 5 NOT NULL,
     stock_maximo INTEGER DEFAULT 100 NOT NULL,
     PRIMARY KEY (branch_id, variant_id),
@@ -242,6 +244,15 @@ CREATE TABLE inventory (
     FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE
 );
 ```
+
+> **Costo promedio ponderado (CU10, CU37, CU38).** Cada **ingreso** (CU10) recalcula:
+> `avg_cost = (stock_previo · avg_previo + cantidad · costo_unitario_lote) / (stock_previo + cantidad)`.
+> Las **salidas** (venta, reserva, ajuste) **no** modifican `avg_cost`; se valoran al `avg_cost`
+> vigente y así se registra su `unit_cost` en `inventory_ledger`.
+> **CU37** — capital invertido = `Σ (inventory.stock_actual · inventory.avg_cost)` (global o por
+> sucursal). Nunca se usa el último costo unitario.
+> **CU38** — un ajuste (merma/daño/pérdida/conteo) escribe un movimiento `AJUSTE` en
+> `inventory_ledger` con `unit_cost = avg_cost` vigente y `reference_id = 'AJU-<id>'`.
 
 #### Tabla: `inventory_ledger` (Libro Mayor de Inventario)
 Historial y movimientos físicos valorados por Promedio Ponderado.
@@ -292,15 +303,20 @@ CREATE TABLE purchase_details (
 
 ### 2.4 Paquete de Ventas y Pagos (Sales & POS/Payment Management)
 
-#### Tabla: `orders`
+> **Estado:** las tablas `payments` e `invoices` se crean ya en el **Ciclo 1** como modelos
+> SQLAlchemy (respaldo del diagrama de clases del análisis: jerarquías `MedioDePago` y
+> `Comprobante`), **sin routers** todavía. `orders` / `order_items` y el resto se activan en el
+> **Ciclo 2**.
+
+#### Tabla: `orders`  *(modelo, Ciclo 2)*
 Cabecera de pedidos web/móvil y caja POS.
 ```sql
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL, -- Cliente o Anónimo en POS
     branch_id INTEGER NOT NULL, -- Sucursal donde se procesa
+    channel VARCHAR(10) DEFAULT 'ONLINE' NOT NULL, -- 'ONLINE', 'POS' (tienda física)
     status VARCHAR(20) DEFAULT 'PENDIENTE' NOT NULL, -- 'PENDIENTE', 'PAGADO', 'COMPLETADO', 'CANCELADO'
-    payment_method VARCHAR(20) NOT NULL, -- 'STRIPE', 'EFECTIVO', 'TARJETA_POS'
     total_amount DECIMAL(10, 2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
@@ -308,7 +324,7 @@ CREATE TABLE orders (
 );
 ```
 
-#### Tabla: `order_items`
+#### Tabla: `order_items`  *(modelo, Ciclo 2)*
 Detalle de las prendas vendidas.
 ```sql
 CREATE TABLE order_items (
@@ -322,9 +338,58 @@ CREATE TABLE order_items (
 );
 ```
 
+#### Tabla: `payments`  *(modelo, Ciclo 1)* — herencia de tabla única (STI)
+Medios de pago modelados por **generalización**: `MedioDePago` ⭅ `Efectivo` / `Tarjeta` / `QR` /
+`Crédito`. El discriminador es `payment_type`; las columnas específicas de cada subtipo son
+anulables (solo se llenan según el tipo).
+```sql
+CREATE TABLE payments (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    payment_type VARCHAR(20) NOT NULL, -- 'EFECTIVO', 'TARJETA', 'QR', 'CREDITO' (discriminador)
+    amount DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'CONFIRMADO' NOT NULL, -- 'PENDIENTE', 'CONFIRMADO', 'RECHAZADO'
+    paid_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    -- Efectivo:
+    cash_received DECIMAL(10, 2),      -- monto entregado por el cliente
+    cash_change DECIMAL(10, 2),        -- vuelto
+    -- Tarjeta:
+    card_brand VARCHAR(20),
+    card_last4 VARCHAR(4),
+    gateway_reference VARCHAR(80),     -- token no reutilizable (Stripe)
+    -- QR:
+    qr_reference VARCHAR(80),
+    -- Crédito:
+    credit_due_date DATE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+```
+
+#### Tabla: `invoices`  *(modelo, Ciclo 1)* — herencia `Comprobante` ⭅ `Factura` / `NotaDeEntrega`
+```sql
+CREATE TABLE invoices (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL UNIQUE,
+    doc_type VARCHAR(15) NOT NULL, -- 'FACTURA', 'NOTA_ENTREGA'
+    tax_rate DECIMAL(4, 3) DEFAULT 0.130 NOT NULL, -- IVA 13 %
+    subtotal DECIMAL(10, 2) NOT NULL,
+    tax_amount DECIMAL(10, 2) NOT NULL,
+    total DECIMAL(10, 2) NOT NULL,
+    control_code VARCHAR(40),          -- código de control (solo FACTURA)
+    customer_nit VARCHAR(20),
+    customer_name VARCHAR(150),
+    issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT
+);
+```
+
+> Otras tablas del paquete (Ciclo 2, aún no modeladas): `cash_sessions` (arqueo de caja, CU23),
+> `credit_notes` (devoluciones y cambios, CU22), `quotes` (cotización, CU21),
+> `coupons` (CU13, en `catalogo_y_tiendas`).
+
 ---
 
-### 2.5 Paquete de Reservas (Reservations & Appointments)
+### 2.5 Paquete de Reservas (Reservations & Appointments) — *(modelo, Ciclo 3)*
 
 #### Tabla: `reservations`
 Reservas físicas programadas en tienda para pruebas.

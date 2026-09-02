@@ -1,3 +1,3 @@
-# Paquete reservations
+# Paquete `reservas_y_citas` — App Móvil (Flutter)
 
-Reservado para implementaci�n de casos de uso de reservations.
+Casos de uso: **CU26** (agendar reserva), **CU28** (cancelar reserva). Ciclo 3 🔜.

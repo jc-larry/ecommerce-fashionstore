@@ -39,7 +39,27 @@ Este archivo contiene las directrices de codificación, comandos frecuentes y la
   `AuthInterceptor`; las rutas `/admin/*` están protegidas por `AuthGuard`.
 - **Backend:** PostgreSQL (SQLAlchemy). CORS restringido a los orígenes de
   `BACKEND_CORS_ORIGINS`. Bcrypt fijado a `4.0.1` por compatibilidad con passlib.
-- **Casos de uso cubiertos:** CU01–CU10 y CU36 (ver `Ciclo1.md`).
+  `main.py` corre "migraciones ligeras" idempotentes (`ALTER TABLE ... ADD COLUMN IF NOT
+  EXISTS` + normalización de `users.email` a minúsculas) tras `create_all`, mientras no se
+  adopte Alembic.
+- **Auth:** el **correo es único e insensible a mayúsculas** (los schemas de
+  `seguridad_y_usuarios` lo normalizan a minúsculas en login/registro/recuperación/CU05), para
+  que registrarse en la web e iniciar sesión en el móvil coordinen. La app móvil resuelve la
+  URL del backend con `--dart-define=API_BASE_URL=` (producción) o `API_HOST`/`API_PORT` (dev);
+  ver `mobile/README.md`. `/auth/recover` devuelve `dev_reset_link` solo si SMTP no está
+  configurado.
+- **Numeración de casos de uso:** lista maestra de **40 CU** en `Contexto.md`
+  (`Listado_General_Casos_Uso.md` quedó obsoleto; equivalencias en `Ciclo1.md` §6.3).
+- **Documentación del Ciclo 1: un solo archivo, `Ciclo1.md`** — reúne captura de requisitos
+  (actores, priorización, 14 fichas de CU, prototipos, modelo de CU con include/extend/herencia),
+  análisis (arquitectura, diagramas de comunicación, análisis de clases, acoplamiento/cohesión),
+  diseño (4 capas + despliegue, diagramas de secuencia/navegación/estado/tiempo, diseño de datos),
+  implementación (rutas, estructura por paquete) y pruebas + trazabilidad CU↔código.
+  Los antiguos archivos `*_ciclo1.md` sueltos fueron eliminados tras consolidarse aquí.
+- **Casos de uso cubiertos (Ciclo 1):** CU01–CU11, CU36, **CU37** (valoración de inventario /
+  capital invertido por costo promedio ponderado) y **CU38** (ajustes de inventario / mermas).
+- **`ventas_y_pagos`:** en el Ciclo 1 solo modelos (`orders`, `order_items`, `payments` con
+  herencia de tabla única Efectivo/Tarjeta/QR/Crédito, `invoices` con IVA 13 %); sin routers.
 
 ---
 

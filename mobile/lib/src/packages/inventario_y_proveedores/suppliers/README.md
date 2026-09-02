@@ -1,3 +1,3 @@
-# Paquete suppliers
+# Subcarpeta `suppliers` — Móvil
 
-Reservado para implementaci�n de casos de uso de suppliers.
+CU08 es administrativo (solo web). Sin uso en el móvil.

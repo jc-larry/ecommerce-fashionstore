@@ -6,20 +6,33 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// [CU01-CU04] Servicio de autenticación para la app móvil.
 /// Consume la API REST de FastAPI del paquete `seguridad_y_usuarios`.
 class AuthService {
-  /// Host del backend según dónde se ejecute la app. Se puede sobrescribir al
-  /// arrancar con:  flutter run --dart-define=API_HOST=<ip>
-  ///  - Dispositivo físico (mismo Wi-Fi que la PC) → IP LAN de la PC
-  ///  - Emulador Android  → 10.0.2.2
-  ///  - Emulador iOS / Flutter web → 127.0.0.1
-  /// El valor por defecto es la IP Wi-Fi de la PC de desarrollo (dispositivo físico).
-  static const String _host = String.fromEnvironment(
-    'API_HOST',
-    defaultValue: '192.168.0.12',
-  );
+  // === Configuración del backend ===================================================
+  // Prioridad: 1) API_BASE_URL (URL completa)  2) API_HOST + API_PORT.
+  //
+  // DESPLIEGUE (producción): pasar la URL pública completa, p. ej.
+  //   flutter run  --dart-define=API_BASE_URL=https://fashionstore-api.tudominio.com/api/v1
+  //   flutter build apk --dart-define=API_BASE_URL=https://fashionstore-api.tudominio.com/api/v1
+  //
+  // DESARROLLO (elige según dónde corre la app):
+  //   - Dispositivo físico en el mismo Wi-Fi → la IP LAN de la PC:
+  //       --dart-define=API_HOST=192.168.x.x
+  //   - Emulador Android → --dart-define=API_HOST=10.0.2.2
+  //   - Emulador iOS / Flutter web/desktop → --dart-define=API_HOST=127.0.0.1
+  //
+  // El backend debe correr con host 0.0.0.0 para que un teléfono lo alcance:
+  //   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  static const String _baseUrlOverride =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String _host =
+      String.fromEnvironment('API_HOST', defaultValue: '192.168.0.12');
+  static const String _port =
+      String.fromEnvironment('API_PORT', defaultValue: '8000');
 
   /// Base pública de la API (la usan también otras vistas, p. ej. el catálogo).
-  static const String apiBaseUrl = 'http://$_host:8000/api/v1';
-  static const String _baseUrl = '$apiBaseUrl/auth';
+  static final String apiBaseUrl = _baseUrlOverride.isNotEmpty
+      ? _baseUrlOverride
+      : 'http://$_host:$_port/api/v1';
+  static final String _baseUrl = '$apiBaseUrl/auth';
   static const Duration _timeout = Duration(seconds: 15);
 
   static Map<String, dynamic> _fail(String message) => {'success': false, 'message': message};
@@ -36,8 +49,9 @@ class AuthService {
   static Map<String, dynamic> _networkError(Object e) {
     if (e is SocketException || e is HttpException) {
       return _fail(
-        'No se pudo conectar con el servidor. Verifica que el backend esté corriendo '
-        'y que la dirección del servidor sea la correcta para tu dispositivo.',
+        'No se pudo conectar con el servidor ($apiBaseUrl). Verifica que el backend '
+        'esté corriendo y que la dirección sea la correcta para tu dispositivo '
+        '(--dart-define=API_HOST o API_BASE_URL).',
       );
     }
     return _fail('El servidor no respondió a tiempo. Inténtalo de nuevo.');
@@ -98,7 +112,12 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'message': data['message']};
+        return {
+          'success': true,
+          'message': data['message'],
+          // Solo presente si el backend corre sin SMTP (modo desarrollo).
+          'devResetLink': data['dev_reset_link'],
+        };
       }
       return _parseError(response, 'No se pudo enviar el enlace de recuperación');
     } catch (e) {
@@ -132,7 +151,7 @@ class AuthService {
           )
           .timeout(_timeout);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return {'success': true, 'data': data};
       }

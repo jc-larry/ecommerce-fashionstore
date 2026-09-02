@@ -13,6 +13,8 @@ class Inventory(Base):
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id", ondelete="RESTRICT"), primary_key=True)
     variant_id: Mapped[int] = mapped_column(ForeignKey("product_variants.id", ondelete="CASCADE"), primary_key=True)
     stock_actual: Mapped[int] = mapped_column(default=0, nullable=False)
+    # Costo promedio ponderado vigente por sucursal+variante (CU10 lo recalcula, CU37 lo consulta)
+    avg_cost: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     stock_minimo: Mapped[int] = mapped_column(default=5, nullable=False)
     stock_maximo: Mapped[int] = mapped_column(default=100, nullable=False)
 

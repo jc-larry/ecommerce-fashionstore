@@ -181,11 +181,16 @@ Permite previsualizar una o varias prendas del catálogo sobre la imagen de la p
 * Acceso directo desde la ficha de producto del catálogo.
 * Registro de las prendas probadas virtualmente durante la sesión.
 
-#### 1.4.4 Módulo de Carrito de Compras y Pasarela de Pago
-Reúne las prendas seleccionadas para compra directa y gestiona su cobro mediante una pasarela de pago operada desde el dispositivo móvil de la persona usuaria.
-* Adición, eliminación y modificación de cantidades de prendas en el carrito.
+#### 1.4.4 Módulo de Carrito de Compras, Medios de Pago y Facturación
+Reúne las prendas seleccionadas para compra directa y gestiona su cobro. La tienda opera de
+forma **presencial (formal, con patente municipal e impuestos) y en línea** al mismo tiempo,
+por lo que el cobro es **agnóstico al canal**: cualquier transacción confirmada —electrónica o
+en caja— se registra de manera unificada.
+* Adición, eliminación y modificación de cantidades de prendas en el carrito; bloqueo automático de ítems con existencia cero.
 * Cálculo automático del subtotal y el total de la compra.
-* Confirmación del pago mediante una pasarela integrada al canal móvil.
+* **Medios de pago modelados por herencia (generalización):** `MedioDePago` ⭅ Efectivo, Tarjeta, QR y Crédito. El QR es el medio más usado en el contexto boliviano y solo opera de forma local.
+* Pasarela electrónica (Stripe / QR) para la compra remota y Punto de Venta (POS) para el pago presencial en caja.
+* **Comprobante fiscal:** emisión de **Factura** (con IVA 13 % y código de control) o **Nota de Entrega**, modeladas como `Comprobante` ⭅ Factura / NotaDeEntrega.
 * Actualización del estado del pedido tras la confirmación del pago.
 
 #### 1.4.5 Módulo de Reservas para Prueba en Tienda Física
@@ -198,8 +203,9 @@ Habilita a la persona usuaria a seleccionar con anticipación un conjunto de pre
 #### 1.4.6 Módulo de Gestión de Inventario y Proveedores
 Mantiene actualizado el registro de existencias por prenda, talla, color y sucursal, alimentándose de las compras registradas a los proveedores y de los movimientos de venta y reserva.
 * Registro de proveedores de ropa (NIT, contacto) y su vinculación con las variantes que abastecen.
-* Registro de ingresos de mercadería (órdenes de compra) que incrementan el stock de la sucursal destino.
-* Valoración del inventario por el método de promedio ponderado.
+* Registro de ingresos de mercadería (órdenes de compra) que incrementan el stock de la sucursal destino, indicando el **costo unitario del lote**.
+* **Valoración del inventario por costo promedio ponderado (Ciclo 1):** el sistema calcula el **capital invertido** en mercadería usando el **prorrateo** de las compras (no el último costo unitario). Ejemplo: dos unidades compradas a 10 y a 14 valen 24, no 28 (costo promedio 12).
+* **Ajustes de inventario (Ciclo 1):** registro de mermas, daños y pérdidas que reducen las existencias dejando un movimiento auditable en el libro mayor.
 * Registro y actualización de existencias por variante de producto y por sucursal.
 * Alerta de stock mínimo/agotado.
 * Descuento automático de inventario ante una venta directa o una reserva confirmada, y liberación automática del stock bloqueado al cancelarse una reserva.
@@ -219,8 +225,13 @@ Gestiona el traslado de las prendas adquiridas mediante compra directa hacia el 
 * Consulta del estado de envío por parte de la persona clienta.
 * Vinculación del envío con el pedido y el pago confirmado.
 
-#### 1.4.9 Módulo Diferenciador: Inteligencia Artificial
+#### 1.4.9 Módulo Diferenciador: Inteligencia Artificial y Analítica
 * Motor de recomendación de prendas o tallas impulsada con IA a partir del historial de reservas y compras de la persona usuaria.
+* **Búsqueda y reportes por comando de voz (NLP):** el usuario formula una consulta hablada
+  (p. ej. *"quiero las camisas que llegaron en septiembre, talla M, color blanco"*) y el
+  sistema la traduce a una consulta estructurada ejecutable contra la base de datos.
+* **Dashboard y reportes gerenciales:** gráficos de ventas e inventario, kardex, productos más
+  vendidos, ingresos por sucursal y rendimiento de cajeros, exportables a PDF/CSV.
 
 ---
 
@@ -502,100 +513,130 @@ Se distinguen tres grupos de actores, conforme al modelado UML: los **actores hu
 10. **Servicio de correo electrónico (SMTP):** sistema externo que entrega los correos de la plataforma: enlace de recuperación de contraseña (5 min), confirmación de reservas y comprobante de pago digital.
 11. **Reloj del sistema / Temporizador (actor "Tiempo"):** actor no humano que dispara los casos de uso ejecutados por vencimiento de un plazo, sin que nadie los solicite: expiración del token de recuperación (5 min) y del JWT (60 min), cierre de sesión por inactividad (15 min), liberación automática del stock bloqueado al vencer una reserva y actualización automática del inventario (triggers del sistema).
 
-##### Lista de casos de uso
+##### Lista maestra de casos de uso (40 CU)
+
+La plataforma opera **tienda física formal + tienda online** de forma simultánea; por eso el
+backlog cubre tanto la venta presencial en caja (POS, arqueo, factura/nota de entrega con
+IVA 13 % y código de control) como la venta digital (carrito, pasarela, envío). Los reportes y
+CRUD granulares se agrupan en un solo caso de uso cuando comparten actor y flujo.
+
+**Paquete 1 — `seguridad_y_usuarios`**
 * **CU01:** Iniciar sesión en la plataforma (cliente, administrador, encargado, cajero)
 * **CU02:** Cerrar sesión activa
-* **CU03:** Recuperar credenciales de acceso
+* **CU03:** Recuperar credenciales de acceso (enlace temporal por correo, 5 min)
 * **CU04:** Auto-registro de cliente en la plataforma
-* **CU05:** Gestionar perfiles y roles de usuario (administrador)
-* **CU06:** Gestionar sucursales de la cadena (alta, edición, desactivación)
-* **CU07:** Gestionar catálogo de prendas (categorías, tallas, colores, temporadas)
-* **CU08:** Gestionar proveedores de mercadería
-* **CU09:** Gestionar empleados de sucursal (cajeros y encargados)
-* **CU10:** Registrar compras e ingresos de mercadería de proveedores
-* **CU11:** Consultar catálogo de prendas
-* **CU12:** Buscar y filtrar el catálogo por criterios múltiples (precio, talla, color)
-* **CU13:** Consultar disponibilidad física de una prenda por sucursal
-* **CU14:** Gestionar inventario general y transferencias entre tiendas
-* **CU15:** Configurar alertas automáticas de stock (mínimo/máximo)
-* **CU16:** Agregar y gestionar prendas en el carrito de compra digital
-* **CU17:** Procesar pago digital vía pasarela (Stripe)
-* **CU18:** Procesar venta presencial (directa) en caja
-* **CU19:** Convertir una reserva en venta presencial confirmada
-* **CU20:** Generar comprobante o factura de venta
-* **CU21:** Actualizar automáticamente el inventario (Trigger del Sistema)
-* **CU22:** Realizar prueba de prenda en Vestidor Virtual (Realidad Aumentada)
-* **CU23:** Guardar capturas o previsualizaciones del Vestidor Virtual en el móvil
-* **CU24:** Agendar reserva de prendas para prueba física
-* **CU25:** Gestionar bandeja de reservas entrantes
-* **CU26:** Marcar reserva como "Preparada" al separar prendas físicamente
-* **CU27:** Cancelar reserva de prendas (cliente o encargado)
-* **CU28:** Notificar en tiempo real el estado de una reserva o pedido
-* **CU29:** Gestionar envíos a domicilio (Delivery) y logística
-* **CU30:** Consultar estado de un pedido o envío a domicilio
-* **CU31:** Solicitar recomendaciones de prendas personalizadas (IA)
-* **CU32:** Interactuar con Chatbot asistente (FAQ y ayuda)
-* **CU33:** Buscar prendas en el catálogo mediante comandos de voz (NLP)
-* **CU34:** Generar reportes gerenciales mediante comandos de voz (IA)
-* **CU35:** Consultar Dashboard de ventas e inventario global
+* **CU05:** Gestionar perfiles, roles y clientes (CRUD de personal interno y de clientes)
 * **CU36:** Consultar bitácora de auditoría del sistema
 
-> **Numeración canónica.** Esta lista de **36 casos de uso** es la **única numeración
-> oficial** del proyecto. Todos los demás documentos (`PaquetesUML.md`,
-> `casos_de_uso_ciclo1.md`, `Ciclo1.md`, `BaseDeDatos.md`) usan estos mismos números.
-> Si en versiones anteriores de algún diagrama aparecían otros números para las mismas
-> funcionalidades (p. ej. "consultar disponibilidad" o "buscar/filtrar" como CU08/CU09),
-> esas versiones quedan **obsoletas** y ya fueron realineadas.
+**Paquete 2 — `catalogo_y_tiendas`**
+* **CU06:** Gestionar sucursales de la cadena (alta, edición, desactivación)
+* **CU07:** Gestionar catálogo de prendas (categorías, tallas, colores multivaluados, temporadas, variantes + SKU)
+* **CU09:** Gestionar empleados de sucursal (cajeros y encargados)
+* **CU11:** Consultar catálogo de prendas (listado + búsqueda por texto + filtro por categoría)
+* **CU12:** Buscar y filtrar el catálogo por criterios múltiples (precio, talla, color) y consultar disponibilidad física por sucursal
+* **CU13:** Gestionar promociones: cupones de descuento y ofertas de temporada
+* **CU14:** Gestionar lista de deseos (wishlist) y reseñas de prendas del cliente
+
+**Paquete 3 — `inventario_y_proveedores`**
+* **CU08:** Gestionar proveedores de mercadería
+* **CU10:** Registrar compras e ingresos de mercadería de proveedores (costo unitario del lote)
+* **CU37:** Consultar valoración de inventario / capital invertido (costo **promedio ponderado**)
+* **CU38:** Gestionar ajustes de inventario (mermas, daños, pérdidas)
+* **CU15:** Gestionar inventario general y transferencias entre sucursales (+ actualización automática por trigger)
+* **CU16:** Configurar y notificar alertas de stock (mínimo/máximo)
+
+**Paquete 4 — `ventas_y_pagos`**
+* **CU17:** Gestionar carrito de compra digital (bloqueo automático si existencia = 0)
+* **CU18:** Procesar venta / checkout con herencia de medios de pago (Efectivo, Tarjeta, QR, Crédito)
+* **CU19:** Procesar venta presencial (directa) en caja (POS)
+* **CU20:** Emitir comprobante: factura y nota de entrega (IVA 13 %, código de control)
+* **CU21:** Generar cotización
+* **CU22:** Gestionar devoluciones y cambios de prendas
+* **CU23:** Gestionar arqueo de caja (apertura y cierre diario del cajero)
+* **CU24:** Consultar historial de compras (cliente)
+* **CU25:** Convertir una reserva en venta confirmada
+
+**Paquete 5 — `reservas_y_citas`**
+* **CU26:** Agendar reserva de prendas para prueba física
+* **CU27:** Gestionar bandeja de reservas entrantes (preparar / atender)
+* **CU28:** Cancelar reserva de prendas (libera el stock bloqueado)
+
+**Paquete 6 — `envios_y_logistica`**
+* **CU29:** Gestionar envíos a domicilio (Delivery), despacho y método de envío / recojo en sucursal
+* **CU30:** Consultar y rastrear el estado de un pedido o envío
+* **CU31:** Gestionar zonas de cobertura y tarifas de envío (anillos / km)
+
+**Paquete 7 — `inteligente_y_analitica`**
+* **CU32:** Realizar prueba de prenda en Vestidor Virtual (Realidad Aumentada) y guardar capturas
+* **CU33:** Solicitar recomendaciones de prendas o tallas personalizadas (IA) + chatbot asistente (opcional)
+* **CU34:** Buscar prendas en el catálogo mediante comandos de voz (NLP)
+* **CU35:** Generar reportes gerenciales (kardex, más vendidos, ingresos por sucursal, rendimiento de cajeros; export PDF/CSV; por comando de voz)
+* **CU39:** Consultar Dashboard de ventas e inventario global
+
+**Paquete 8 — `notificaciones`**
+* **CU40:** Notificar en tiempo real el estado de una reserva o pedido (push) y enviar comprobantes / confirmaciones por correo
+
+> **Numeración canónica.** Esta lista de **40 casos de uso** es la **única numeración
+> oficial** del proyecto. Todos los demás documentos (`PaquetesUML.md`, `Ciclo1.md`,
+> `BaseDeDatos.md`) usan estos mismos números. El archivo `Listado_General_Casos_Uso.md`
+> queda **obsoleto**; su contenido se absorbió aquí y el mapa de equivalencias está en
+> `Ciclo1.md` §6.3.
 >
-> **Diferimiento de CU11–CU13 (consulta de catálogo del cliente).** En el **Ciclo 1** se
-> implementa **CU11** en su forma básica: el cliente (y el visitante anónimo) ve el
-> listado de prendas visibles con búsqueda por texto y filtro por categoría, en web y
-> móvil. El **filtrado avanzado por precio/talla/color (CU12)** y la **consulta de
-> disponibilidad por sucursal (CU13)** requieren stock cargado por sucursal y una
-> interfaz de filtros más rica, por lo que se difieren al **Ciclo 2**.
+> **Alcance por ciclo.** **Ciclo 1:** CU01–CU11, CU36, CU37, CU38 (14 CU).
+> **Ciclo 2:** CU12–CU24. **Ciclo 3:** CU25–CU35, CU39, CU40.
+>
+> **Diferimiento de la consulta de catálogo del cliente.** En el **Ciclo 1** se implementa
+> **CU11** en su forma básica: el cliente (y el visitante anónimo) ve el listado de prendas
+> visibles con búsqueda por texto y filtro por categoría, en web y móvil. El **filtrado
+> avanzado por precio/talla/color y la disponibilidad por sucursal (CU12)** requieren stock
+> cargado por sucursal y una interfaz de filtros más rica, por lo que se difieren al **Ciclo 2**.
 
 ---
 
 #### Priorizar casos de uso
 
-| ID | Caso de uso | Móvil | Web | Prioridad | Ciclo |
-| :--- | :--- | :---: | :---: | :--- | :--- |
-| **CU01** | Iniciar sesión en la plataforma (cliente, administrador, encargado, cajero) | X | X | Alta | Ciclo 1 |
-| **CU02** | Cerrar sesión activa | X | X | Alta | Ciclo 1 |
-| **CU03** | Recuperar credenciales de acceso | X | X | Media | Ciclo 1 |
-| **CU04** | Auto-registro de cliente en la plataforma | X | X | Alta | Ciclo 1 |
-| **CU05** | Gestionar perfiles y roles de usuario (administrador) | | X | Alta | Ciclo 1 |
-| **CU06** | Gestionar sucursales de la cadena (alta, edición, desactivación) | | X | Alta | Ciclo 1 |
-| **CU07** | Gestionar catálogo de prendas (categorías, tallas, colores, temporadas) | | X | Alta | Ciclo 1 |
-| **CU08** | Gestionar proveedores de mercadería | | X | Media | Ciclo 1 |
-| **CU09** | Gestionar empleados de sucursal (cajeros y encargados) | | X | Media | Ciclo 1 |
-| **CU10** | Registrar compras e ingresos de mercadería de proveedores | | X | Media | Ciclo 1 |
-| **CU11** | Consultar catálogo de prendas (listado + búsqueda por texto y filtro por categoría) | X | X | Alta | Ciclo 1 |
-| **CU12** | Buscar y filtrar el catálogo por criterios múltiples (precio, talla, color) | X | X | Media | Ciclo 2 |
-| **CU13** | Consultar disponibilidad física de una prenda por sucursal | X | X | Alta | Ciclo 2 |
-| **CU14** | Gestionar inventario general y transferencias entre tiendas | | X | Alta | Ciclo 2 |
-| **CU15** | Configurar alertas automáticas de stock (mínimo/máximo) | | X | Media | Ciclo 2 |
-| **CU16** | Agregar y gestionar prendas en el carrito de compra digital | X | X | Alta | Ciclo 2 |
-| **CU17** | Procesar pago digital vía pasarela (Stripe) | X | X | Alta | Ciclo 2 |
-| **CU18** | Procesar venta presencial (directa) en caja | | X | Alta | Ciclo 2 |
-| **CU19** | Convertir una reserva en venta presencial confirmada | | X | Alta | Ciclo 2 |
-| **CU20** | Generar comprobante o factura de venta | | X | Alta | Ciclo 2 |
-| **CU21** | Actualizar automáticamente el inventario (Trigger del Sistema) | | X | Alta | Ciclo 2 |
-| **CU22** | Realizar prueba de prenda en Vestidor Virtual (Realidad Aumentada) | X | | Alta | Ciclo 3 |
-| **CU23** | Guardar capturas o previsualizaciones del Vestidor Virtual en el móvil | X | | Media | Ciclo 3 |
-| **CU24** | Agendar reserva de prendas para prueba física | X | | Alta | Ciclo 3 |
-| **CU25** | Gestionar bandeja de reservas entrantes | | X | Alta | Ciclo 3 |
-| **CU26** | Marcar reserva como "Preparada" al separar prendas físicamente | | X | Alta | Ciclo 3 |
-| **CU27** | Cancelar reserva de prendas (cliente o encargado) | X | X | Alta | Ciclo 3 |
-| **CU28** | Notificar en tiempo real el estado de una reserva o pedido | X | | Media | Ciclo 3 |
-| **CU29** | Gestionar envíos a domicilio (Delivery) y logística | | X | Media | Ciclo 3 |
-| **CU30** | Consultar estado de un pedido o envío a domicilio | X | X | Media | Ciclo 3 |
-| **CU31** | Solicitar recomendaciones de prendas personalizadas (IA) | X | X | Media | Ciclo 3 |
-| **CU32** | Interactuar con Chatbot asistente (FAQ y ayuda) | X | X | Baja | Ciclo 3 |
-| **CU33** | Buscar prendas en el catálogo mediante comandos de voz (NLP) | X | | Media | Ciclo 3 |
-| **CU34** | Generar reportes gerenciales mediante comandos de voz (IA) | X | | Baja | Ciclo 3 |
-| **CU35** | Consultar Dashboard de ventas e inventario global | | X | Media | Ciclo 3 |
-| **CU36** | Consultar bitácora de auditoría del sistema | | X | Media | Ciclo 1 |
+| ID | Caso de uso | Paquete | Móvil | Web | Prioridad | Ciclo |
+| :--- | :--- | :--- | :---: | :---: | :--- | :--- |
+| **CU01** | Iniciar sesión en la plataforma (cliente y personal) | seguridad_y_usuarios | X | X | Alta | Ciclo 1 |
+| **CU02** | Cerrar sesión activa | seguridad_y_usuarios | X | X | Alta | Ciclo 1 |
+| **CU03** | Recuperar credenciales de acceso (enlace por correo, 5 min) | seguridad_y_usuarios | X | X | Media | Ciclo 1 |
+| **CU04** | Auto-registro de cliente en la plataforma | seguridad_y_usuarios | X | X | Alta | Ciclo 1 |
+| **CU05** | Gestionar perfiles, roles y clientes | seguridad_y_usuarios | | X | Alta | Ciclo 1 |
+| **CU06** | Gestionar sucursales de la cadena | catalogo_y_tiendas | | X | Alta | Ciclo 1 |
+| **CU07** | Gestionar catálogo de prendas (categorías, tallas, colores multivaluados, temporadas, variantes+SKU) | catalogo_y_tiendas | | X | Alta | Ciclo 1 |
+| **CU08** | Gestionar proveedores de mercadería | inventario_y_proveedores | | X | Media | Ciclo 1 |
+| **CU09** | Gestionar empleados de sucursal (cajeros y encargados) | catalogo_y_tiendas | | X | Media | Ciclo 1 |
+| **CU10** | Registrar compras e ingresos de mercadería de proveedores | inventario_y_proveedores | | X | Media | Ciclo 1 |
+| **CU11** | Consultar catálogo de prendas (listado + búsqueda por texto y filtro por categoría) | catalogo_y_tiendas | X | X | Alta | Ciclo 1 |
+| **CU37** | Consultar valoración de inventario / capital invertido (costo promedio ponderado) | inventario_y_proveedores | | X | Alta | Ciclo 1 |
+| **CU38** | Gestionar ajustes de inventario (mermas, daños, pérdidas) | inventario_y_proveedores | | X | Media | Ciclo 1 |
+| **CU36** | Consultar bitácora de auditoría del sistema | seguridad_y_usuarios | | X | Media | Ciclo 1 |
+| **CU12** | Buscar y filtrar catálogo (precio, talla, color) + disponibilidad por sucursal | catalogo_y_tiendas | X | X | Alta | Ciclo 2 |
+| **CU13** | Gestionar promociones: cupones y ofertas de temporada | catalogo_y_tiendas | | X | Media | Ciclo 2 |
+| **CU14** | Gestionar wishlist y reseñas de prendas (cliente) | catalogo_y_tiendas | X | X | Baja | Ciclo 2 |
+| **CU15** | Gestionar inventario general y transferencias entre sucursales (+ trigger) | inventario_y_proveedores | | X | Alta | Ciclo 2 |
+| **CU16** | Configurar y notificar alertas de stock (mínimo/máximo) | inventario_y_proveedores | | X | Media | Ciclo 2 |
+| **CU17** | Gestionar carrito de compra digital (bloqueo si existencia = 0) | ventas_y_pagos | X | X | Alta | Ciclo 2 |
+| **CU18** | Procesar venta / checkout con herencia de medios de pago (Efectivo, Tarjeta, QR, Crédito) | ventas_y_pagos | X | X | Alta | Ciclo 2 |
+| **CU19** | Procesar venta presencial (directa) en caja (POS) | ventas_y_pagos | | X | Alta | Ciclo 2 |
+| **CU20** | Emitir factura y nota de entrega (IVA 13 %, código de control) | ventas_y_pagos | X | X | Alta | Ciclo 2 |
+| **CU21** | Generar cotización | ventas_y_pagos | | X | Baja | Ciclo 2 |
+| **CU22** | Gestionar devoluciones y cambios de prendas | ventas_y_pagos | | X | Media | Ciclo 2 |
+| **CU23** | Gestionar arqueo de caja (apertura y cierre diario del cajero) | ventas_y_pagos | | X | Alta | Ciclo 2 |
+| **CU24** | Consultar historial de compras (cliente) | ventas_y_pagos | X | X | Media | Ciclo 2 |
+| **CU25** | Convertir una reserva en venta confirmada | ventas_y_pagos | | X | Alta | Ciclo 3 |
+| **CU26** | Agendar reserva de prendas para prueba física | reservas_y_citas | X | | Alta | Ciclo 3 |
+| **CU27** | Gestionar bandeja de reservas entrantes (preparar / atender) | reservas_y_citas | | X | Alta | Ciclo 3 |
+| **CU28** | Cancelar reserva de prendas (libera stock bloqueado) | reservas_y_citas | X | X | Alta | Ciclo 3 |
+| **CU29** | Gestionar envíos/despacho (Delivery) y método de envío / recojo en sucursal | envios_y_logistica | | X | Media | Ciclo 3 |
+| **CU30** | Consultar y rastrear estado de un pedido o envío | envios_y_logistica | X | X | Media | Ciclo 3 |
+| **CU31** | Gestionar zonas de cobertura y tarifas de envío (anillos / km) | envios_y_logistica | | X | Media | Ciclo 3 |
+| **CU32** | Prueba en Vestidor Virtual (RA) y guardar capturas | inteligente_y_analitica | X | | Alta | Ciclo 3 |
+| **CU33** | Recomendaciones de prendas/tallas (IA) + chatbot asistente (opcional) | inteligente_y_analitica | X | X | Media | Ciclo 3 |
+| **CU34** | Buscar prendas mediante comandos de voz (NLP) | inteligente_y_analitica | X | | Media | Ciclo 3 |
+| **CU35** | Generar reportes gerenciales (kardex, más vendidos, ingresos/sucursal, rendimiento de cajeros; PDF/CSV; por voz) | inteligente_y_analitica | X | X | Media | Ciclo 3 |
+| **CU39** | Consultar Dashboard de ventas e inventario global | inteligente_y_analitica | | X | Media | Ciclo 3 |
+| **CU40** | Notificar estado en tiempo real (push) y enviar comprobantes / confirmaciones por correo | notificaciones | X | | Media | Ciclo 3 |
 ---
 
 #### Detallar casos de uso

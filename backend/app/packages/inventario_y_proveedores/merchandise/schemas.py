@@ -36,8 +36,50 @@ class InventoryResponse(BaseModel):
     branch_id: int
     variant_id: int
     stock_actual: int
+    avg_cost: float
     stock_minimo: int
     stock_maximo: int
+
+    class Config:
+        from_attributes = True
+
+
+# --- CU37: Valoración de inventario / capital invertido ---
+class InventoryValuationItem(BaseModel):
+    branch_id: int
+    variant_id: int
+    sku: Optional[str] = None
+    product_name: Optional[str] = None
+    stock_actual: int
+    avg_cost: float
+    valor: float  # stock_actual * avg_cost (costo promedio ponderado)
+
+    class Config:
+        from_attributes = True
+
+class InventoryValuationResponse(BaseModel):
+    branch_id: Optional[int] = None  # None = valoración global (todas las sucursales)
+    capital_invertido: float         # Σ (stock_actual * avg_cost)
+    items: List[InventoryValuationItem]
+
+
+# --- CU38: Ajustes de inventario (mermas, daños, pérdidas) ---
+class InventoryAdjustmentCreate(BaseModel):
+    branch_id: int
+    variant_id: int
+    quantity: int = Field(..., description="Negativo para merma/daño/pérdida; positivo para sobrante de conteo")
+    reason: str = Field(..., pattern="^(MERMA|DANO|PERDIDA|CONTEO)$")
+    note: Optional[str] = Field(None, max_length=255)
+
+class InventoryAdjustmentResponse(BaseModel):
+    ledger_id: int
+    branch_id: int
+    variant_id: int
+    quantity: int
+    reason: str
+    unit_cost: float          # costo promedio ponderado vigente al momento del ajuste
+    stock_resultante: int
+    reference_id: str
 
     class Config:
         from_attributes = True

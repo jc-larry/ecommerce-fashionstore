@@ -1,3 +1,3 @@
-﻿# Paquete Sucursales - Frontend Web
-# Casos de Uso: CU06 (Gestionar sucursales), CU09 (Gestionar empleados)
-# Estado: Ciclo 1 - Pendiente de vista Angular
+# Subcarpeta `branches` (paquete `catalogo_y_tiendas`)
+
+Casos de uso: **CU06** (gestionar sucursales) y **CU09** (asignar empleados a sucursal) — Ciclo 1.

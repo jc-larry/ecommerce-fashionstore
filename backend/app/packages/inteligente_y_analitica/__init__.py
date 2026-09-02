@@ -1,2 +1,1 @@
-# AI & Analytics Package (Inteligencia Artificial y Analítica) - [CU10_AR, CU19-CU23, CU33-CU35]
-# Implementación programada para Ciclo 3.
+# Paquete Inteligente y Analítica - [CU32, CU33, CU34, CU35, CU39] - Ciclo 3

@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 /**
- * [CU08 / CU10] Proveedores, ingreso de mercadería e inventario.
+ * [CU08 / CU10 / CU37 / CU38] Proveedores, ingreso de mercadería, inventario,
+ * valoración (capital invertido) y ajustes (mermas).
  */
 @Injectable({ providedIn: 'root' })
 export class InventarioService {
@@ -42,4 +43,39 @@ export class InventarioService {
   getLedger(): Observable<any[]> {
     return this.http.get<any[]>(`${this.api}/merchandise/ledger`);
   }
+
+  // ---------- VALORACIÓN DE INVENTARIO / CAPITAL INVERTIDO (CU37) ----------
+  getValuation(branchId?: number): Observable<InventoryValuation> {
+    const query = branchId ? `?branch_id=${branchId}` : '';
+    return this.http.get<InventoryValuation>(`${this.api}/merchandise/valuation${query}`);
+  }
+
+  // ---------- AJUSTES DE INVENTARIO / MERMAS (CU38) ----------
+  createAdjustment(payload: InventoryAdjustment): Observable<any> {
+    return this.http.post<any>(`${this.api}/merchandise/adjustments`, payload);
+  }
+}
+
+export interface InventoryValuationItem {
+  branch_id: number;
+  variant_id: number;
+  sku: string | null;
+  product_name: string | null;
+  stock_actual: number;
+  avg_cost: number;
+  valor: number;
+}
+
+export interface InventoryValuation {
+  branch_id: number | null;
+  capital_invertido: number;
+  items: InventoryValuationItem[];
+}
+
+export interface InventoryAdjustment {
+  branch_id: number;
+  variant_id: number;
+  quantity: number;
+  reason: 'MERMA' | 'DANO' | 'PERDIDA' | 'CONTEO';
+  note?: string;
 }

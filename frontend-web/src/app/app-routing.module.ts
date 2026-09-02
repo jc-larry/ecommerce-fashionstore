@@ -7,6 +7,8 @@ import { BranchesComponent } from './packages/catalogo_y_tiendas/branches/branch
 import { ProductsComponent } from './packages/catalogo_y_tiendas/products/products.component';
 import { SuppliersComponent } from './packages/inventario_y_proveedores/suppliers/suppliers.component';
 import { MerchandiseComponent } from './packages/inventario_y_proveedores/merchandise/merchandise.component';
+import { ValuationComponent } from './packages/inventario_y_proveedores/valuation/valuation.component';
+import { AdjustmentsComponent } from './packages/inventario_y_proveedores/adjustments/adjustments.component';
 import { UsuariosRolesComponent } from './packages/seguridad_y_usuarios/usuarios_roles/usuarios-roles.component';
 import { DashboardComponent } from './packages/dashboard/dashboard.component';
 import { EmployeesComponent } from './packages/catalogo_y_tiendas/employees/employees.component';
@@ -31,6 +33,8 @@ const routes: Routes = [
   { path: 'admin/products', component: ProductsComponent, canActivate: [AuthGuard], title: 'Catálogo' },
   { path: 'admin/suppliers', component: SuppliersComponent, canActivate: [AuthGuard], title: 'Proveedores' },
   { path: 'admin/purchases', component: MerchandiseComponent, canActivate: [AuthGuard], title: 'Mercadería' },
+  { path: 'admin/valuation', component: ValuationComponent, canActivate: [AuthGuard], title: 'Valoración de inventario' },
+  { path: 'admin/adjustments', component: AdjustmentsComponent, canActivate: [AuthGuard], title: 'Ajustes de inventario' },
   { path: 'admin/employees', component: EmployeesComponent, canActivate: [AuthGuard], title: 'Empleados' },
   { path: 'admin/audit', component: AuditComponent, canActivate: [AuthGuard], title: 'Auditoría' },
 

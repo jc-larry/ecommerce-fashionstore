@@ -1,3 +1,3 @@
-# Paquete notifications
+# Paquete `notificaciones` — App Móvil (Flutter)
 
-Reservado para implementaci�n de casos de uso de notifications.
+Caso de uso: **CU40** (notificaciones push del estado de reserva/pedido al cliente). Ciclo 3 🔜.

@@ -21,6 +21,7 @@ from app.packages.catalogo_y_tiendas import models as catalog_models
 from app.packages.catalogo_y_tiendas.branches import models as branches_models
 from app.packages.inventario_y_proveedores.suppliers import models as suppliers_models
 from app.packages.inventario_y_proveedores.merchandise import models as merchandise_models
+from app.packages.ventas_y_pagos import models as sales_models
 
 # Roles base del sistema (RF06)
 BASE_ROLES = {

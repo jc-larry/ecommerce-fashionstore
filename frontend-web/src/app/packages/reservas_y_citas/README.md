@@ -1,3 +1,3 @@
-﻿# Paquete Reservas - Frontend Web
-# Casos de Uso: CU11, CU12, CU26, CU27
-# Estado: Ciclo 2
+# Paquete `reservas_y_citas` — Frontend Web (Angular)
+
+Casos de uso: **CU26, CU27, CU28** — Ciclo 3. Sin componentes todavía.

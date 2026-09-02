@@ -42,6 +42,12 @@
           nueva contraseña. Ábrelo desde tu bandeja de entrada (revisa también spam).
           El enlace <strong>vence en 5 minutos</strong>.
         </p>
+
+        <!-- Solo en desarrollo: SMTP sin configurar → enlace directo para probar el flujo -->
+        <div *ngIf="devResetLink" class="alert alert-warning small mt-3 mb-0 text-start">
+          <strong>Modo desarrollo (sin SMTP).</strong> Usa este enlace para continuar:
+          <a [href]="devResetLink" class="d-block text-break mt-1">{{ devResetLink }}</a>
+        </div>
       </div>
     </ng-container>
 

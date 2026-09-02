@@ -1,3 +1,4 @@
-# Paquete branches
+# Subcarpeta `branches` (paquete `catalogo_y_tiendas`) — Móvil
 
-Reservado para implementaci�n de casos de uso de branches.
+CU06/CU09 son administrativos (solo web). En el móvil esta carpeta se reserva para mostrar
+sucursales y su disponibilidad al cliente (CU12, Ciclo 2).

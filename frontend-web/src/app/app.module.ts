@@ -12,6 +12,8 @@ import { BranchesComponent } from './packages/catalogo_y_tiendas/branches/branch
 import { ProductsComponent } from './packages/catalogo_y_tiendas/products/products.component';
 import { SuppliersComponent } from './packages/inventario_y_proveedores/suppliers/suppliers.component';
 import { MerchandiseComponent } from './packages/inventario_y_proveedores/merchandise/merchandise.component';
+import { ValuationComponent } from './packages/inventario_y_proveedores/valuation/valuation.component';
+import { AdjustmentsComponent } from './packages/inventario_y_proveedores/adjustments/adjustments.component';
 import { UsuariosRolesComponent } from './packages/seguridad_y_usuarios/usuarios_roles/usuarios-roles.component';
 import { DashboardComponent } from './packages/dashboard/dashboard.component';
 import { EmployeesComponent } from './packages/catalogo_y_tiendas/employees/employees.component';
@@ -29,6 +31,8 @@ import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.intercepto
     ProductsComponent,
     SuppliersComponent,
     MerchandiseComponent,
+    ValuationComponent,
+    AdjustmentsComponent,
     UsuariosRolesComponent,
     DashboardComponent,
     EmployeesComponent,
