@@ -3,6 +3,6 @@
  * `apiUrl` apunta al backend FastAPI (prefijo /api/v1 incluido).
  */
 export const environment = {
-  production: false,
-  apiUrl: 'http://127.0.0.1:8000/api/v1',
+  production: true,
+  apiUrl: 'https://fashionstore-backend-se9f.onrender.com/api/v1',
 };
