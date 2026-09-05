@@ -15,10 +15,17 @@ class Settings:
 
     # --- Base de datos (PostgreSQL) ---
     # Formato esperado: postgresql+psycopg2://usuario:contrasena@host:puerto/basededatos
-    DATABASE_URL: str = os.getenv(
+    # Normaliza automáticamente URLs de Render o proveedores cloud (postgres:// -> postgresql+psycopg2://)
+    _raw_db: str = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg2://postgres:postgres@localhost:5432/fashionstore",
     )
+    if _raw_db.startswith("postgres://"):
+        _raw_db = _raw_db.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif _raw_db.startswith("postgresql://") and not _raw_db.startswith("postgresql+psycopg2://"):
+        _raw_db = _raw_db.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    DATABASE_URL: str = _raw_db
 
     # --- Seguridad / JWT ---
     SECRET_KEY: str = os.getenv("SECRET_KEY", "clave_secreta_super_segura_para_el_primer_parcial")
