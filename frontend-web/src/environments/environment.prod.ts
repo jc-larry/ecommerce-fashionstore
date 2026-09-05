@@ -5,5 +5,5 @@
  */
 export const environment = {
   production: true,
-  apiUrl: 'https://fashionstore-backend.onrender.com/api/v1',
+  apiUrl: 'https://fashionstore-backend-se9f.onrender.com/api/v1',
 };
