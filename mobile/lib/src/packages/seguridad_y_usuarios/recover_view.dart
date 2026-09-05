@@ -78,8 +78,8 @@ class _RecoverViewState extends State<RecoverView> {
               Container(
                 width: 64,
                 height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC66F5C).withOpacity(0.1),
+                decoration: const BoxDecoration(
+                  color: Color(0x1AC66F5C),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

@@ -96,20 +96,20 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 Container(
                   height: 280,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.75)],
+                      colors: [Color(0x4D000000), Color(0xBF000000)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
                   ),
                 ),
-                Positioned(
+                const Positioned(
                   bottom: 24,
                   left: 24,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'FashionStore',
                         style: TextStyle(
@@ -277,8 +277,8 @@ class _LoginViewState extends State<LoginView> {
                   const SizedBox(height: 16),
 
                   // Divisor O INICIA CON
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Expanded(child: Divider(color: Color(0xFFD4CECB))),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16.0),

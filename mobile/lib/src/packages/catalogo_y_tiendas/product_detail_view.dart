@@ -89,7 +89,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   /// Todas las tallas del producto, marcando cuáles hay para el color elegido.
   List<Map<String, dynamic>> get _sizeOptions {
-    const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const order = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'ÚNICA', 'UNICA'];
     final all = <int, String>{};
     for (final v in (_product?['variants'] as List? ?? [])) {
       all[v['size']['id'] as int] = v['size']['name'] as String;
@@ -102,8 +102,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         .map((e) => {'id': e.key, 'name': e.value, 'available': avail.contains(e.key)})
         .toList();
     int rk(String n) {
+      final numVal = int.tryParse(n);
+      if (numVal != null) return 100 + numVal;
       final i = order.indexOf(n.toUpperCase());
-      return i < 0 ? 99 : i;
+      return i < 0 ? 500 : i;
     }
     list.sort((a, b) => rk(a['name'] as String) - rk(b['name'] as String));
     return list;
@@ -142,6 +144,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   void _sizeGuide() {
+    final cat = (_product?['category']?['name'] ?? '').toString().toLowerCase();
+    final isBottom = cat.contains('jean') || cat.contains('pant') || cat.contains('short') || cat.contains('falda') || cat.contains('inferior');
+    final isShoe = cat.contains('calzado') || cat.contains('zapato') || cat.contains('sandalia') || cat.contains('bota');
+
     TableRow row(List<String> cells, {bool head = false}) => TableRow(
           children: cells
               .map((c) => Padding(
@@ -150,23 +156,48 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   ))
               .toList(),
         );
+
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Guía de tallas (cm)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _ink)),
+          Text(
+            isShoe ? 'Guía de tallas Calzado (cm)' : (isBottom ? 'Guía de tallas Pantalones / Jeans (cm)' : 'Guía de tallas Ropa Femenina (cm)'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _ink),
+          ),
           const SizedBox(height: 12),
-          Table(children: [
-            row(['Talla', 'Busto', 'Cintura', 'Cadera'], head: true),
-            row(['XS', '80–84', '60–64', '86–90']),
-            row(['S', '84–88', '64–68', '90–94']),
-            row(['M', '88–92', '68–72', '94–98']),
-            row(['L', '92–98', '72–78', '98–104']),
-            row(['XL', '98–104', '78–84', '104–110']),
-          ]),
+          if (isShoe)
+            Table(children: [
+              row(['Talla (EU)', 'Largo del Pie (cm)'], head: true),
+              row(['35', '22.5 cm']),
+              row(['36', '23.0 cm']),
+              row(['37', '23.5 cm']),
+              row(['38', '24.5 cm']),
+              row(['39', '25.0 cm']),
+              row(['40', '25.5 cm']),
+            ])
+          else if (isBottom)
+            Table(children: [
+              row(['Talla', 'Cintura (cm)', 'Cadera (cm)'], head: true),
+              row(['26 / XS', '60–64', '86–90']),
+              row(['28 / S', '64–68', '90–94']),
+              row(['30 / M', '68–74', '94–100']),
+              row(['32 / L', '74–80', '100–106']),
+              row(['34 / XL', '80–86', '106–112']),
+              row(['36 / XXL', '86–94', '112–120']),
+            ])
+          else
+            Table(children: [
+              row(['Talla', 'Busto (cm)', 'Cintura (cm)', 'Cadera (cm)'], head: true),
+              row(['XS', '80–84', '60–64', '86–90']),
+              row(['S', '84–88', '64–68', '90–94']),
+              row(['M', '88–92', '68–72', '94–98']),
+              row(['L', '92–98', '72–78', '98–104']),
+              row(['XL', '98–104', '78–84', '104–110']),
+            ]),
           const SizedBox(height: 10),
-          const Text('Si estás entre dos tallas, elige la mayor.', style: TextStyle(fontSize: 12, color: _muted)),
+          const Text('Si estás entre dos tallas, te recomendamos elegir la mayor para mayor comodidad.', style: TextStyle(fontSize: 12, color: _muted)),
         ]),
       ),
     );
