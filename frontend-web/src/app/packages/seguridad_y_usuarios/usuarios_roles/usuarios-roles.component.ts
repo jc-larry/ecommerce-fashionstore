@@ -68,6 +68,18 @@ export class UsuariosRolesComponent implements OnInit {
     return (u.roles || []).map((r: any) => r.name).join(', ') || '—';
   }
 
+  /** Clase de color del badge según el rol principal del usuario. */
+  roleClass(u: any): string {
+    const main = ((u.roles || [])[0]?.name || '').toUpperCase();
+    const map: Record<string, string> = {
+      SUPERADMIN: 'pill-role-superadmin',
+      ENCARGADO: 'pill-role-encargado',
+      CAJERO: 'pill-role-cajero',
+      CLIENTE: 'pill-role-cliente',
+    };
+    return map[main] || 'pill-role';
+  }
+
   openNew(): void {
     this.editingId = null;
     this.form = this.emptyForm();

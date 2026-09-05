@@ -50,6 +50,7 @@ class InventoryValuationItem(BaseModel):
     variant_id: int
     sku: Optional[str] = None
     product_name: Optional[str] = None
+    image_url: Optional[str] = None
     stock_actual: int
     avg_cost: float
     valor: float  # stock_actual * avg_cost (costo promedio ponderado)

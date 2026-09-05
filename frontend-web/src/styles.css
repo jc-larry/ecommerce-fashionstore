@@ -92,6 +92,19 @@ a:hover { color: #A95848; }
 /* ---- Patrón común de pantallas del panel administrativo ---- */
 .admin-page { padding: 0.25rem; }
 
+/* Títulos de página del panel: compactos, como la referencia de diseño */
+.admin-page h1,
+.admin-page h2,
+.admin-page h3,
+.content-area > .container > .d-flex h2,
+.content-area > .container h2 {
+  font-size: 1.4rem;
+  line-height: 1.3;
+  margin-bottom: 0;
+}
+.admin-page .form-label,
+.admin-page label { font-size: 0.8rem; }
+
 .admin-table { margin-bottom: 0; }
 .admin-table > thead { background-color: #FBEAE8; }
 .admin-table > thead th {
@@ -123,7 +136,70 @@ a:hover { color: #A95848; }
 .pill-ok .pill-dot { background: #2E7D32; }
 .pill-off  { background: rgba(198, 111, 92, 0.14); color: #A95848; }
 .pill-off .pill-dot { background: #A95848; }
-.pill-role { background: rgba(198, 111, 92, 0.12); color: #A95848; }
+
+/* Badges de rol con color por tipo (Superadmin / Encargado / Cajero / Cliente) */
+.pill-role { background: rgba(198, 111, 92, 0.12); color: #A95848; }               /* por defecto */
+.pill-role-superadmin { background: rgba(123, 78, 168, 0.14); color: #6D3F9E; }     /* morado */
+.pill-role-encargado  { background: rgba(46, 125, 50, 0.13);  color: #2E7D32; }     /* verde  */
+.pill-role-cajero     { background: rgba(21, 101, 192, 0.13); color: #1565C0; }     /* azul   */
+.pill-role-cliente    { background: rgba(120, 120, 120, 0.14); color: #555; }        /* gris   */
+
+/* ---- Tarjetas de métrica (KPI) — compartidas por Dashboard e Inventario ---- */
+.stat-card {
+  border: 1px solid #EFE7E3;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(43, 31, 29, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.stat-card:hover {
+  box-shadow: 0 8px 24px rgba(43, 31, 29, 0.10);
+  transform: translateY(-2px);
+}
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8C7E7B;
+  letter-spacing: 0.2px;
+}
+.stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(198, 111, 92, 0.16);
+  color: #B0553F;
+  flex-shrink: 0;
+}
+.stat-icon i { font-size: 1rem; }
+.stat-icon-lg { width: 48px; height: 48px; border-radius: 12px; }
+.stat-icon-lg i { font-size: 1.5rem; }
+.stat-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #2B1F1D;
+  line-height: 1.1;
+}
+
+/* ---- Miniatura de prenda — mismo radio que las cajas del panel (familia rounded-3) ---- */
+.thumb,
+.thumb-ph {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid #D4CECB;
+  object-fit: cover;
+}
+.thumb-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FBF8F3;
+  color: #8C7E7B;
+}
 
 /* Panel deslizante para formularios de alta/edición */
 .slide-overlay {
@@ -144,6 +220,10 @@ a:hover { color: #A95848; }
   box-shadow: -12px 0 40px rgba(43, 31, 29, 0.18);
   display: flex;
   flex-direction: column;
+}
+.slide-panel-lg {
+  width: 560px;
+  max-width: 95vw;
 }
 .slide-panel-header {
   padding: 1.25rem 1.5rem;
@@ -168,6 +248,9 @@ a:hover { color: #A95848; }
 }
 
 html {
+  /* Base 14px: la referencia de diseño es una interfaz compacta (todo el sizing
+     rem de Bootstrap y de los componentes escala a partir de aquí). */
+  font-size: 14px;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -175,8 +258,8 @@ html {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.55;
   color: var(--color-text);
   background-color: var(--color-bg);
   min-height: 100vh;

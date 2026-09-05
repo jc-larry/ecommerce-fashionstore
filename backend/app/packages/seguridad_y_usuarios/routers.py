@@ -89,9 +89,17 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     """[CU01] Inicio de sesión unificado"""
     # [CU01 - Paso 2] / [DSC001 - Paso 2] +login(email, password)
     # [CU01 - Paso 3] / [DSC001 - Paso 3] +select_where(email)
-    user = db.query(User).filter(User.email == login_data.email).first()
+    # El correo ya viene normalizado a minúsculas por el schema; la contraseña se limpia de
+    # espacios accidentales del teclado/autocompletado (sin recortar espacios internos).
+    email = login_data.email
+    password = login_data.password.strip()
+    user = db.query(User).filter(User.email == email).first()
     # [CU01 - Paso 4] / [DSC001 - Paso 4] +Datos y Hash (verificación implícita)
-    if not user or not verify_password(login_data.password, user.password_hash):
+    if not user:
+        print(f"[LOGIN] Rechazado: el correo '{email}' NO está registrado en esta base de datos.")
+        raise HTTPException(status_code=400, detail="Correo electrónico o contraseña incorrectos.")
+    if not verify_password(password, user.password_hash):
+        print(f"[LOGIN] Rechazado: contraseña incorrecta para '{email}' (usuario id={user.id}).")
         raise HTTPException(status_code=400, detail="Correo electrónico o contraseña incorrectos.")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Cuenta de usuario desactivada.")
@@ -99,6 +107,14 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     # [CU01 - Paso 5] / [DSC001 - Paso 5] +create_token()
     token = create_access_token(subject=user.id)
     expires = datetime.now(timezone.utc) + timedelta(minutes=60)
+
+    # Limpieza: revocar tokens expirados del usuario para evitar acumulación de sesiones obsoletas.
+    # Esto asegura que iniciar sesión desde cualquier navegador/dispositivo funcione sin problemas.
+    db.query(SessionToken).filter(
+        SessionToken.user_id == user.id,
+        SessionToken.is_revoked == False,
+        SessionToken.expires_at < datetime.now(timezone.utc)
+    ).update({"is_revoked": True})
 
     session = SessionToken(user_id=user.id, token=token, expires_at=expires)
     db.add(session)

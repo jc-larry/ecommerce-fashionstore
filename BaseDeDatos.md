@@ -14,6 +14,7 @@ Para garantizar la consistencia, evitar redundancias y prevenir anomalías de in
   * *Ejemplo*: El stock real no se almacena en la tabla de productos ni de variantes, sino en la tabla intermedia `inventory` vinculada a una sucursal (`branch_id`) y a una variante (`variant_id`). Esto separa las existencias físicas del catálogo base.
 * **Tercera Forma Normal (3NF)**: Está en 2NF y no existen dependencias transitivas (ningún atributo no clave depende de otro atributo no clave; todos dependen únicamente de la clave primaria).
   * *Ejemplo*: Los datos de las sucursales (`branch_name`, `address`) y los datos de los empleados se almacenan por separado. La asociación se realiza mediante una tabla intermedia `branch_employees`, evitando repetir la dirección de la sucursal en cada registro de empleado.
+  * *Ejemplo (reseñas, CU14)*: la calificación promedio y el número de reseñas de una prenda **no se almacenan** en `products`; se calculan con `AVG(rating)` / `COUNT(*)` sobre `product_reviews` al consultar el catálogo, evitando un dato derivado desincronizado.
 
 ---
 
@@ -128,7 +129,8 @@ Categorías de prendas (ej. Camisas, Pantalones, Vestidos).
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
-    description VARCHAR(255)
+    description VARCHAR(255),
+    image_url VARCHAR(500)   -- foto circular de la categoría en la tienda (CU07 / CU11)
 );
 ```
 
@@ -170,6 +172,8 @@ CREATE TABLE products (
     name VARCHAR(150) NOT NULL,
     description TEXT,
     base_price DECIMAL(10, 2) NOT NULL,
+    compare_at_price DECIMAL(10, 2),   -- precio "antes" (oferta directa por prenda, CU07);
+                                       -- si > base_price la tienda muestra precio tachado y -%
     category_id INTEGER NOT NULL,
     season_id INTEGER,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
@@ -198,16 +202,51 @@ CREATE TABLE product_variants (
 ```
 
 #### Tabla: `product_images`
-Fotografías asociadas a variantes de color del producto.
+Galería de fotos de la prenda (2–5 por prenda). Cada foto puede asociarse a un color
+(`color_id`) o quedar como foto general de la prenda (`color_id` NULL). En la vista de detalle,
+al elegir un color se muestran sus fotos; si ese color no tiene, se usan las generales.
 ```sql
 CREATE TABLE product_images (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL,
-    color_id INTEGER NOT NULL,
+    color_id INTEGER,                 -- NULL = foto general de la prenda (galería multicolor)
     image_url VARCHAR(500) NOT NULL,
     is_primary BOOLEAN DEFAULT FALSE NOT NULL,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE RESTRICT
+    FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET NULL
+);
+```
+
+#### Tabla: `product_reviews` — *(CU14, versión ligera)*
+Reseña de una prenda por un cliente. **Una reseña por prenda y por usuario**
+(`UNIQUE (product_id, user_id)`): si el cliente vuelve a enviar, se actualiza la suya (*upsert*).
+Sin moderación en el Ciclo 1. La ficha de la prenda muestra el promedio y el conteo.
+```sql
+CREATE TABLE product_reviews (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    rating SMALLINT NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_review_product_user UNIQUE (product_id, user_id),
+    CONSTRAINT ck_review_rating_range CHECK (rating >= 1 AND rating <= 5)
+);
+```
+
+#### Tabla: `wishlist_items` — *(CU14, versión ligera)*
+Prendas marcadas como favoritas por un cliente (♥). Una sola lista por usuario en el Ciclo 1.
+```sql
+CREATE TABLE wishlist_items (
+    user_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, product_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 ```
 
@@ -430,6 +469,12 @@ Para garantizar respuestas ultrarrápidas en la aplicación móvil y el panel we
 1. **Búsquedas de Catálogo**: Índice compuesto para acelerar el filtrado de variantes por color y talla.
    ```sql
    CREATE INDEX idx_variants_search ON product_variants(product_id, color_id, size_id);
+   ```
+   Galería y reseñas de la vista de detalle (CU11 / CU14):
+   ```sql
+   CREATE INDEX idx_product_images_product ON product_images(product_id);
+   CREATE INDEX idx_reviews_product ON product_reviews(product_id);
+   CREATE INDEX idx_wishlist_user ON wishlist_items(user_id);
    ```
 2. **Control de Stock**: Acelera la validación de inventario antes del checkout y las alertas de stock mínimo.
    ```sql

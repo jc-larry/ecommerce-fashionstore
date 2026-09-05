@@ -1,0 +1,164 @@
+<div class="store">
+  <header class="store-header">
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-light border-0" (click)="router.navigate(['/tienda'])"><i class="bi bi-arrow-left"></i></button>
+      <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
+      <span class="fw-bold">FashionStore</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a routerLink="/tienda/favoritos" class="btn btn-sm btn-light border" title="Favoritos"><i class="bi bi-heart"></i></a>
+      <button class="btn btn-sm btn-outline-primary" (click)="logout()"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </header>
+
+  <main class="detail-body">
+    <p *ngIf="loading" class="text-muted">Cargando prenda…</p>
+    <div *ngIf="notFound && !loading" class="text-center py-5">
+      <p class="text-muted">Esta prenda ya no está disponible.</p>
+      <a routerLink="/tienda" class="btn btn-primary btn-sm">Volver al catálogo</a>
+    </div>
+
+    <div class="row g-4" *ngIf="product && !loading">
+      <!-- Galería -->
+      <div class="col-lg-6">
+        <div class="gallery">
+          <div class="gallery-main">
+            <img *ngIf="currentImageUrl" [src]="currentImageUrl" [alt]="product.name">
+            <div *ngIf="!currentImageUrl" class="gallery-placeholder"><i class="bi bi-image"></i></div>
+            <span class="badge-discount" *ngIf="product.discount_percent > 0">-{{ product.discount_percent }}%</span>
+          </div>
+          <div class="gallery-thumbs" *ngIf="galleryImages.length > 1">
+            <button *ngFor="let img of galleryImages; let i = index"
+                    class="thumb" [class.active]="i === activeImageIndex" (click)="activeImageIndex = i">
+              <img [src]="resolveImg(img.image_url)" [alt]="product.name">
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ficha -->
+      <div class="col-lg-6">
+        <div class="text-muted small text-uppercase">{{ product.category?.name }}</div>
+        <h1 class="detail-name">{{ product.name }}</h1>
+
+        <div class="rating-line">
+          <span class="stars">
+            <i *ngFor="let s of [1,2,3,4,5]" class="bi"
+               [ngClass]="s <= (ratingAvg + 0.5) ? 'bi-star-fill' : 'bi-star'"></i>
+          </span>
+          <span class="text-muted small">{{ ratingAvg | number: '1.1-1' }} ({{ ratingCount }} {{ ratingCount === 1 ? 'reseña' : 'reseñas' }})</span>
+        </div>
+
+        <div class="price-row">
+          <span class="price-now">Bs. {{ product.base_price | number: '1.0-2' }}</span>
+          <ng-container *ngIf="product.compare_at_price">
+            <span class="price-old">Bs. {{ product.compare_at_price | number: '1.0-2' }}</span>
+            <span class="price-off">-{{ product.discount_percent }}%</span>
+          </ng-container>
+        </div>
+
+        <!-- Color -->
+        <div class="opt-block" *ngIf="colors.length">
+          <div class="opt-label">Color</div>
+          <div class="swatches">
+            <button *ngFor="let c of colors" class="swatch" [class.active]="c.id === selectedColorId"
+                    [style.background]="c.hex_code" [title]="c.name" (click)="selectColor(c.id)"></button>
+          </div>
+        </div>
+
+        <!-- Talla -->
+        <div class="opt-block" *ngIf="sizeOptions.length">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="opt-label">Talla</div>
+            <button class="btn btn-link btn-sm p-0 text-primary" (click)="showSizeGuide = true">Guía de tallas</button>
+          </div>
+          <div class="sizes">
+            <button *ngFor="let s of sizeOptions" class="size-chip"
+                    [class.active]="s.id === selectedSizeId" [class.disabled]="!s.available"
+                    (click)="selectSize(s.id, s.available)">{{ s.name }}</button>
+          </div>
+        </div>
+
+        <!-- Descripción -->
+        <details class="desc-block" *ngIf="product.description" open>
+          <summary>Descripción</summary>
+          <p class="text-muted small mb-0">{{ product.description }}</p>
+        </details>
+
+        <p class="delivery small text-success"><i class="bi bi-truck me-1"></i> Entrega estimada: 3–5 días hábiles</p>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-primary flex-grow-1 py-2 fw-bold" disabled>
+            <i class="bi bi-bag me-1"></i> Añadir al carrito (próximamente)
+          </button>
+          <button class="btn btn-outline-primary" (click)="toggleWishlist()" [title]="inWishlist ? 'Quitar de favoritos' : 'Añadir a favoritos'">
+            <i class="bi" [ngClass]="inWishlist ? 'bi-heart-fill' : 'bi-heart'"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reseñas -->
+    <section class="reviews mt-5" *ngIf="product && !loading">
+      <h2 class="fw-bold">Reseñas</h2>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="fs-4 fw-bold">{{ ratingAvg | number: '1.1-1' }}</span>
+        <span class="stars">
+          <i *ngFor="let s of [1,2,3,4,5]" class="bi" [ngClass]="s <= (ratingAvg + 0.5) ? 'bi-star-fill' : 'bi-star'"></i>
+        </span>
+        <span class="text-muted small">· {{ ratingCount }} {{ ratingCount === 1 ? 'reseña' : 'reseñas' }}</span>
+      </div>
+
+      <!-- Formulario -->
+      <div class="review-form card border-0 shadow-sm rounded-4 mb-4" *ngIf="auth.isLoggedIn()">
+        <div class="card-body">
+          <div class="fw-bold small mb-2">{{ myRating ? 'Actualiza tu reseña' : 'Deja tu opinión' }}</div>
+          <div class="star-picker mb-2" (mouseleave)="hoverRating = 0">
+            <i *ngFor="let s of [1,2,3,4,5]" class="bi"
+               [ngClass]="s <= (hoverRating || myRating) ? 'bi-star-fill' : 'bi-star'"
+               (mouseenter)="hoverRating = s" (click)="setRating(s)"></i>
+          </div>
+          <textarea class="form-control mb-2" rows="2" placeholder="Cuéntanos qué te pareció…" [(ngModel)]="myComment"></textarea>
+          <div class="text-danger small mb-2" *ngIf="reviewError">{{ reviewError }}</div>
+          <button class="btn btn-primary btn-sm fw-bold" (click)="submitReview()" [disabled]="savingReview">
+            {{ savingReview ? 'Guardando…' : (myRating ? 'Actualizar mi reseña' : 'Publicar reseña') }}
+          </button>
+        </div>
+      </div>
+
+      <p class="text-muted small" *ngIf="reviews.length === 0">Sé la primera en opinar sobre esta prenda.</p>
+
+      <div class="review-item" *ngFor="let r of reviews">
+        <div class="d-flex justify-content-between">
+          <span class="fw-bold small">{{ r.author_name }} <span class="text-primary" *ngIf="r.is_mine">(tú)</span></span>
+          <span class="text-muted" style="font-size: 0.72rem;">{{ r.created_at | date: 'dd/MM/yyyy' }}</span>
+        </div>
+        <span class="stars small">
+          <i *ngFor="let s of [1,2,3,4,5]" class="bi" [ngClass]="s <= r.rating ? 'bi-star-fill' : 'bi-star'"></i>
+        </span>
+        <p class="text-muted small mb-0" *ngIf="r.comment">{{ r.comment }}</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Guía de tallas -->
+  <div class="size-guide-overlay" *ngIf="showSizeGuide" (click)="showSizeGuide = false">
+    <div class="size-guide-card" (click)="$event.stopPropagation()">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="fw-bold mb-0">Guía de tallas (cm)</h5>
+        <button class="btn btn-sm btn-light border-0" (click)="showSizeGuide = false"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <table class="table table-sm">
+        <thead><tr><th>Talla</th><th>Busto</th><th>Cintura</th><th>Cadera</th></tr></thead>
+        <tbody>
+          <tr><td>XS</td><td>80–84</td><td>60–64</td><td>86–90</td></tr>
+          <tr><td>S</td><td>84–88</td><td>64–68</td><td>90–94</td></tr>
+          <tr><td>M</td><td>88–92</td><td>68–72</td><td>94–98</td></tr>
+          <tr><td>L</td><td>92–98</td><td>72–78</td><td>98–104</td></tr>
+          <tr><td>XL</td><td>98–104</td><td>78–84</td><td>104–110</td></tr>
+        </tbody>
+      </table>
+      <p class="text-muted small mb-0">Mide sobre el cuerpo, sin apretar la cinta. Si estás entre dos tallas, elige la mayor.</p>
+    </div>
+  </div>
+</div>

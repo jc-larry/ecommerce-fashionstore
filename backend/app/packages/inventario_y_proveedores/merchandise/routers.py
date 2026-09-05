@@ -155,7 +155,7 @@ def get_inventory_valuation(
     """
     # [CU37 - Paso 3] / [DSC037 - Paso 3] +select_inventory(branch?)
     query = (
-        db.query(Inventory, ProductVariant.sku, Product.name)
+        db.query(Inventory, ProductVariant.sku, Product)
         .join(ProductVariant, ProductVariant.id == Inventory.variant_id)
         .join(Product, Product.id == ProductVariant.product_id)
     )
@@ -165,15 +165,23 @@ def get_inventory_valuation(
     items: List[InventoryValuationItem] = []
     capital = 0.0
     # [CU37 - Paso 4] / [DSC037 - Paso 4] +prorratear(costo_promedio)
-    for inv, sku, product_name in query.all():
+    for inv, sku, prod in query.all():
         avg = float(inv.avg_cost or 0)
         valor = round(inv.stock_actual * avg, 2)
         capital += valor
+
+        # Obtener imagen principal o primera imagen
+        img_url = None
+        if prod.images:
+            primary = next((img.image_url for img in prod.images if img.is_primary), None)
+            img_url = primary or prod.images[0].image_url
+
         items.append(InventoryValuationItem(
             branch_id=inv.branch_id,
             variant_id=inv.variant_id,
             sku=sku,
-            product_name=product_name,
+            product_name=prod.name,
+            image_url=img_url,
             stock_actual=inv.stock_actual,
             avg_cost=avg,
             valor=valor,

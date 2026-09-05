@@ -44,7 +44,7 @@ class _RegisterViewState extends State<RegisterView> {
     // [CU04] Auto-registro del propio cliente conectado a la API real
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
-    final email = _emailController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
     final phone = _phoneController.text.trim();
     // Se recorta el espacio que algunos teclados de Android agregan al final.
     final password = _passwordController.text.trim();

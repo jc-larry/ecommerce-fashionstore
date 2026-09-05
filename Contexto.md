@@ -165,14 +165,19 @@ Administra el acceso de las personas clientas y del personal de la tienda a la p
 * Gestión de cuentas del personal administrativo (Encargado, Cajero) desde el canal web, a cargo del Superadmin. El personal nunca se auto-registra: sus cuentas siempre las crea el Superadmin.
 * Recuperación de credenciales mediante enlace temporal enviado por correo electrónico (válido 5 minutos). El enlace es la **única vía**: la pantalla de nueva contraseña solo se abre al tocarlo, con el token incluido en la URL; nunca se ingresa un código a mano.
 * Diferenciación de roles: Superadmin, Encargado de sucursal, Cajero y Cliente, cada uno con sus accesos.
-* Navegación del catálogo público sin necesidad de cuenta (usuario visitante); la cuenta solo es obligatoria para reservar, comprar o usar el vestidor virtual.
+* Navegación del catálogo público —incluida la vista de detalle de cada prenda— sin necesidad de cuenta (usuario visitante); la cuenta solo es obligatoria para reservar, comprar, dejar reseñas, marcar favoritos o usar el vestidor virtual.
 
 #### 1.4.2 Módulo de Catálogo de Productos
-Centraliza la información de las prendas disponibles en la tienda, sustituyendo la publicación informal por transmisiones en vivo por una fuente única, buscable y permanentemente disponible del inventario comercializable.
-* Listado y búsqueda de prendas por categoría, talla y color.
-* Ficha de producto con imágenes de referencia, precio y variantes disponibles.
-* Alta, edición y baja de prendas desde el canal web administrativo.
+Centraliza la información de las prendas disponibles en la tienda, sustituyendo la publicación informal por transmisiones en vivo por una fuente única, buscable y permanentemente disponible del inventario comercializable. La tienda está **dirigida a moda femenina**, con una estética editorial (grilla lookbook, hero de colección).
+* Listado y búsqueda de prendas por categoría, talla y color; **navegación por categorías con foto** (imagen circular por categoría).
+* **Prendas multicolor:** una misma prenda combina varios colores; al elegir un color en la ficha cambian las fotos y las tallas disponibles.
+* **Galería de fotos** por prenda (2–5 imágenes, cada una asociable a un color) y **descripción detallada**.
+* **Oferta directa por prenda:** precio "antes / ahora" con el porcentaje de descuento (adelanto puntual de las promociones, que en su forma completa —cupones y campañas de temporada— quedan para el Ciclo 2).
+* **Vista de detalle de prenda** (web y móvil): galería, selección de color, tallas por color, guía de tallas (tabla estándar en cm), descripción desplegable y entrega estimada.
+* **Reseñas y favoritos (CU14, versión ligera):** el cliente con sesión califica (1–5★) y comenta una prenda (una reseña por prenda, editable) y marca prendas como favoritas (♥); pantalla "Favoritos".
+* Alta, edición y baja de prendas —con galería, oferta y variantes editables— desde el canal web administrativo.
 * Filtrado por temporada, en línea con la dinámica estacional descrita en clase.
+* **Canal:** el catálogo del cliente funciona por **igual en web (Angular) y en móvil (Flutter)**.
 
 #### 1.4.3 Módulo de Vestidor Virtual con Realidad Aumentada
 Permite previsualizar una o varias prendas del catálogo sobre la imagen de la persona usuaria antes de decidir una compra directa o una visita física a la tienda.
@@ -530,12 +535,12 @@ CRUD granulares se agrupan en un solo caso de uso cuando comparten actor y flujo
 
 **Paquete 2 — `catalogo_y_tiendas`**
 * **CU06:** Gestionar sucursales de la cadena (alta, edición, desactivación)
-* **CU07:** Gestionar catálogo de prendas (categorías, tallas, colores multivaluados, temporadas, variantes + SKU)
+* **CU07:** Gestionar catálogo de prendas (categorías con imagen, tallas, colores multivaluados, temporadas, galería de fotos, oferta directa por prenda, variantes + SKU editables)
 * **CU09:** Gestionar empleados de sucursal (cajeros y encargados)
-* **CU11:** Consultar catálogo de prendas (listado + búsqueda por texto + filtro por categoría)
-* **CU12:** Buscar y filtrar el catálogo por criterios múltiples (precio, talla, color) y consultar disponibilidad física por sucursal
-* **CU13:** Gestionar promociones: cupones de descuento y ofertas de temporada
-* **CU14:** Gestionar lista de deseos (wishlist) y reseñas de prendas del cliente
+* **CU11:** Consultar catálogo de prendas: navegación por categorías, grilla lookbook (oferta / ★ / ♥) y vista de detalle de prenda (galería, color, tallas por color, guía de tallas) — web y móvil
+* **CU12:** Buscar y filtrar el catálogo por criterios múltiples (precio, talla, color, ocasión) y consultar disponibilidad física por sucursal
+* **CU13:** Gestionar promociones: cupones de descuento y ofertas de temporada programadas *(la oferta directa por prenda se adelanta dentro de CU07)*
+* **CU14:** Dejar reseñas (1–5★ + comentario) y marcar prendas favoritas (wishlist) — cliente
 
 **Paquete 3 — `inventario_y_proveedores`**
 * **CU08:** Gestionar proveedores de mercadería
@@ -582,14 +587,18 @@ CRUD granulares se agrupan en un solo caso de uso cuando comparten actor y flujo
 > queda **obsoleto**; su contenido se absorbió aquí y el mapa de equivalencias está en
 > `Ciclo1.md` §6.3.
 >
-> **Alcance por ciclo.** **Ciclo 1:** CU01–CU11, CU36, CU37, CU38 (14 CU).
-> **Ciclo 2:** CU12–CU24. **Ciclo 3:** CU25–CU35, CU39, CU40.
+> **Alcance por ciclo.** **Ciclo 1:** CU01–CU11, **CU14** (versión ligera), CU36, CU37, CU38 (15 CU).
+> **Ciclo 2:** CU12, CU13, CU15–CU24 (más la ampliación de CU14: wishlist múltiple y reseñas
+> con moderación). **Ciclo 3:** CU25–CU35, CU39, CU40.
 >
-> **Diferimiento de la consulta de catálogo del cliente.** En el **Ciclo 1** se implementa
-> **CU11** en su forma básica: el cliente (y el visitante anónimo) ve el listado de prendas
-> visibles con búsqueda por texto y filtro por categoría, en web y móvil. El **filtrado
-> avanzado por precio/talla/color y la disponibilidad por sucursal (CU12)** requieren stock
-> cargado por sucursal y una interfaz de filtros más rica, por lo que se difieren al **Ciclo 2**.
+> **Consulta de catálogo del cliente (CU11) y CU14 adelantado.** En el **Ciclo 1**, **CU11**
+> se implementa enriquecido: navegación por categorías (con foto), grilla lookbook con oferta,
+> ★ promedio y ♥, y **vista de detalle** de prenda (galería, selección de color que cambia
+> fotos y tallas, guía de tallas, descripción), en **web y móvil**. Se adelanta **CU14** en
+> **versión ligera**: una reseña por prenda (1–5★ + comentario, editable, sin moderación) y una
+> lista de favoritos por usuario. El **filtrado avanzado por precio/talla/color/ocasión y la
+> disponibilidad por sucursal (CU12)**, los **cupones y campañas de temporada (CU13)** y la
+> **wishlist múltiple / reseñas moderadas** se difieren al **Ciclo 2**.
 
 ---
 
@@ -603,17 +612,18 @@ CRUD granulares se agrupan en un solo caso de uso cuando comparten actor y flujo
 | **CU04** | Auto-registro de cliente en la plataforma | seguridad_y_usuarios | X | X | Alta | Ciclo 1 |
 | **CU05** | Gestionar perfiles, roles y clientes | seguridad_y_usuarios | | X | Alta | Ciclo 1 |
 | **CU06** | Gestionar sucursales de la cadena | catalogo_y_tiendas | | X | Alta | Ciclo 1 |
-| **CU07** | Gestionar catálogo de prendas (categorías, tallas, colores multivaluados, temporadas, variantes+SKU) | catalogo_y_tiendas | | X | Alta | Ciclo 1 |
+| **CU07** | Gestionar catálogo de prendas (categorías con imagen, tallas, colores multivaluados, temporadas, galería, oferta directa, variantes+SKU editables) | catalogo_y_tiendas | | X | Alta | Ciclo 1 |
 | **CU08** | Gestionar proveedores de mercadería | inventario_y_proveedores | | X | Media | Ciclo 1 |
 | **CU09** | Gestionar empleados de sucursal (cajeros y encargados) | catalogo_y_tiendas | | X | Media | Ciclo 1 |
 | **CU10** | Registrar compras e ingresos de mercadería de proveedores | inventario_y_proveedores | | X | Media | Ciclo 1 |
-| **CU11** | Consultar catálogo de prendas (listado + búsqueda por texto y filtro por categoría) | catalogo_y_tiendas | X | X | Alta | Ciclo 1 |
+| **CU11** | Consultar catálogo: categorías con foto + grilla lookbook (oferta / ★ / ♥) + vista de detalle (galería, color, tallas por color, guía de tallas) | catalogo_y_tiendas | X | X | Alta | Ciclo 1 |
+| **CU14** | Dejar reseñas (1–5★ + comentario, una por prenda, editable) y marcar favoritos (wishlist) — *versión ligera* | catalogo_y_tiendas | X | X | Media | Ciclo 1 |
 | **CU37** | Consultar valoración de inventario / capital invertido (costo promedio ponderado) | inventario_y_proveedores | | X | Alta | Ciclo 1 |
 | **CU38** | Gestionar ajustes de inventario (mermas, daños, pérdidas) | inventario_y_proveedores | | X | Media | Ciclo 1 |
 | **CU36** | Consultar bitácora de auditoría del sistema | seguridad_y_usuarios | | X | Media | Ciclo 1 |
-| **CU12** | Buscar y filtrar catálogo (precio, talla, color) + disponibilidad por sucursal | catalogo_y_tiendas | X | X | Alta | Ciclo 2 |
-| **CU13** | Gestionar promociones: cupones y ofertas de temporada | catalogo_y_tiendas | | X | Media | Ciclo 2 |
-| **CU14** | Gestionar wishlist y reseñas de prendas (cliente) | catalogo_y_tiendas | X | X | Baja | Ciclo 2 |
+| **CU12** | Buscar y filtrar catálogo (precio, talla, color, ocasión) + disponibilidad por sucursal | catalogo_y_tiendas | X | X | Alta | Ciclo 2 |
+| **CU13** | Gestionar promociones: cupones y ofertas de temporada programadas *(la oferta directa por prenda se adelanta en CU07)* | catalogo_y_tiendas | | X | Media | Ciclo 2 |
+| **CU14+** | Ampliar CU14: wishlist múltiple / compartible y reseñas con moderación | catalogo_y_tiendas | X | X | Baja | Ciclo 2 |
 | **CU15** | Gestionar inventario general y transferencias entre sucursales (+ trigger) | inventario_y_proveedores | | X | Alta | Ciclo 2 |
 | **CU16** | Configurar y notificar alertas de stock (mínimo/máximo) | inventario_y_proveedores | | X | Media | Ciclo 2 |
 | **CU17** | Gestionar carrito de compra digital (bloqueo si existencia = 0) | ventas_y_pagos | X | X | Alta | Ciclo 2 |

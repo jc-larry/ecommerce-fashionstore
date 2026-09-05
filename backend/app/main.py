@@ -22,6 +22,8 @@ from app.packages.inventario_y_proveedores.merchandise.routers import router as 
 
 # Crear tablas automáticamente al arrancar.
 # Si la conexión a PostgreSQL falla, mostramos una guía clara y detenemos el arranque.
+import os
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from app.db.session import engine, Base
@@ -31,6 +33,26 @@ from app.db.session import engine, Base
 _COLUMN_UPGRADES = [
     "ALTER TABLE inventory ADD COLUMN IF NOT EXISTS avg_cost NUMERIC(10, 2) NOT NULL DEFAULT 0",
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS channel VARCHAR(10) NOT NULL DEFAULT 'ONLINE'",
+    "ALTER TABLE product_images ALTER COLUMN color_id DROP NOT NULL",
+    "ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_at_price NUMERIC(10, 2)",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS code VARCHAR(20)",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS city VARCHAR(50) DEFAULT 'Santa Cruz'",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS zone VARCHAR(80)",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS reference VARCHAR(255)",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(20)",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS opening_time VARCHAR(10) DEFAULT '09:00'",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS closing_time VARCHAR(10) DEFAULT '21:00'",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS days_open VARCHAR(100) DEFAULT 'Lunes a Sábado'",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS has_fitting_room BOOLEAN DEFAULT TRUE",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS pickup_enabled BOOLEAN DEFAULT TRUE",
+    "ALTER TABLE branches ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+    "ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL",
+    "ALTER TABLE sizes ADD COLUMN IF NOT EXISTS category_type VARCHAR(30)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS material VARCHAR(100)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS neck_type VARCHAR(100)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS sleeve_length VARCHAR(100)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS tags VARCHAR(255)",
 ]
 
 # Normalización de datos: el correo es único e insensible a mayúsculas. Se pasan a
@@ -64,6 +86,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Carpeta física de almacenamiento de imágenes
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+os.makedirs(os.path.join(UPLOAD_DIR, "products"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 # Configuración de CORS para permitir peticiones desde Angular (web) y Flutter (móvil).
 # El navegador rechaza "*" + credenciales; usamos regex para cualquier puerto local
 # y, si BACKEND_CORS_ORIGINS trae "*", desactivamos credenciales (no usamos cookies).
@@ -72,7 +99,7 @@ _wildcard = "*" in _origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[] if _wildcard else _origins,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?" if not _wildcard else r".*",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?" if not _wildcard else r".*",
     allow_credentials=not _wildcard,
     allow_methods=["*"],
     allow_headers=["*"],

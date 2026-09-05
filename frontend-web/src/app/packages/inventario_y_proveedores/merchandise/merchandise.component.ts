@@ -44,10 +44,17 @@ export class MerchandiseComponent implements OnInit {
         this.variants = [];
         for (const p of products) {
           for (const v of p.variants || []) {
+            const colorImg = (p.images || []).find((i: any) => i.color_id === v.color_id);
+            const primaryImg = (p.images || []).find((i: any) => i.is_primary) || (p.images || [])[0];
+            const rawUrl = colorImg?.image_url || primaryImg?.image_url || null;
+            const imageUrl = rawUrl ? this.catalogo.resolveImageUrl(rawUrl) : null;
+
             this.variants.push({
               id: v.id,
               sku: v.sku,
               label: `${p.name} · ${v.color?.name || ''} ${v.size?.name || ''} · ${v.sku}`,
+              imageUrl: imageUrl,
+              productName: p.name,
             });
           }
         }
@@ -56,6 +63,10 @@ export class MerchandiseComponent implements OnInit {
       error: () => { this.error = 'No se pudieron cargar los datos de mercadería.'; this.loading = false; },
     });
     this.loadLedger();
+  }
+
+  getVariant(id: number | null): any {
+    return this.variants.find((v) => v.id === id);
   }
 
   emptyRow(): IntakeRow {

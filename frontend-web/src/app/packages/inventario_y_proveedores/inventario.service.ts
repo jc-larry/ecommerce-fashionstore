@@ -61,6 +61,7 @@ export interface InventoryValuationItem {
   variant_id: number;
   sku: string | null;
   product_name: string | null;
+  image_url?: string | null;
   stock_actual: number;
   avg_cost: number;
   valor: number;

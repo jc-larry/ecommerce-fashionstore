@@ -33,7 +33,7 @@
               <td class="fw-bold">{{ e.first_name }} {{ e.last_name }}</td>
               <td class="text-muted small">{{ e.email }}</td>
               <td class="text-muted small">{{ e.branch?.name || 'Sin asignar' }}</td>
-              <td><span class="pill pill-role">{{ e.role }}</span></td>
+              <td><span class="pill" [ngClass]="e.role === 'ENCARGADO' ? 'pill-role-encargado' : 'pill-role-cajero'">{{ e.role }}</span></td>
               <td>
                 <span class="pill" [ngClass]="e.is_active ? 'pill-ok' : 'pill-off'">
                   <span class="pill-dot"></span>{{ e.is_active ? 'Activo' : 'Inactivo' }}

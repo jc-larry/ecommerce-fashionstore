@@ -56,8 +56,17 @@ Este archivo contiene las directrices de codificación, comandos frecuentes y la
   diseño (4 capas + despliegue, diagramas de secuencia/navegación/estado/tiempo, diseño de datos),
   implementación (rutas, estructura por paquete) y pruebas + trazabilidad CU↔código.
   Los antiguos archivos `*_ciclo1.md` sueltos fueron eliminados tras consolidarse aquí.
-- **Casos de uso cubiertos (Ciclo 1):** CU01–CU11, CU36, **CU37** (valoración de inventario /
-  capital invertido por costo promedio ponderado) y **CU38** (ajustes de inventario / mermas).
+  Incluye **15 fichas de CU** (CU01–CU11, CU14, CU36–CU38) más notas sobre CU12/CU13.
+- **Casos de uso cubiertos (Ciclo 1):** CU01–CU11, **CU14** (reseñas + favoritos, versión
+  ligera), CU36, **CU37** (valoración de inventario / capital invertido por costo promedio
+  ponderado) y **CU38** (ajustes de inventario / mermas).
+- **Catálogo enriquecido (CU07/CU11):** galería de imágenes por prenda servida desde `/uploads`
+  (`POST /catalog/upload-image` + `StaticFiles`), **prendas multicolor** (el color elegido cambia
+  fotos y tallas), **categorías con foto**, **oferta directa por prenda** (`products.compare_at_price`
+  → precio tachado y −%), y **vista de detalle** de prenda (`/tienda/producto/:id` en web,
+  `product_detail_view.dart` en móvil) con guía de tallas y reseñas. Tablas nuevas:
+  `product_reviews`, `wishlist_items` (nacen del `create_all`); columnas nuevas vía
+  `_COLUMN_UPGRADES` en `main.py`. El catálogo del cliente corre **igual en web y móvil**.
 - **`ventas_y_pagos`:** en el Ciclo 1 solo modelos (`orders`, `order_items`, `payments` con
   herencia de tabla única Efectivo/Tarjeta/QR/Crédito, `invoices` con IVA 13 %); sin routers.
 

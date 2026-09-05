@@ -4,12 +4,12 @@ Cada subdirectorio corresponde a uno de los **8 paquetes lógicos** del diagrama
 FashionStore (mismos nombres en español que el backend y el frontend web).
 
 > Numeración oficial: la **lista maestra de 40 CU** de `Contexto.md`.
-> En el **Ciclo 1** el móvil es exclusivo del **cliente final**: solo cubre CU01–CU04 y CU11.
+> En el **Ciclo 1** el móvil es exclusivo del **cliente final**: cubre CU01–CU04, CU11 y CU14.
 
 | Paquete | Casos de uso | Alcance móvil Ciclo 1 | Estado |
 |---------|--------------|-----------------------|--------|
 | `seguridad_y_usuarios/` | CU01, CU02, CU03, CU04, CU05, CU36 | CU01–CU04 (login, registro, recuperación) | Ciclo 1 ✅ |
-| `catalogo_y_tiendas/` | CU06, CU07, CU09, CU11, CU12–CU14 | CU11 (consultar catálogo, solo lectura) | Ciclo 1 ✅ (CU11) |
+| `catalogo_y_tiendas/` | CU06, CU07, CU09, CU11, CU12–CU14 | CU11 (catálogo: categorías, grilla lookbook y detalle de prenda) + CU14 (reseñas y favoritos, versión ligera) | Ciclo 1 ✅ (CU11, CU14) |
 | `inventario_y_proveedores/` | CU08, CU10, CU37, CU38, CU15, CU16 | — (solo web) | Ciclo 1 (web) |
 | `ventas_y_pagos/` | CU17–CU25 | carrito y checkout móvil | Ciclo 2 🔜 |
 | `reservas_y_citas/` | CU26, CU27, CU28 | reservar desde el móvil | Ciclo 3 🔜 |

@@ -1,1 +1,32 @@
-/* Estilos comunes del panel en styles.css */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.category-tree::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 5px;
+}
+
+.category-tree::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #e0d0cc;
+  border-radius: 4px;
+}
+
+.category-tree > div:hover {
+  background-color: rgba(198, 111, 92, 0.04);
+}
+
+.btn-xs {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.gallery-item {
+  transition: transform 0.15s ease;
+}
+
+.gallery-item:hover {
+  transform: translateY(-2px);
+}

@@ -39,7 +39,7 @@
             <tr *ngFor="let u of filteredUsers">
               <td class="fw-bold">{{ u.first_name }} {{ u.last_name }}</td>
               <td class="text-muted">{{ u.email }}</td>
-              <td><span class="pill pill-role">{{ rolesLabel(u) }}</span></td>
+              <td><span class="pill" [ngClass]="roleClass(u)">{{ rolesLabel(u) }}</span></td>
               <td>
                 <span class="pill" [ngClass]="u.is_active ? 'pill-ok' : 'pill-off'">
                   <span class="pill-dot"></span>{{ u.is_active ? 'Activo' : 'Inactivo' }}

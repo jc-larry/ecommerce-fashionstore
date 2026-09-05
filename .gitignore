@@ -6,6 +6,10 @@ backend/.venv/
 backend/.env
 backend/*.db
 backend/*.sqlite3
+backend/uploads/**
+!backend/uploads/
+!backend/uploads/products/
+!backend/uploads/products/.gitkeep
 
 # ===== Frontend Web (Angular) =====
 frontend-web/node_modules/

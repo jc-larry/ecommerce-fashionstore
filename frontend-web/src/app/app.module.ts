@@ -19,6 +19,8 @@ import { DashboardComponent } from './packages/dashboard/dashboard.component';
 import { EmployeesComponent } from './packages/catalogo_y_tiendas/employees/employees.component';
 import { AuditComponent } from './packages/seguridad_y_usuarios/audit/audit.component';
 import { StoreHomeComponent } from './packages/catalogo_y_tiendas/store/store-home.component';
+import { ProductDetailComponent } from './packages/catalogo_y_tiendas/store/product-detail.component';
+import { WishlistComponent } from './packages/catalogo_y_tiendas/store/wishlist.component';
 import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.interceptor';
 
 @NgModule({
@@ -37,7 +39,9 @@ import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.intercepto
     DashboardComponent,
     EmployeesComponent,
     AuditComponent,
-    StoreHomeComponent
+    StoreHomeComponent,
+    ProductDetailComponent,
+    WishlistComponent
   ],
   imports: [
     BrowserModule,

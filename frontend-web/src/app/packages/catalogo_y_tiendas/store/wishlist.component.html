@@ -1,0 +1,36 @@
+<div class="store">
+  <header class="store-header">
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-light border-0" (click)="router.navigate(['/tienda'])"><i class="bi bi-arrow-left"></i></button>
+      <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
+      <span class="fw-bold">Mis favoritos</span>
+    </div>
+  </header>
+
+  <main class="store-body">
+    <p *ngIf="loading" class="text-muted">Cargando…</p>
+    <p *ngIf="!loading && products.length === 0" class="text-muted">
+      Todavía no has guardado prendas. Toca el ♥ en cualquier prenda para agregarla aquí.
+    </p>
+
+    <div class="row g-4">
+      <div class="col-6 col-md-4 col-lg-3" *ngFor="let p of products">
+        <a class="card h-100 border-0 shadow-sm rounded-4 product text-decoration-none"
+           [routerLink]="['/tienda/producto', p.id]">
+          <div class="product-img">
+            <img *ngIf="primaryImage(p)" [src]="primaryImage(p)" [alt]="p.name">
+            <div *ngIf="!primaryImage(p)" class="product-img-placeholder"><i class="bi bi-image"></i></div>
+            <button class="wish-btn active" (click)="remove(p, $event)" title="Quitar de favoritos">
+              <i class="bi bi-heart-fill"></i>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="text-muted small">{{ p.category?.name }}</div>
+            <div class="fw-bold text-dark">{{ p.name }}</div>
+            <div class="text-primary fw-bold mt-1">Bs. {{ p.base_price | number: '1.0-2' }}</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </main>
+</div>

@@ -15,7 +15,7 @@ import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
 })
 export class AdjustmentsComponent implements OnInit {
   branches: any[] = [];
-  variants: { id: number; label: string }[] = [];
+  variants: { id: number; label: string; imageUrl?: string | null }[] = [];
   ledger: any[] = [];
 
   branchId: number | null = null;
@@ -49,9 +49,13 @@ export class AdjustmentsComponent implements OnInit {
         this.variants = [];
         for (const p of products) {
           for (const v of p.variants || []) {
+            const colorImg = (p.images || []).find((i: any) => i.color_id === v.color_id);
+            const primaryImg = (p.images || []).find((i: any) => i.is_primary) || (p.images || [])[0];
+            const rawUrl = colorImg?.image_url || primaryImg?.image_url || null;
             this.variants.push({
               id: v.id,
               label: `${p.name} · ${v.color?.name || ''} ${v.size?.name || ''} · ${v.sku}`,
+              imageUrl: rawUrl ? this.catalogo.resolveImageUrl(rawUrl) : null,
             });
           }
         }
@@ -60,6 +64,17 @@ export class AdjustmentsComponent implements OnInit {
       error: () => { this.error = 'No se pudieron cargar los datos.'; this.loading = false; },
     });
     this.loadLedger();
+  }
+
+  get selectedVariant(): any {
+    return this.variants.find((v) => v.id === this.variantId);
+  }
+
+  /** Las mermas, daños y pérdidas siempre restan del stock: si el motivo es de salida y la
+   *  cantidad quedó positiva, se cambia de signo automáticamente. */
+  onReasonChange(): void {
+    const salida = this.reason === 'MERMA' || this.reason === 'DANO' || this.reason === 'PERDIDA';
+    if (salida && this.quantity > 0) this.quantity = -this.quantity;
   }
 
   loadLedger(): void {

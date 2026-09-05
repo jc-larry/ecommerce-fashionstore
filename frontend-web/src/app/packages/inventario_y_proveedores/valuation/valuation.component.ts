@@ -45,4 +45,24 @@ export class ValuationComponent implements OnInit {
       },
     });
   }
+
+  resolveImg(url?: string | null): string {
+    return this.catalogo.resolveImageUrl(url);
+  }
+
+  /** Unidades físicas totales en existencia (Σ stock_actual). */
+  get totalUnits(): number {
+    return (this.data?.items || []).reduce((acc, it) => acc + (it.stock_actual || 0), 0);
+  }
+
+  /** Nº de variantes con al menos una unidad en stock. */
+  get variantsWithStock(): number {
+    return (this.data?.items || []).filter((it) => (it.stock_actual || 0) > 0).length;
+  }
+
+  /** Nº de sucursales distintas con inventario (1 si hay una sucursal filtrada). */
+  get branchesWithStock(): number {
+    if (this.branchId) return 1;
+    return new Set((this.data?.items || []).map((it) => it.branch_id)).size;
+  }
 }

@@ -14,6 +14,8 @@ import { DashboardComponent } from './packages/dashboard/dashboard.component';
 import { EmployeesComponent } from './packages/catalogo_y_tiendas/employees/employees.component';
 import { AuditComponent } from './packages/seguridad_y_usuarios/audit/audit.component';
 import { StoreHomeComponent } from './packages/catalogo_y_tiendas/store/store-home.component';
+import { ProductDetailComponent } from './packages/catalogo_y_tiendas/store/product-detail.component';
+import { WishlistComponent } from './packages/catalogo_y_tiendas/store/wishlist.component';
 import { AuthGuard, SessionGuard } from './packages/seguridad_y_usuarios/auth.guard';
 
 const routes: Routes = [
@@ -23,8 +25,10 @@ const routes: Routes = [
   { path: 'register', component: RegisterComponent, title: 'Crear cuenta' },
   { path: 'recover', component: RecoverComponent, title: 'Recuperar contraseña' },
 
-  // Tienda del cliente (CU04 → CU11+ en Ciclo 2)
+  // Tienda del cliente (CU11 catálogo + CU14 detalle/reseñas/favoritos)
   { path: 'tienda', component: StoreHomeComponent, canActivate: [SessionGuard], title: 'FashionStore' },
+  { path: 'tienda/favoritos', component: WishlistComponent, canActivate: [SessionGuard], title: 'Mis favoritos' },
+  { path: 'tienda/producto/:id', component: ProductDetailComponent, canActivate: [SessionGuard], title: 'Prenda' },
 
   // Panel administrativo (protegido por AuthGuard)
   { path: 'admin/dashboard', component: DashboardComponent, canActivate: [AuthGuard], title: 'Dashboard' },

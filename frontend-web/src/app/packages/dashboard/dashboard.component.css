@@ -1,1 +1,2 @@
-/* Estilos comunes del panel en styles.css */
+/* Las tarjetas de estadística (.stat-card, .stat-label, .stat-icon, .stat-value)
+   viven ahora en src/styles.css para compartirlas con los módulos de inventario. */

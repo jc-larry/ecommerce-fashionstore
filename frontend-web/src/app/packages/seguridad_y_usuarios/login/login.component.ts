@@ -31,7 +31,12 @@ export class LoginComponent {
   // [CU01 - Paso 1] / [DSC001 - Paso 1] +ingresar(email, password)
   onSubmit(event: Event) {
     event.preventDefault();
-    if (!this.email || !this.password) {
+    // El correo se normaliza (minúsculas + sin espacios). La contraseña solo se recorta de
+    // espacios al inicio/fin (frecuentes con el autocompletado del navegador o al pegar).
+    const email = this.email.trim().toLowerCase();
+    const password = this.password.trim();
+
+    if (!email || !password) {
       this.errorMessage = 'Por favor, ingresa tu correo y contraseña.';
       return;
     }
@@ -41,7 +46,7 @@ export class LoginComponent {
     this.successMessage = '';
 
     // [CU01 - Paso 2] / [DSC001 - Paso 2] +login(email, password)
-    this.authService.login({ email: this.email, password: this.password }).subscribe({
+    this.authService.login({ email, password }).subscribe({
       next: () => {
         this.loading = false;
         this.successMessage = '¡Inicio de sesión correcto! Redirigiendo…';

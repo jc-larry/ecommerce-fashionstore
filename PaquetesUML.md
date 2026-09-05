@@ -25,12 +25,12 @@ graph TD
 
     subgraph PKG_Catalog [2. Catálogo y Tiendas]
         CU06["CU06: Gestionar sucursales (C1)"]
-        CU07["CU07: Gestionar catálogo (C1)"]
+        CU07["CU07: Gestionar catálogo — galería, oferta, variantes editables (C1)"]
         CU09["CU09: Gestionar empleados de sucursal (C1)"]
-        CU11["CU11: Consultar catálogo (C1)"]
+        CU11["CU11: Consultar catálogo — categorías, grilla lookbook y detalle de prenda (C1)"]
         CU12["CU12: Buscar/filtrar catálogo + disponibilidad por sucursal (C2)"]
-        CU13["CU13: Promociones: cupones y ofertas de temporada (C2)"]
-        CU14["CU14: Wishlist y reseñas de prendas (C2)"]
+        CU13["CU13: Promociones: cupones y ofertas de temporada programadas (C2)"]
+        CU14["CU14: Wishlist y reseñas de prendas — versión ligera (C1); ampliación (C2)"]
     end
 
     subgraph PKG_Inventory [3. Inventario y Proveedores]
@@ -110,7 +110,7 @@ graph TD
 
 ### 2.2 Paquete de Catálogo y Tiendas (`catalogo_y_tiendas`)
 * **Propósito**: Administra la cadena de sucursales físicas y su personal, el catálogo unificado de prendas con sus variantes (color + talla), y la consulta del catálogo por parte del cliente.
-* **Casos de Uso**: `CU06` (sucursales), `CU07` (catálogo), `CU09` (empleados de sucursal), `CU11` (consultar catálogo) — Ciclo 1; `CU12` (buscar/filtrar + disponibilidad por sucursal), `CU13` (cupones y ofertas de temporada), `CU14` (wishlist y reseñas) — Ciclo 2.
+* **Casos de Uso**: `CU06` (sucursales), `CU07` (catálogo: galería de fotos, categorías con imagen, oferta directa por prenda, variantes editables), `CU09` (empleados de sucursal), `CU11` (consultar catálogo: navegación por categorías, grilla lookbook y vista de detalle de prenda — web y móvil), `CU14` (reseñas 1–5★ y favoritos / wishlist — **versión ligera**) — Ciclo 1; `CU12` (buscar/filtrar + disponibilidad por sucursal), `CU13` (cupones y ofertas de temporada programadas), ampliación de `CU14` (wishlist múltiple y reseñas con moderación) — Ciclo 2.
 * **Componentes de Capa**:
   * *Backend*: CRUD de productos, variantes, categorías, tallas, colores, temporadas; CRUD de sucursales y asignación de empleados.
   * *Frontend*: paneles administrativos (Angular) y tienda del cliente (web `/tienda` + app móvil).
@@ -167,15 +167,18 @@ graph TD
 
 | Ciclo | Casos de uso |
 | :--- | :--- |
-| **Ciclo 1** | CU01, CU02, CU03, CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU11, CU36, **CU37**, **CU38** |
-| **Ciclo 2** | CU12, CU13, CU14, CU15, CU16, CU17, CU18, CU19, CU20, CU21, CU22, CU23, CU24 |
+| **Ciclo 1** | CU01, CU02, CU03, CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU11, **CU14**, CU36, **CU37**, **CU38** |
+| **Ciclo 2** | CU12, CU13, CU15, CU16, CU17, CU18, CU19, CU20, CU21, CU22, CU23, CU24 (+ ampliación de CU14) |
 | **Ciclo 3** | CU25, CU26, CU27, CU28, CU29, CU30, CU31, CU32, CU33, CU34, CU35, CU39, CU40 |
 
 > **CU37 y CU38 entran al Ciclo 1** por indicación de la cátedra (costo promedio ponderado y
-> ajustes/mermas). **CU12** (buscar/filtrar por precio/talla/color + disponibilidad por sucursal)
-> se difiere al **Ciclo 2**: requiere stock cargado por sucursal y una interfaz de filtros más
-> rica; en el Ciclo 1 el cliente ya consulta el catálogo (`CU11`) con búsqueda por texto y filtro
-> por categoría.
+> ajustes/mermas). **CU14 se adelanta al Ciclo 1 en versión ligera** (una reseña por prenda,
+> editable, sin moderación; una lista de favoritos por usuario); la wishlist múltiple y las
+> reseñas moderadas quedan para el Ciclo 2. **CU12** (buscar/filtrar por precio/talla/color +
+> disponibilidad por sucursal) y **CU13** (cupones y campañas de temporada programadas) se
+> difieren al **Ciclo 2**; en el Ciclo 1 el cliente ya consulta el catálogo (`CU11`) por
+> categorías, con grilla lookbook y vista de detalle, y hay **oferta directa por prenda** dentro
+> de `CU07`.
 
 ---
 

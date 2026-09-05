@@ -1,42 +1,82 @@
 <div class="admin-page">
   <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0">Catálogo de Prendas</h3>
+    <div>
+      <h3 class="fw-bold mb-1">Catálogo de Prendas</h3>
+      <p class="text-muted small mb-0">Gestión de inventario, colecciones, tallas y atributos de moda femenina</p>
+    </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="input-group input-group-sm" style="width: 220px;">
+      <div class="input-group input-group-sm" style="width: 240px;">
         <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" class="form-control" placeholder="Buscar prenda…" [(ngModel)]="search">
+        <input type="text" class="form-control" placeholder="Buscar prenda, material o tag…" [(ngModel)]="search">
       </div>
-      <button class="btn btn-primary btn-sm fw-bold" (click)="openNew()">
+      <button class="btn btn-primary btn-sm fw-bold shadow-sm" (click)="openNew()">
         <i class="bi bi-plus-lg me-1"></i> Nueva Prenda
       </button>
     </div>
   </div>
 
-  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-danger py-2 small" *ngIf="error">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ error }}
+  </div>
 
+  <!-- Tabla de Prendas -->
   <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover admin-table">
+        <table class="table table-hover admin-table align-middle">
           <thead>
             <tr>
-              <th>Prenda</th>
+              <th style="width: 54px;">Foto</th>
+              <th>Prenda & Ficha</th>
               <th>Categoría</th>
               <th>Precio</th>
+              <th>Variantes</th>
               <th>Temporada</th>
               <th>Estado</th>
               <th class="text-end">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngIf="loading"><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="loading"><td colspan="8" class="text-center text-muted py-4">Cargando catálogo…</td></tr>
             <tr *ngIf="!loading && filtered.length === 0">
-              <td colspan="6" class="text-center text-muted py-4">Aún no hay prendas registradas.</td>
+              <td colspan="8" class="text-center text-muted py-4">Aún no hay prendas registradas con ese criterio.</td>
             </tr>
             <tr *ngFor="let p of filtered">
-              <td class="fw-bold">{{ p.name }}</td>
-              <td class="text-muted small">{{ categoryName(p) }}</td>
-              <td class="fw-bold">Bs. {{ p.base_price }}</td>
+              <td>
+                <img *ngIf="primaryImageUrl(p)" [src]="primaryImageUrl(p)" [alt]="p.name"
+                     class="rounded-3 border shadow-sm" style="width: 44px; height: 44px; object-fit: cover;">
+                <div *ngIf="!primaryImageUrl(p)" 
+                     class="rounded-3 border d-flex align-items-center justify-content-center bg-light text-muted"
+                     style="width: 44px; height: 44px;">
+                  <i class="bi bi-image" style="font-size: 1.1rem;"></i>
+                </div>
+              </td>
+              <td>
+                <div class="fw-bold text-dark">{{ p.name }}</div>
+                <div class="d-flex flex-wrap gap-1 mt-1 small">
+                  <span class="badge bg-light text-dark border py-1" *ngIf="p.material">
+                    <i class="bi bi-tag-fill text-muted me-1" style="font-size:0.65rem;"></i>{{ p.material }}
+                  </span>
+                  <span class="badge bg-light text-dark border py-1" *ngIf="p.neck_type">{{ p.neck_type }}</span>
+                  <span class="badge bg-light text-dark border py-1" *ngIf="p.sleeve_length">{{ p.sleeve_length }}</span>
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border py-1" *ngIf="p.tags">{{ p.tags }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge bg-primary bg-opacity-10 text-primary fw-medium px-2 py-1">
+                  {{ categoryName(p) }}
+                </span>
+              </td>
+              <td>
+                <span class="fw-bold text-dark">Bs. {{ p.base_price }}</span>
+                <span class="text-muted text-decoration-line-through ms-1 small" *ngIf="p.compare_at_price">Bs. {{ p.compare_at_price }}</span>
+                <span class="badge bg-danger bg-opacity-10 text-danger ms-1" *ngIf="discountPct(p) > 0">-{{ discountPct(p) }}%</span>
+              </td>
+              <td>
+                <span class="badge bg-light border text-muted">
+                  {{ (p.variants || []).length }} en stock
+                </span>
+              </td>
               <td class="text-muted small">{{ seasonName(p) }}</td>
               <td>
                 <span class="pill" [ngClass]="p.is_active ? 'pill-ok' : 'pill-off'">
@@ -55,145 +95,384 @@
     </div>
   </div>
 
-  <!-- Parámetros del catálogo -->
+  <!-- Parámetros del catálogo: Taxonomía, Curvas de Talla, Colores y Temporadas -->
   <div class="row g-4">
-    <div class="col-md-3">
+    <!-- 1. Categorías (Árbol Jerárquico) -->
+    <div class="col-lg-3 col-md-6">
       <div class="card shadow-sm border-0 rounded-4 h-100">
         <div class="card-body p-4">
-          <h6 class="fw-bold mb-3">Categorías</h6>
-          <ul class="list-unstyled small mb-3">
-            <li class="py-1 border-bottom text-muted" *ngFor="let c of categories">{{ c.name }}</li>
-            <li class="text-muted fst-italic" *ngIf="categories.length === 0">Sin categorías</li>
-          </ul>
-          <div class="input-group input-group-sm">
-            <input class="form-control" placeholder="Nueva categoría" [(ngModel)]="quick.category">
-            <button class="btn btn-outline-primary" (click)="addCategory()">+</button>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3 me-1 text-primary"></i> Categorías</h6>
+            <span class="badge bg-light text-muted border">{{ categories.length }}</span>
+          </div>
+          
+          <div class="category-tree mb-3" style="max-height: 280px; overflow-y: auto;">
+            <div *ngFor="let parent of mainCategories" class="mb-2">
+              <div class="d-flex align-items-center justify-content-between p-1 px-2 rounded bg-light border-bottom cursor-pointer"
+                   (click)="toggleParent(parent.id)">
+                <span class="fw-bold small text-dark d-flex align-items-center gap-1">
+                  <i class="bi" [ngClass]="expandedParents[parent.id] ? 'bi-chevron-down' : 'bi-chevron-right'" style="font-size: 0.75rem;"></i>
+                  {{ parent.name }}
+                </span>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.65rem;">
+                  {{ subcategoriesOf(parent.id).length }}
+                </span>
+              </div>
+              <!-- Subcategorías hijas -->
+              <ul class="list-unstyled ps-3 mt-1 mb-2 small" *ngIf="expandedParents[parent.id]">
+                <li *ngFor="let sub of subcategoriesOf(parent.id)" class="py-1 d-flex align-items-center justify-content-between text-muted border-bottom border-light">
+                  <span class="text-truncate" style="max-width: 140px;">• {{ sub.name }}</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <label class="btn btn-sm btn-light border p-0 px-1 mb-0" title="Cambiar foto de categoría">
+                      <i class="bi bi-camera" style="font-size: 0.7rem;"></i>
+                      <input type="file" accept="image/*" hidden (change)="onCategoryImage(sub, $event)">
+                    </label>
+                    <button class="btn btn-sm btn-light border text-danger p-0 px-1" title="Eliminar" (click)="deleteCategory(sub)">
+                      <i class="bi bi-x" style="font-size: 0.8rem;"></i>
+                    </button>
+                  </div>
+                </li>
+                <li *ngIf="subcategoriesOf(parent.id).length === 0" class="text-muted fst-italic py-1" style="font-size: 0.75rem;">
+                  Sin subcategorías
+                </li>
+              </ul>
+            </div>
+            <div class="text-muted fst-italic small" *ngIf="mainCategories.length === 0">Sin categorías cargadas.</div>
+          </div>
+
+          <!-- Formulario rápido de categoría -->
+          <div class="border-top pt-2">
+            <select class="form-select form-select-sm mb-1" [(ngModel)]="quick.parentId" style="font-size: 0.75rem;">
+              <option [ngValue]="null">Crear como Categoría Principal</option>
+              <option *ngFor="let p of mainCategories" [ngValue]="p.id">Subcategoría de: {{ p.name }}</option>
+            </select>
+            <div class="input-group input-group-sm">
+              <input class="form-control" placeholder="Nombre (ej. Vestidos)" [(ngModel)]="quick.category">
+              <button class="btn btn-primary" (click)="addCategory()">+</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
+    <!-- 2. Curva de Tallas por Tipo de Prenda -->
+    <div class="col-lg-3 col-md-6">
       <div class="card shadow-sm border-0 rounded-4 h-100">
         <div class="card-body p-4">
-          <h6 class="fw-bold mb-3">Curva de Tallas</h6>
-          <ul class="list-unstyled small mb-3">
-            <li class="py-1 border-bottom text-muted" *ngFor="let s of sizes">Talla {{ s.name }}</li>
-            <li class="text-muted fst-italic" *ngIf="sizes.length === 0">Sin tallas</li>
-          </ul>
-          <div class="input-group input-group-sm">
-            <input class="form-control" placeholder="S, M, L…" [(ngModel)]="quick.size">
-            <button class="btn btn-outline-primary" (click)="addSize()">+</button>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0"><i class="bi bi-rulers me-1 text-primary"></i> Curva de Tallas</h6>
+            <span class="badge bg-light text-muted border">{{ sizes.length }}</span>
+          </div>
+
+          <!-- Pestañas de grupo de tallas -->
+          <div class="d-flex gap-1 mb-2">
+            <button class="btn btn-xs btn-outline-secondary py-0 px-2 small"
+                    [ngClass]="{'btn-primary text-white': sizeTab === 'ALL'}"
+                    (click)="sizeTab = 'ALL'">Todas</button>
+            <button class="btn btn-xs btn-outline-secondary py-0 px-2 small"
+                    [ngClass]="{'btn-primary text-white': sizeTab === 'TOPS'}"
+                    (click)="sizeTab = 'TOPS'">Letras (XS-XL)</button>
+            <button class="btn btn-xs btn-outline-secondary py-0 px-2 small"
+                    [ngClass]="{'btn-primary text-white': sizeTab === 'BOTTOMS'}"
+                    (click)="sizeTab = 'BOTTOMS'">Pantalón (34-44)</button>
+          </div>
+
+          <div class="d-flex flex-wrap gap-1 mb-3" style="max-height: 240px; overflow-y: auto;">
+            <div class="badge bg-light text-dark border p-2 d-flex align-items-center gap-1" *ngFor="let s of filteredSizesList">
+              <span class="fw-bold">{{ s.name }}</span>
+              <span class="text-muted" style="font-size: 0.65rem;" *ngIf="s.category_type">({{ s.category_type }})</span>
+              <button type="button" class="btn-close ms-1" style="font-size: 0.5rem;" (click)="deleteSize(s)" title="Eliminar"></button>
+            </div>
+            <div class="text-muted fst-italic small w-100" *ngIf="filteredSizesList.length === 0">Sin tallas en este grupo.</div>
+          </div>
+
+          <!-- Formulario rápido de talla -->
+          <div class="border-top pt-2">
+            <div class="d-flex gap-1 mb-1">
+              <select class="form-select form-select-sm" [(ngModel)]="quick.sizeType" style="font-size: 0.75rem;">
+                <option value="TOPS">Letras (Tops/Vestidos)</option>
+                <option value="BOTTOMS">Pantalones (34-44)</option>
+                <option value="BOTTOMS_US">Jeans US (26-34)</option>
+                <option value="GENERAL">General</option>
+              </select>
+            </div>
+            <div class="input-group input-group-sm">
+              <input class="form-control" placeholder="Talla (ej. XS o 36)" [(ngModel)]="quick.size">
+              <button class="btn btn-primary" (click)="addSize()">+</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
+    <!-- 3. Paleta de Colores de Moda -->
+    <div class="col-lg-3 col-md-6">
       <div class="card shadow-sm border-0 rounded-4 h-100">
         <div class="card-body p-4">
-          <h6 class="fw-bold mb-3">Paleta de Colores</h6>
-          <ul class="list-unstyled small mb-3">
-            <li class="py-1 border-bottom text-muted d-flex align-items-center gap-2" *ngFor="let c of colors">
-              <span [style.background]="c.hex_code" style="width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #ddd;"></span>
-              {{ c.name }}
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-palette me-1 text-primary"></i> Paleta de Colores</h6>
+            <span class="badge bg-light text-muted border">{{ colors.length }}</span>
+          </div>
+
+          <div class="d-flex flex-column gap-1 mb-3" style="max-height: 255px; overflow-y: auto;">
+            <div class="d-flex align-items-center justify-content-between p-1 px-2 rounded border bg-white" *ngFor="let c of colors">
+              <div class="d-flex align-items-center gap-2">
+                <span [style.background]="c.hex_code"
+                      style="width: 18px; height: 18px; border-radius: 50%; display: inline-block; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></span>
+                <span class="small fw-medium text-dark">{{ c.name }}</span>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="text-muted small" style="font-family: monospace; font-size: 0.7rem;">{{ c.hex_code }}</span>
+                <button class="btn btn-sm btn-light border text-danger p-0 px-1" title="Eliminar" (click)="deleteColor(c)">
+                  <i class="bi bi-x" style="font-size: 0.8rem;"></i>
+                </button>
+              </div>
+            </div>
+            <div class="text-muted fst-italic small" *ngIf="colors.length === 0">Sin colores cargados.</div>
+          </div>
+
+          <!-- Formulario rápido de color -->
+          <div class="border-top pt-2">
+            <div class="input-group input-group-sm">
+              <input class="form-control" placeholder="Nombre (ej. Terracota)" [(ngModel)]="quick.color">
+              <input type="color" class="form-control form-control-color" style="max-width: 42px;" [(ngModel)]="quick.colorHex" title="Elegir tono">
+              <button class="btn btn-primary" (click)="addColor()">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Temporadas -->
+    <div class="col-lg-3 col-md-6">
+      <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-calendar-event me-1 text-primary"></i> Temporadas</h6>
+            <span class="badge bg-light text-muted border">{{ seasons.length }}</span>
+          </div>
+
+          <ul class="list-unstyled small mb-3" style="max-height: 230px; overflow-y: auto;">
+            <li class="py-1 border-bottom text-muted" *ngFor="let s of seasons">
+              <div class="fw-bold text-dark">{{ s.name }}</div>
+              <span class="text-muted" style="font-size: 0.7rem;">{{ s.start_date }} al {{ s.end_date }}</span>
             </li>
-            <li class="text-muted fst-italic" *ngIf="colors.length === 0">Sin colores</li>
+            <li class="text-muted fst-italic" *ngIf="seasons.length === 0">Sin temporadas activas</li>
           </ul>
-          <div class="input-group input-group-sm">
-            <input class="form-control" placeholder="Nombre" [(ngModel)]="quick.color">
-            <input type="color" class="form-control form-control-color" [(ngModel)]="quick.colorHex">
-            <button class="btn btn-outline-primary" (click)="addColor()">+</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="col-md-3">
-      <div class="card shadow-sm border-0 rounded-4 h-100">
-        <div class="card-body p-4">
-          <h6 class="fw-bold mb-3">Temporadas</h6>
-          <ul class="list-unstyled small mb-3">
-            <li class="py-1 border-bottom text-muted" *ngFor="let s of seasons">{{ s.name }}</li>
-            <li class="text-muted fst-italic" *ngIf="seasons.length === 0">Sin temporadas</li>
-          </ul>
-          <input class="form-control form-control-sm mb-1" placeholder="Nombre (Primavera 2026)" [(ngModel)]="quick.season">
-          <div class="d-flex gap-1 mb-1">
-            <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonStart">
-            <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonEnd">
+          <div class="border-top pt-2">
+            <input class="form-control form-control-sm mb-1" placeholder="Nombre (ej. Verano 2026)" [(ngModel)]="quick.season">
+            <div class="d-flex gap-1 mb-1">
+              <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonStart">
+              <input type="date" class="form-control form-control-sm" [(ngModel)]="quick.seasonEnd">
+            </div>
+            <button class="btn btn-outline-primary btn-sm w-100 fw-medium" (click)="addSeason()">Agregar temporada</button>
           </div>
-          <button class="btn btn-outline-primary btn-sm w-100" (click)="addSeason()">Agregar temporada</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Panel alta / edición de prenda -->
+<!-- Panel lateral alta / edición de prenda -->
 <ng-container *ngIf="showForm">
   <div class="slide-overlay" (click)="closeForm()"></div>
-  <div class="slide-panel">
+  <div class="slide-panel slide-panel-lg">
     <div class="slide-panel-header d-flex justify-content-between align-items-center">
-      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar prenda' : 'Nueva prenda' }}</h5>
+      <div>
+        <h5 class="fw-bold mb-0">{{ editingId ? 'Editar prenda' : 'Nueva Prenda de Moda' }}</h5>
+        <p class="text-muted small mb-0">Ficha técnica, atributos de diseño, variantes y fotografías</p>
+      </div>
       <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
     </div>
+
     <div class="slide-panel-body">
+      <!-- 1. Datos Principales -->
       <div class="mb-3">
-        <label class="form-label small fw-bold">Nombre</label>
-        <input class="form-control" [(ngModel)]="form.name">
+        <label class="form-label small fw-bold">Nombre de la prenda <span class="text-danger">*</span></label>
+        <input class="form-control" placeholder="ej. Camisa de Lino Santorini" [(ngModel)]="form.name">
       </div>
-      <div class="mb-3">
-        <label class="form-label small fw-bold">Descripción</label>
-        <textarea class="form-control" rows="2" [(ngModel)]="form.description"></textarea>
-      </div>
-      <div class="row g-3">
-        <div class="col-6">
-          <label class="form-label small fw-bold">Precio base (Bs.)</label>
-          <input type="number" min="0" step="0.01" class="form-control" [(ngModel)]="form.base_price">
-        </div>
-        <div class="col-6">
-          <label class="form-label small fw-bold">Categoría</label>
-          <select class="form-select" [(ngModel)]="form.category_id">
-            <option [ngValue]="null" disabled>Selecciona…</option>
-            <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+
+      <div class="row g-3 mb-3">
+        <!-- Selector en cascada: Categoría Principal -> Subcategoría -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Categoría Principal <span class="text-danger">*</span></label>
+          <select class="form-select" [(ngModel)]="selectedMainCatId" (change)="onMainCatChange()">
+            <option [ngValue]="null" disabled>Selecciona categoría…</option>
+            <option *ngFor="let p of mainCategories" [ngValue]="p.id">{{ p.name }}</option>
           </select>
         </div>
-        <div class="col-12">
-          <label class="form-label small fw-bold">Temporada (opcional)</label>
-          <select class="form-select" [(ngModel)]="form.season_id">
-            <option [ngValue]="null">Toda estación</option>
-            <option *ngFor="let s of seasons" [ngValue]="s.id">{{ s.name }}</option>
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Subcategoría específica <span class="text-danger">*</span></label>
+          <select class="form-select" [(ngModel)]="form.category_id">
+            <option [ngValue]="null" disabled>Selecciona subcategoría…</option>
+            <option *ngFor="let sub of availableSubcategories" [ngValue]="sub.id">{{ sub.name }}</option>
           </select>
         </div>
       </div>
 
-      <div class="mt-4" *ngIf="!editingId">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <label class="form-label small fw-bold mb-0">Variantes (color · talla · SKU)</label>
-          <button class="btn btn-sm btn-outline-primary" (click)="addVariantRow()">+ Variante</button>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold">Precio actual (Bs.) <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">Bs.</span>
+            <input type="number" min="0" step="0.50" class="form-control" [(ngModel)]="form.base_price">
+          </div>
         </div>
-        <div class="d-flex gap-1 mb-2" *ngFor="let v of form.variants; let i = index">
-          <select class="form-select form-select-sm" [(ngModel)]="v.color_id">
+        <div class="col-6">
+          <label class="form-label small fw-bold">Precio antes (Bs.) <span class="text-muted fw-normal">— oferta</span></label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">Bs.</span>
+            <input type="number" min="0" step="0.50" class="form-control" placeholder="Opcional" [(ngModel)]="form.compare_at_price">
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Temporada (colección)</label>
+        <select class="form-select" [(ngModel)]="form.season_id">
+          <option [ngValue]="null">Toda estación (básicos continuos)</option>
+          <option *ngFor="let s of seasons" [ngValue]="s.id">{{ s.name }} ({{ s.start_date }} al {{ s.end_date }})</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Descripción para la clienta</label>
+        <textarea class="form-control" rows="2" placeholder="Textura, calce, caída de la tela y recomendaciones de uso…" [(ngModel)]="form.description"></textarea>
+      </div>
+
+      <!-- 2. Atributos de Moda Femenina (El "Algo Extra" de la prenda) -->
+      <div class="card border border-primary bg-primary bg-opacity-10 rounded-3 p-3 mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-stars text-primary fw-bold"></i>
+          <h6 class="fw-bold mb-0 text-primary">Atributos y Ficha Técnica de Moda</h6>
+        </div>
+        <p class="text-muted small mb-3">Facilitan el filtrado en la tienda online y la app móvil para que las clientas encuentren la prenda al instante.</p>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-medium mb-1">Material / Tela</label>
+            <input class="form-control form-control-sm" list="materialsList" placeholder="ej. Lino, Seda, Algodón…" [(ngModel)]="form.material">
+            <datalist id="materialsList">
+              <option *ngFor="let m of suggestedMaterials" [value]="m"></option>
+            </datalist>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-medium mb-1">Tipo de Cuello</label>
+            <select class="form-select form-select-sm" [(ngModel)]="form.neck_type">
+              <option value="">No aplica / Estándar</option>
+              <option *ngFor="let n of suggestedNecks" [value]="n">{{ n }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-medium mb-1">Largo de Manga</label>
+            <select class="form-select form-select-sm" [(ngModel)]="form.sleeve_length">
+              <option value="">No aplica / Estándar</option>
+              <option *ngFor="let sl of suggestedSleeves" [value]="sl">{{ sl }}</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-medium mb-1">Detalles / Tags de Estilo</label>
+            <input class="form-control form-control-sm" placeholder="Bordado, Casual, Fiesta…" [(ngModel)]="form.tags">
+          </div>
+        </div>
+
+        <!-- Sugerencias rápidas de tags -->
+        <div class="d-flex flex-wrap gap-1 mt-1">
+          <span class="text-muted" style="font-size: 0.7rem;">Sugerencias:</span>
+          <button type="button" class="badge bg-white text-primary border border-primary py-1 cursor-pointer"
+                  style="font-size: 0.65rem;"
+                  *ngFor="let tag of suggestedTags" (click)="addTag(tag)">
+            + {{ tag }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Galería de Fotos de la Prenda -->
+      <div class="card bg-light border-0 rounded-3 p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label small fw-bold mb-0">
+            <i class="bi bi-images me-1 text-primary"></i> Fotografías de la prenda ({{ form.images.length }})
+          </label>
+          <span class="text-muted" style="font-size: 0.72rem;">Asocia cada foto al color correspondiente</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <div class="gallery-item border rounded-3 bg-white p-1 position-relative" *ngFor="let img of form.images; let i = index" style="width: 105px;">
+            <img [src]="resolveImg(img.image_url)" alt="foto" class="rounded-2 w-100" style="height: 80px; object-fit: cover;">
+            <button type="button" class="btn btn-danger position-absolute top-0 end-0 p-0 px-1 shadow-sm" style="font-size: 9px;"
+                    (click)="removeImage(i)" title="Quitar">✕</button>
+            <select class="form-select form-select-sm mt-1" style="font-size: 0.65rem;" [(ngModel)]="img.color_id">
+              <option [ngValue]="null">Foto General</option>
+              <option *ngFor="let c of colors" [ngValue]="c.id">{{ c.name }}</option>
+            </select>
+            <label class="d-flex align-items-center gap-1 mt-1 text-muted" style="font-size: 0.62rem;">
+              <input type="radio" name="primaryImg" [checked]="img.is_primary" (change)="setPrimaryImage(i)"> Foto principal
+            </label>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+          <label class="btn btn-sm btn-outline-primary mb-0">
+            <i class="bi bi-camera me-1"></i> Subir foto desde el equipo
+            <input type="file" accept="image/*" hidden [disabled]="uploadingImage" (change)="onFileSelected($event)">
+          </label>
+          <span *ngIf="uploadingImage" class="text-primary small">
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span> Subiendo imagen…
+          </span>
+        </div>
+        <div class="input-group input-group-sm mt-2">
+          <span class="input-group-text bg-white"><i class="bi bi-link-45deg"></i></span>
+          <input type="url" class="form-control" placeholder="O pega una URL directa de foto" #urlImg>
+          <button class="btn btn-outline-secondary" type="button" (click)="addImageByUrl(urlImg.value); urlImg.value=''">Añadir</button>
+        </div>
+        <div *ngIf="imageUploadError" class="text-danger small mt-1">{{ imageUploadError }}</div>
+      </div>
+
+      <!-- 4. Variantes de Inventario (Color · Talla · SKU) -->
+      <div class="card border rounded-3 p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <label class="form-label small fw-bold mb-0">Variantes de Inventario (Color · Talla · SKU)</label>
+            <div class="text-muted" style="font-size: 0.72rem;">Genera un SKU único para cada combinación física de prenda</div>
+          </div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-success fw-medium" type="button" (click)="generateSuggestedVariants()">
+              <i class="bi bi-lightning-charge me-1"></i> Sugerir tallas automáticas
+            </button>
+            <button class="btn btn-sm btn-outline-primary" type="button" (click)="addVariantRow()">+ Fila</button>
+          </div>
+        </div>
+
+        <div class="d-flex gap-1 mb-2 align-items-center" *ngFor="let v of form.variants; let i = index">
+          <select class="form-select form-select-sm" style="flex: 1.2;" [(ngModel)]="v.color_id">
             <option [ngValue]="null" disabled>Color</option>
             <option *ngFor="let c of colors" [ngValue]="c.id">{{ c.name }}</option>
           </select>
-          <select class="form-select form-select-sm" [(ngModel)]="v.size_id">
+          <select class="form-select form-select-sm" style="flex: 1;" [(ngModel)]="v.size_id">
             <option [ngValue]="null" disabled>Talla</option>
             <option *ngFor="let s of sizes" [ngValue]="s.id">{{ s.name }}</option>
           </select>
-          <input class="form-control form-control-sm" placeholder="SKU" [(ngModel)]="v.sku">
-          <button class="btn btn-sm btn-light border" (click)="removeVariantRow(i)"><i class="bi bi-trash"></i></button>
+          <input class="form-control form-control-sm font-monospace" style="flex: 1.8;" placeholder="SKU ej. CAM-ROJ-M" [(ngModel)]="v.sku">
+          <button class="btn btn-sm btn-light border text-danger" (click)="removeVariantRow(i)"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="text-muted fst-italic small text-center py-2" *ngIf="form.variants.length === 0">
+          Sin variantes configuradas. Haz clic en <strong>"Sugerir tallas automáticas"</strong> o <strong>"+ Fila"</strong> para crearlas.
         </div>
       </div>
 
-      <div class="form-check form-switch mt-3">
+      <div class="form-check form-switch mt-2">
         <input class="form-check-input" type="checkbox" role="switch" id="prodActive" [(ngModel)]="form.is_active">
-        <label class="form-check-label small fw-bold" for="prodActive">Visible en el catálogo</label>
+        <label class="form-check-label small fw-bold" for="prodActive">Visible en el catálogo de clientes</label>
       </div>
     </div>
+
     <div class="slide-panel-footer d-flex gap-2 justify-content-end">
       <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
-      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+      <button class="btn btn-primary fw-bold px-4" (click)="save()">Guardar Prenda</button>
     </div>
   </div>
 </ng-container>

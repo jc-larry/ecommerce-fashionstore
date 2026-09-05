@@ -67,13 +67,15 @@ export class RegisterComponent {
 
     this.loading = true;
     
-    // Adaptar campos al esquema de la API (UserCreate / UserRegister)
+    // Adaptar campos al esquema de la API (UserCreate / UserRegister).
+    // El correo se normaliza; la contraseña se recorta de espacios al inicio/fin para que
+    // coincida con lo que luego se escribe al iniciar sesión.
     const payload = {
-      first_name: this.user.firstName,
-      last_name: this.user.lastName,
-      email: this.user.email,
-      phone: this.user.phone,
-      password: this.user.password
+      first_name: this.user.firstName.trim(),
+      last_name: this.user.lastName.trim(),
+      email: this.user.email.trim().toLowerCase(),
+      phone: this.user.phone.trim(),
+      password: this.user.password.trim()
     };
 
     // [CU04 - Paso 2] / [DSC004 - Paso 2] +register(datos)

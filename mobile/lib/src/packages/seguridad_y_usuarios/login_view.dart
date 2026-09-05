@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'register_view.dart';
 import 'recover_view.dart';
-import '../catalogo_y_tiendas/catalogo_view.dart';
+import '../catalogo_y_tiendas/store_shell.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -18,8 +18,10 @@ class _LoginViewState extends State<LoginView> {
   bool _loading = false;
 
   void _onLogin() async {
-    // [CU01] Inicio de sesión conectado a la API REST
-    final email = _emailController.text.trim();
+    // [CU01] Inicio de sesión conectado a la API REST.
+    // El correo va en minúsculas y sin espacios; la contraseña se recorta de espacios
+    // al inicio/fin (el teclado de Android suele añadir uno).
+    final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
@@ -59,7 +61,7 @@ class _LoginViewState extends State<LoginView> {
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CatalogoView()),
+        MaterialPageRoute(builder: (context) => const StoreShell()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

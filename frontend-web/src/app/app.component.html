@@ -4,7 +4,7 @@
   <!-- SIDEBAR LATERAL -->
   <aside class="sidebar shadow-sm">
     <div class="sidebar-brand">
-      <div class="brand-icon">🛍️</div>
+      <div class="brand-icon"><i class="bi bi-bag-heart-fill"></i></div>
       <div class="brand-text">
         <h5 class="mb-0 fw-bold">FashionStore</h5>
         <small class="text-muted" style="font-size: 0.65rem; letter-spacing: 1px;">E-COMMERCE ADMIN</small>
@@ -52,8 +52,8 @@
             {{ userInitials }}
           </div>
           <div style="line-height: 1.2;">
-            <div class="fw-bold" style="font-size: 0.85rem;">{{ userName }}</div>
-            <span class="badge text-primary bg-primary bg-opacity-10" style="font-size: 0.6rem;">{{ userRole }}</span>
+            <div class="fw-bold text-truncate" style="font-size: 0.85rem; max-width: 130px;">{{ userName }}</div>
+            <span class="pill pill-role" *ngIf="userRole" style="font-size: 0.62rem;">{{ userRole }}</span>
           </div>
         </div>
         <button class="btn btn-sm btn-light text-muted border-0" (click)="onLogout()" title="Cerrar Sesión">
@@ -67,17 +67,15 @@
   <main class="main-content">
     <!-- TOPBAR -->
     <header class="topbar shadow-sm">
-      <h4 class="mb-0 fw-bold route-title">{{ routeTitle }}</h4>
-
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Buscar...">
+      </div>
       <div class="topbar-actions">
-        <div class="search-box">
-          <i class="bi bi-search"></i>
-          <input type="text" placeholder="Buscar...">
-        </div>
         <button class="btn btn-light rounded-circle btn-icon">
           <i class="bi bi-bell"></i>
         </button>
-        <div class="country-selector border rounded px-3 py-1 bg-white">
+        <div class="country-selector border rounded px-3 py-1 bg-white d-flex align-items-center">
           <span class="me-2">🇧🇴</span> <span style="font-size: 0.85rem; font-weight: 500;">Bolivia (BO)</span>
         </div>
       </div>

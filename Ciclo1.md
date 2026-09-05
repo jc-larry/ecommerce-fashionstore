@@ -20,7 +20,7 @@ ahora consolidados aquí).
 - **1. Captura de Requisitos**
   - 1.1 Identificación de actores y casos de uso
   - 1.2 Priorización de casos de uso
-  - 1.3 Detallar casos de uso (14 fichas + estereotipos)
+  - 1.3 Detallar casos de uso (15 fichas + notas CU12/CU13 + estereotipos)
   - 1.4 Prototipado de interfaz de usuario
   - 1.5 Estructurar el modelo de casos de uso
 - **2. Análisis**
@@ -45,13 +45,21 @@ ahora consolidados aquí).
 
 ### 0.1 Alcance
 
-El Ciclo 1 implementa **14 casos de uso** (numeración: lista maestra de 40 CU de `Contexto.md`):
+El Ciclo 1 implementa **15 casos de uso** (numeración: lista maestra de 40 CU de `Contexto.md`):
 
-> **CU01, CU02, CU03, CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU11, CU36, CU37, CU38.**
+> **CU01, CU02, CU03, CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU11, CU14, CU36, CU37, CU38.**
 
 Cubre la **infraestructura base** del sistema: seguridad y usuarios, catálogo y sucursales,
 proveedores e ingreso de mercadería, **valoración de inventario por costo promedio ponderado**,
-**ajustes de inventario (mermas)**, consulta del catálogo por el cliente y bitácora de auditoría.
+**ajustes de inventario (mermas)**, consulta del catálogo por el cliente (**catálogo enriquecido:
+galería de fotos, prendas multicolor, categorías con imagen, oferta directa por prenda y vista de
+detalle**), **reseñas y favoritos de prendas (CU14, versión ligera)** y bitácora de auditoría.
+
+> **CU14 se adelanta al Ciclo 1 en versión ligera:** el cliente con sesión califica (1–5★) y
+> comenta una prenda (una reseña por prenda, editable, sin moderación) y marca prendas como
+> favoritas (♥). La wishlist con listas múltiples y las reseñas con moderación quedan para el
+> Ciclo 2. La **oferta directa por prenda** (`compare_at_price`) es un adelanto puntual del
+> ámbito de CU13 y se documenta **dentro de CU07** (no cuenta como CU nuevo).
 
 ### 0.2 Arquitectura de paquetes (los 8 paquetes del sistema)
 
@@ -61,7 +69,7 @@ idénticos en documentación y en código. El Ciclo 1 tiene código en 4 de ello
 | # | Paquete | Propósito | CU del Ciclo 1 |
 | :- | :--- | :--- | :--- |
 | 1 | `seguridad_y_usuarios` | Autenticación JWT, RBAC, perfiles/roles/clientes, auditoría | CU01, CU02, CU03, CU04, CU05, CU36 |
-| 2 | `catalogo_y_tiendas` | Sucursales físicas, su personal y el catálogo unificado de prendas | CU06, CU07, CU09, CU11 |
+| 2 | `catalogo_y_tiendas` | Sucursales físicas, su personal, el catálogo unificado de prendas y la tienda del cliente (detalle, reseñas y favoritos) | CU06, CU07, CU09, CU11, CU14 |
 | 3 | `inventario_y_proveedores` | Stock real por sucursal, proveedores, abastecimiento, valoración y ajustes | CU08, CU10, CU37, CU38 |
 | 4 | `ventas_y_pagos` | Carrito, checkout, POS, facturación IVA 13 % | *(solo modelos base en Ciclo 1)* |
 | 5 | `reservas_y_citas` | Flujo online-to-offline para probarse ropa | — (Ciclo 3) |
@@ -74,8 +82,9 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 
 ### 0.3 Alcance por canal (Móvil vs Web)
 
-> - **App Móvil (Flutter):** exclusiva para el **cliente final** (autenticación y consulta de
->   catálogo). No incluye funciones administrativas.
+> - **App Móvil (Flutter):** exclusiva para el **cliente final** (autenticación, consulta de
+>   catálogo, vista de detalle de prenda, reseñas y favoritos). No incluye funciones
+>   administrativas.
 > - **Frontend Web (Angular):** atiende **dos audiencias** en el mismo sitio, separadas por rol
 >   tras el inicio de sesión:
 >   - **Personal** (`SUPERADMIN` / `ENCARGADO` / `CAJERO`) → **panel administrativo** (`/admin/...`).
@@ -91,11 +100,12 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 | CU04 | Auto-registro de cliente | ✅ | ✅ | ✅ | `seguridad_y_usuarios` |
 | CU05 | Gestionar perfiles, roles y clientes | ❌ | ✅ | ✅ | `seguridad_y_usuarios` |
 | CU06 | Gestionar sucursales | ❌ | ✅ | ✅ | `catalogo_y_tiendas` |
-| CU07 | Gestionar catálogo | ❌ | ✅ | ✅ | `catalogo_y_tiendas` |
+| CU07 | Gestionar catálogo (galería, prendas multicolor, categorías con foto, oferta) | ❌ | ✅ | ✅ | `catalogo_y_tiendas` |
 | CU08 | Gestionar proveedores | ❌ | ✅ | ✅ | `inventario_y_proveedores` |
 | CU09 | Gestionar empleados | ❌ | ✅ | ✅ | `catalogo_y_tiendas` |
 | CU10 | Registrar compras / ingresos de mercadería | ❌ | ✅ | ✅ | `inventario_y_proveedores` |
-| CU11 | Consultar catálogo (cliente) — solo lectura | ✅ | ✅ | ✅ | `catalogo_y_tiendas` |
+| CU11 | Consultar catálogo (cliente): categorías, grilla lookbook y detalle de prenda | ✅ | ✅ | ✅ | `catalogo_y_tiendas` |
+| CU14 | Reseñas y favoritos de prendas (versión ligera) | ✅ | ✅ | ✅ | `catalogo_y_tiendas` |
 | CU37 | Consultar valoración de inventario / capital invertido | ❌ | ✅ | ✅ | `inventario_y_proveedores` |
 | CU38 | Gestionar ajustes de inventario (mermas, daños, pérdidas) | ❌ | ✅ | ✅ | `inventario_y_proveedores` |
 | CU36 | Consultar bitácora de auditoría | ❌ | ✅ | ✅ | `seguridad_y_usuarios` |
@@ -111,7 +121,7 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 | # | Actor | Tipo | Interviene en |
 | :-- | :--- | :--- | :--- |
 | 1 | **Visitante** (usuario anónimo, no autenticado) | Humano primario | CU11 |
-| 2 | **Cliente** (rol `CLIENTE`) | Humano primario | CU01, CU02, CU03, CU04, CU11 |
+| 2 | **Cliente** (rol `CLIENTE`) | Humano primario | CU01, CU02, CU03, CU04, CU11, CU14 |
 | 3 | **Superadmin** (rol `SUPERADMIN`) | Humano primario | CU01, CU02, CU05, CU06, CU07, CU08, CU09, CU10, CU36, CU37, CU38 |
 | 4 | **Encargado de sucursal** (rol `ENCARGADO`) | Humano primario | CU01, CU02, CU10, CU37, CU38 |
 | 5 | **Cajero** (rol `CAJERO`) | Humano primario | CU01, CU02 |
@@ -163,6 +173,7 @@ flowchart TD
 | CU37 Consultar valoración de inventario | | | ✅ | ✅ | |
 | CU38 Gestionar ajustes de inventario | | | ✅ | ✅ | |
 | CU11 Consultar catálogo | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CU14 Reseñas y favoritos de prendas | | ✅ | | | |
 | CU36 Consultar bitácora de auditoría | | | ✅ | | |
 
 ¹ CU03 siempre lo inicia un **usuario no autenticado** (olvidó su contraseña), sin importar el rol de esa cuenta.
@@ -179,18 +190,21 @@ flowchart TD
 | CU04 | Auto-registro de cliente | ✅ | ✅ | Alta | Medio | Registro (base) |
 | CU05 | Gestionar perfiles, roles y clientes | | ✅ | Alta | Medio | Registro (base) |
 | CU06 | Gestionar sucursales | | ✅ | Alta | Bajo | Registro (base) |
-| CU07 | Gestionar catálogo | | ✅ | Alta | Alto | Registro compuesto (prenda → variantes) |
+| CU07 | Gestionar catálogo | | ✅ | Alta | Alto | Registro compuesto (prenda → variantes + galería + oferta) |
 | CU08 | Gestionar proveedores | | ✅ | Media | Bajo | Registro (base) |
 | CU09 | Gestionar empleados | | ✅ | Media | Medio | Registro compuesto (`«include»` CU05 + CU06) |
 | CU10 | Registrar compras / ingresos de mercadería | | ✅ | Alta | Alto | **Transacción ACID** (stock + libro mayor + costo promedio) |
-| CU11 | Consultar catálogo (cliente) | ✅ | ✅ | Alta | Bajo | Consulta (solo lectura) |
+| CU11 | Consultar catálogo (cliente) | ✅ | ✅ | Alta | Medio | Consulta (categorías + grilla lookbook + detalle de prenda) |
+| CU14 | Reseñas y favoritos de prendas (versión ligera) | ✅ | ✅ | Media | Medio | Registro simple (reseña *upsert* + toggle de favorito) |
 | CU37 | Consultar valoración de inventario | | ✅ | Alta | Medio | Consulta con cálculo (prorrateo) |
 | CU38 | Gestionar ajustes de inventario | | ✅ | Media | Medio | **Transacción ACID** (stock + libro mayor + auditoría) |
 | CU36 | Consultar bitácora de auditoría | | ✅ | Media | Bajo | Consulta (solo lectura) |
 
-Se difieren al **Ciclo 2**: CU12 (buscar/filtrar avanzado + disponibilidad por sucursal),
-CU13–CU24 (promociones, wishlist, inventario general, carrito, checkout, factura, cotización,
-devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
+Se difieren al **Ciclo 2**: CU12 (buscar/filtrar avanzado por talla/color/precio/ocasión +
+disponibilidad por sucursal), CU13 (**cupones y ofertas de temporada programadas** — la **oferta
+directa por prenda** se adelanta dentro de CU07), la **wishlist avanzada y las reseñas con
+moderación** (ampliación de CU14), y CU15–CU24 (inventario general, carrito, checkout, factura,
+cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 
 ---
 
@@ -299,15 +313,15 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 | Campo | Descripción |
 | :--- | :--- |
 | **Caso de Uso** | CU07 : Gestionar catálogo |
-| **Propósito** | Administrar las prendas, sus parámetros (categorías, tallas, colores, temporadas) y sus variantes (color + talla + SKU). |
-| **Descripción** | El Superadmin parametriza el catálogo y da de alta, edita u oculta prendas, definiendo por cada una su categoría, temporada, precio base y sus variantes. Los **colores son multivaluados** (una prenda puede combinar varios colores). |
+| **Propósito** | Administrar las prendas, sus parámetros (categorías **con imagen**, tallas, colores, temporadas), su **galería de fotos**, su **precio de oferta** y sus variantes (color + talla + SKU). |
+| **Descripción** | El Superadmin parametriza el catálogo y da de alta, edita u oculta prendas, definiendo por cada una su categoría, temporada, precio base, **precio antes (oferta)**, una **galería de 2–5 fotos** (cada foto asociable a un color) y sus variantes. Los **colores son multivaluados** (una prenda puede combinar varios colores); en la tienda el cliente elige el color y cambian las fotos y las tallas disponibles. Las variantes se pueden **editar también al modificar** la prenda (no solo al crearla): las que se quitan se marcan `is_active = false` y las nuevas se insertan validando el SKU. |
 | **Actores** | Superadmin. *(En ciclos posteriores se prevé habilitar también al Encargado.)* |
 | **Actor iniciador** | Superadmin. |
-| **Tablas** | `products`, `product_variants`, `product_images`, `categories`, `seasons`, `colors`, `sizes`, `audit_logs` |
+| **Tablas** | `products` (+ `compare_at_price`), `product_variants`, `product_images` (galería, `color_id` nullable), `categories` (+ `image_url`), `seasons`, `colors`, `sizes`, `audit_logs` |
 | **Precondición** | Deben existir al menos una categoría, una talla y un color parametrizados. |
-| **Flujo principal** | 1. El actor entra al módulo "Catálogo".<br>2. El actor agrega, si hace falta, categorías, tallas, colores o temporadas (alta rápida).<br>3. El actor pulsa "Nueva Prenda" e ingresa nombre, descripción, precio base, categoría y temporada.<br>4. El actor define una o más variantes (color + talla + SKU).<br>5. El sistema valida los SKU y la unicidad de la combinación producto+color+talla, y guarda la estructura Prenda → Variantes.<br>6. El sistema registra `INSERT` en `audit_logs`.<br>7. El actor puede editar la prenda u **ocultarla** del catálogo (baja lógica, `is_active = false`). |
-| **Post condición** | La prenda queda creada, modificada u oculta; si está visible aparecerá en la tienda del cliente (CU11) y podrá abastecerse (CU10). |
-| **Excepciones** | **E1: SKU o combinación color/talla repetida.**<br>**E2: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN`. |
+| **Flujo principal** | 1. El actor entra al módulo "Catálogo".<br>2. El actor agrega, si hace falta, categorías (**con su foto circular**), tallas, colores o temporadas (alta rápida).<br>3. El actor pulsa "Nueva Prenda" e ingresa nombre, **descripción detallada**, precio base, **precio antes (oferta, opcional)**, categoría y temporada.<br>4. El actor sube la **galería de fotos** (2–5) y marca una como principal; opcionalmente asocia cada foto a un color.<br>5. El actor define una o más variantes (color + talla + SKU).<br>6. El sistema valida los SKU y la unicidad de la combinación producto+color+talla, calcula el **% de descuento** (`round((1 − base/antes)·100)`) y guarda la estructura Prenda → Galería + Variantes.<br>7. El sistema registra `INSERT` / `UPDATE` en `audit_logs` (incluye subida de imagen y cambio de oferta).<br>8. El actor puede editar la prenda (datos, galería, oferta, variantes) u **ocultarla** del catálogo (baja lógica, `is_active = false`). |
+| **Post condición** | La prenda queda creada, modificada u oculta; si está visible aparece en la tienda del cliente (CU11) con su galería, su oferta y su ★ promedio (CU14), y puede abastecerse (CU10). |
+| **Excepciones** | **E1: SKU o combinación color/talla repetida.**<br>**E2: Precio antes ≤ precio base:** no se muestra oferta (descuento 0 %).<br>**E3: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN`. |
 
 ### 1.3.8 · CU08: Gestionar proveedores [Prioridad: Media]
 
@@ -361,22 +375,58 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 
 | Campo | Descripción |
 | :--- | :--- |
-| **Caso de Uso** | CU11 : Consultar catálogo — *vista de solo lectura (Ciclo 1)* |
-| **Propósito** | Permitir que cualquier persona vea las prendas disponibles de la tienda. |
-| **Descripción** | El actor entra a la tienda (web `/tienda` o móvil) y ve la grilla de prendas **visibles** (`is_active = true`): foto principal, nombre, categoría y precio base, con búsqueda por texto y filtro por categoría. |
+| **Caso de Uso** | CU11 : Consultar catálogo — *tienda del cliente (Ciclo 1)* |
+| **Propósito** | Permitir que cualquier persona explore las prendas de la tienda: por categorías, en grilla lookbook y en una vista de detalle por prenda. |
+| **Descripción** | El actor entra a la tienda (web `/tienda` o app móvil) y navega el catálogo enriquecido: **tira de categorías con foto circular**, hero de colección y **grilla lookbook** de prendas visibles (`is_active = true`) con foto principal, precio, **oferta** (`Bs. X` ~~`Bs. Y`~~ `−%`), **★ promedio y conteo** (CU14) y **♥ favorito** (CU14). Al tocar una prenda abre la **vista de detalle** (`/tienda/producto/:id` en web, pantalla equivalente en móvil): galería (foto grande + miniaturas), **selector de color** que cambia las fotos y las **tallas disponibles de ese color**, "Guía de tallas" (modal con tabla estándar en cm), "Descripción" desplegable, "Entrega estimada: 3–5 días hábiles", botón "Añadir al carrito (próximamente)" deshabilitado, y la sección de **reseñas** (CU14). Hay búsqueda por texto y filtro por categoría. |
 | **Actores** | Visitante, Cliente (y también el personal). |
 | **Actor iniciador** | Visitante o Cliente. |
-| **Tablas** | `products`, `product_variants`, `product_images`, `categories` (solo lectura) |
+| **Estereotipos** | `CU14 --«include»--> CU11` (se opina y se guarda favorito desde la vista de catálogo/detalle). |
+| **Tablas** | `products`, `product_variants`, `product_images`, `categories`, `product_reviews` (★ promedio), `wishlist_items` (♥ del usuario) — solo lectura para CU11 |
 | **Precondición** | Existe al menos una prenda activa en el catálogo (CU07). |
-| **Flujo principal** | 1. El actor abre la tienda en la web o la app.<br>2. El sistema consulta el catálogo público (`GET /api/v1/catalog/products`).<br>3. El sistema muestra la grilla de prendas activas con su precio.<br>4. El actor busca por texto o filtra por categoría. |
-| **Post condición** | Ninguna afectación de datos (solo lectura). |
-| **Excepciones** | **E1: Catálogo vacío:** "No hay prendas disponibles por el momento".<br>**E2: Sin conexión (móvil):** aviso de conexión en lugar de quedarse cargando. |
+| **Flujo principal** | 1. El actor abre la tienda en la web o la app.<br>2. El sistema consulta el catálogo público (`GET /api/v1/catalog/products`), las categorías y el resumen de ratings (`GET /api/v1/catalog/ratings-summary`); si hay sesión, también sus favoritos.<br>3. El sistema muestra la tira de categorías, el hero y la grilla lookbook (precio, oferta, ★, ♥).<br>4. El actor filtra por categoría o busca por texto.<br>5. El actor toca una prenda → el sistema pide `GET /api/v1/catalog/products/{id}` y sus reseñas y muestra el detalle.<br>6. El actor cambia el color → el sistema recalcula la galería y las tallas disponibles de ese color. |
+| **Post condición** | Ninguna afectación de datos (CU11 es solo lectura; opinar o marcar favorito es CU14). |
+| **Excepciones** | **E1: Catálogo vacío:** "No hay prendas disponibles por el momento".<br>**E2: Prenda inexistente u oculta:** HTTP 404 en el detalle.<br>**E3: Sin conexión (móvil):** aviso de conexión en lugar de quedarse cargando. |
 
-> **Alcance de CU11 en el Ciclo 1:** solo consulta y filtro por categoría. El filtrado avanzado
-> por talla/color/precio y la disponibilidad por sucursal (**CU12**), el carrito, el pago y el
-> vestidor virtual corresponden a los ciclos 2 y 3.
+> **Alcance de CU11 en el Ciclo 1:** navegación por categorías, grilla lookbook con oferta/★/♥,
+> vista de detalle con selección de color, tallas por color, guía de tallas y descripción, más
+> búsqueda por texto y filtro por categoría. El **filtrado avanzado** por talla/color/precio y
+> por ocasión y la **disponibilidad por sucursal** (**CU12**), el carrito, el pago y el vestidor
+> virtual corresponden a los ciclos 2 y 3.
 
-### 1.3.12 · CU36: Consultar bitácora de auditoría [Prioridad: Media]
+### 1.3.12 · CU14: Reseñas y favoritos de prendas [Prioridad: Media] — *adelantado al Ciclo 1 (versión ligera)*
+
+| Campo | Descripción |
+| :--- | :--- |
+| **Caso de Uso** | CU14 : Dejar reseña y marcar prendas favoritas |
+| **Propósito** | Que el cliente exprese su opinión sobre una prenda (calificación + comentario) y arme una lista de prendas favoritas para volver a encontrarlas. |
+| **Descripción** | **Reseñas:** cualquier usuario con sesión y rol `CLIENTE` califica una prenda de **1 a 5 estrellas** y escribe un comentario opcional. Hay **una reseña por prenda y por usuario** (si vuelve a enviar, se **actualiza** la suya — *upsert*). No hay moderación. La ficha de la prenda muestra el **promedio** y el **número de reseñas**. **Favoritos (wishlist):** el cliente marca o desmarca una prenda con ♥ desde la grilla o desde el detalle; la pantalla "Favoritos" lista sus prendas guardadas. |
+| **Actores** | Cliente. |
+| **Actor iniciador** | Cliente autenticado. |
+| **Estereotipos** | `CU14 --«include»--> CU11` (se opina/guarda desde la vista de catálogo o de detalle); `CU14 --«include»--> CU36` (alta/edición de reseña y alta/baja de favorito se auditan). |
+| **Tablas** | `product_reviews` (`rating` 1–5, `comment`, `UNIQUE(product_id, user_id)`), `wishlist_items` (PK `(user_id, product_id)`), `products`, `audit_logs` |
+| **Precondición** | El actor tiene sesión activa (`CLIENTE`) y está viendo una prenda existente y visible. |
+| **Flujo principal (reseña)** | 1. El cliente abre el detalle de una prenda y baja a "Reseñas".<br>2. Si ya opinó, el formulario viene precargado con su calificación y comentario.<br>3. El cliente elige 1–5★, escribe el comentario y pulsa "Publicar / Actualizar mi reseña".<br>4. El sistema hace *upsert* en `product_reviews` por `(product_id, user_id)` y registra `INSERT` o `UPDATE` en `audit_logs`.<br>5. El sistema recalcula el promedio y el conteo y refresca la lista (la reseña propia se marca "(tú)"). |
+| **Flujo principal (favorito)** | 1. El cliente pulsa ♥ en una tarjeta o en el detalle.<br>2. El sistema hace `POST /api/v1/catalog/wishlist/{product_id}` (idempotente) o `DELETE` si ya estaba, y lo audita.<br>3. El ♥ queda relleno/vacío; la pantalla "Favoritos" refleja el cambio. |
+| **Post condición** | Queda registrada (o actualizada) la reseña del cliente y/o el estado de favorito de la prenda para ese usuario. |
+| **Excepciones** | **E1: Sin sesión:** el formulario de reseña y el ♥ piden iniciar sesión (HTTP 401).<br>**E2: Calificación fuera de rango (no 1–5):** HTTP 422 (validación) / `CHECK` en BD.<br>**E3: Prenda inexistente:** HTTP 404. |
+
+> **Alcance de CU14 en el Ciclo 1 (versión ligera):** una reseña por prenda, editable, sin
+> moderación; una sola lista de favoritos por usuario. Quedan para el **Ciclo 2**: moderación de
+> reseñas, respuestas del comercio, "compra verificada", útil/no útil, y **listas de deseos
+> múltiples** o compartibles.
+
+### 1.3.13 · Notas sobre CU12 y CU13 (diferidos) afectados por el catálogo
+
+- **CU12 — Buscar y filtrar (Ciclo 2):** la **búsqueda por texto** y el **filtro por categoría**
+  ya se implementan en el Ciclo 1 como parte de CU11. Siguen en el Ciclo 2 el filtrado por
+  **talla / color / precio**, por **ocasión** (chips Casual / Formal / Fiesta) y la
+  **disponibilidad por sucursal**.
+- **CU13 — Promociones (Ciclo 2):** se adelanta una **oferta directa por prenda**
+  (`products.compare_at_price`, la fija el Superadmin en CU07 y se muestra como
+  `Bs. X` ~~`Bs. Y`~~ `−%`). Siguen en el Ciclo 2 los **cupones** y las **ofertas de temporada
+  programadas** (rangos de fechas, campañas tipo Black Friday, reglas por categoría).
+
+### 1.3.14 · CU36: Consultar bitácora de auditoría [Prioridad: Media]
 
 | Campo | Descripción |
 | :--- | :--- |
@@ -391,7 +441,7 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 | **Post condición** | Ninguna afectación de datos (solo lectura). |
 | **Excepciones** | **E1: Falta de permisos:** cualquier usuario sin rol `SUPERADMIN` recibe **HTTP 403**. |
 
-### 1.3.13 · CU37: Consultar valoración de inventario / capital invertido [Prioridad: Alta]
+### 1.3.15 · CU37: Consultar valoración de inventario / capital invertido [Prioridad: Alta]
 
 | Campo | Descripción |
 | :--- | :--- |
@@ -407,7 +457,7 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 | **Post condición** | Ninguna afectación de datos (solo lectura). |
 | **Excepciones** | **E1: Inventario vacío:** capital 0 y "Sin existencias registradas".<br>**E2: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN` ni `ENCARGADO`. |
 
-### 1.3.14 · CU38: Gestionar ajustes de inventario [Prioridad: Media]
+### 1.3.16 · CU38: Gestionar ajustes de inventario [Prioridad: Media]
 
 | Campo | Descripción |
 | :--- | :--- |
@@ -423,7 +473,7 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 | **Post condición** | El stock de la variante queda ajustado; el movimiento es auditable y aparecerá en el kardex (Ciclo 3). |
 | **Excepciones** | **E1: Cantidad cero.**<br>**E2: Stock insuficiente** (cantidad negativa mayor al stock): HTTP 400.<br>**E3: No existe inventario para esa variante/sucursal:** HTTP 404.<br>**E4: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN` ni `ENCARGADO`. |
 
-### 1.3.15 · Estereotipos del modelo de casos de uso (Ciclo 1)
+### 1.3.17 · Estereotipos del modelo de casos de uso (Ciclo 1)
 
 | Origen | Estereotipo | Destino | Motivo |
 | :--- | :--- | :--- | :--- |
@@ -431,9 +481,10 @@ devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39, CU40.
 | CU09 | `«include»` | CU06 | Gestionar empleados incluye asignar el usuario a una sucursal. |
 | CU10 | `«include»` | CU08 | Registrar ingresos requiere un proveedor registrado. |
 | CU10 | `«include»` | CU07 | Registrar ingresos requiere variantes del catálogo. |
+| CU14 | `«include»` | CU11 | El cliente opina y marca favoritos desde la vista de catálogo / detalle de prenda. |
 | CU37 | `«include»` | CU10 | La valoración se calcula sobre el costo promedio que fija cada ingreso. |
 | CU38 | `«extend»` | CU37 | Un ajuste (opcionalmente) altera el capital invertido mostrado por CU37. |
-| CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU38 | `«include»` | CU36 | Toda operación de escritura sensible deja rastro en la bitácora (regla transversal, se dibuja una vez). |
+| CU04, CU05, CU06, CU07, CU08, CU09, CU10, CU14, CU38 | `«include»` | CU36 | Toda operación de escritura sensible deja rastro en la bitácora (regla transversal, se dibuja una vez). |
 | Actor `Usuario` | herencia | `Cliente` / `Empleado` | `Empleado` ⭅ `Superadmin` / `Encargado` / `Cajero`. |
 
 ---
@@ -454,11 +505,14 @@ Flutter. En el documento del parcial cada CU se acompaña de: (1) su diseño, (2
 | CU04 | Crear cuenta | `.../seguridad_y_usuarios/register/` · `mobile/.../register_view.dart` | Web + Móvil |
 | CU05 | Usuarios y Roles | `.../seguridad_y_usuarios/usuarios_roles/` | Web |
 | CU06 | Sucursales | `.../catalogo_y_tiendas/branches/` | Web |
-| CU07 | Catálogo (prendas + variantes) | `.../catalogo_y_tiendas/products/` | Web |
+| CU07 | Catálogo (prendas + galería + oferta + variantes; categorías con foto) | `.../catalogo_y_tiendas/products/` | Web |
 | CU08 | Proveedores | `.../inventario_y_proveedores/suppliers/` | Web |
 | CU09 | Empleados | `.../catalogo_y_tiendas/employees/` | Web |
 | CU10 | Ingreso de mercadería | `.../inventario_y_proveedores/merchandise/` | Web |
-| CU11 | Tienda del cliente | `.../catalogo_y_tiendas/store/` · `mobile/.../catalogo_view.dart` | Web + Móvil |
+| CU11 | Tienda del cliente (categorías + grilla lookbook) | `.../catalogo_y_tiendas/store/store-home.component.*` · `mobile/.../catalogo_view.dart` | Web + Móvil |
+| CU11 | Detalle de prenda (galería, color, tallas, guía de tallas) | `.../catalogo_y_tiendas/store/product-detail.component.*` · `mobile/.../product_detail_view.dart` | Web + Móvil |
+| CU14 | Reseñas (en el detalle de prenda) | `.../store/product-detail.component.*` · `mobile/.../product_detail_view.dart` | Web + Móvil |
+| CU14 | Favoritos / wishlist | `.../store/wishlist.component.*` · `mobile/.../wishlist_view.dart` | Web + Móvil |
 | CU36 | Bitácora de auditoría | `.../seguridad_y_usuarios/audit/` | Web |
 | CU37 | Valoración de inventario | `.../inventario_y_proveedores/valuation/` | Web |
 | CU38 | Ajustes de inventario | `.../inventario_y_proveedores/adjustments/` | Web |
@@ -544,6 +598,7 @@ flowchart LR
         CU07(("CU07 Gestionar catálogo"))
         CU09(("CU09 Gestionar empleados de sucursal"))
         CU11(("CU11 Consultar catálogo"))
+        CU14(("CU14 Reseñas y favoritos de prendas"))
     end
 
     subgraph INV["Paquete: inventario_y_proveedores"]
@@ -558,6 +613,7 @@ flowchart LR
     CLI --- CU02
     CLI --- CU04
     CLI --- CU11
+    CLI --- CU14
     ENC --- CU01
     ENC --- CU02
     ENC --- CU10
@@ -585,10 +641,11 @@ flowchart LR
     CU10 -. "«include»" .-> CU07
     CU37 -. "«include»" .-> CU10
     CU38 -. "«extend»" .-> CU37
+    CU14 -. "«include»" .-> CU11
 ```
 
 > **Regla transversal (no se dibuja en cada arista):** todos los CU con operación de escritura
-> (CU04–CU10, CU38) tienen `«include» → CU36` (bitácora). CU01/CU02/CU03 también escriben
+> (CU04–CU10, CU14, CU38) tienen `«include» → CU36` (bitácora). CU01/CU02/CU03 también escriben
 > eventos (`LOGIN`, `LOGOUT`, `RECOVER`).
 
 ### Vista por paquete
@@ -615,9 +672,12 @@ flowchart LR
     SA --- CU07(("CU07 Gestionar catálogo"))
     SA --- CU09(("CU09 Gestionar empleados"))
     VIS(("Visitante / Cliente")) --- CU11(("CU11 Consultar catálogo"))
+    CLI(("Cliente")) --- CU14(("CU14 Reseñas y favoritos"))
     CU09 -. "«include»" .-> CU05(("CU05 (Seguridad)"))
     CU09 -. "«include»" .-> CU06
     CU11 -. "«include»" .-> CU07
+    CU14 -. "«include»" .-> CU11
+    CU14 -. "«include»" .-> CU36(("CU36 (Bitácora)"))
 ```
 
 **`inventario_y_proveedores`**
@@ -648,7 +708,7 @@ En el Ciclo 1 hay código en **4 paquetes**. Los demás existen como carpeta res
 | Paquete | CU del Ciclo 1 | Vista de CU dentro del paquete |
 | :-- | :-- | :-- |
 | `seguridad_y_usuarios` | CU01, CU02, CU03, CU04, CU05, CU36 | Autenticación + gestión de identidad + auditoría |
-| `catalogo_y_tiendas` | CU06, CU07, CU09, CU11 | Sucursales + personal de sucursal + catálogo + tienda del cliente |
+| `catalogo_y_tiendas` | CU06, CU07, CU09, CU11, CU14 | Sucursales + personal de sucursal + catálogo enriquecido + tienda del cliente (detalle, reseñas, favoritos) |
 | `inventario_y_proveedores` | CU08, CU10, CU37, CU38 | Proveedores + ingresos + valoración + ajustes |
 | `ventas_y_pagos` | *(solo modelos)* | Jerarquía `MedioDePago` y `Comprobante` como respaldo del diagrama de clases |
 
@@ -800,14 +860,17 @@ flowchart LR
     CTR(("⚙️ CTR_Catalogo"))
     ENT_P[("🗄️ CE_Producto")]
     ENT_V[("🗄️ CE_Variante")]
+    ENT_IMG[("🗄️ CE_ImagenPrenda")]
 
-    Actor -- "1: +guardarPrenda(datos, variantes)" --> IU
-    IU -- "2: +create_product(datos)" --> CTR
-    CTR -- "3: +insert(producto)" --> ENT_P
+    Actor -- "1: +guardarPrenda(datos, oferta, galería, variantes)" --> IU
+    IU -- "2: +upload_image(archivo)*" --> CTR
+    CTR -- "3: +insert/update(producto, compare_at_price)" --> ENT_P
     ENT_P -. "4: +Producto ID" .-> CTR
-    CTR -- "5: +insert(variantes)" --> ENT_V
-    ENT_V -. "6: +Variantes creadas" .-> CTR
-    CTR -. "7: +Actualizar catálogo" .-> IU
+    CTR -- "5: +reconciliar(galería, color_id, is_primary)" --> ENT_IMG
+    CTR -- "6: +reconciliar(variantes por SKU)" --> ENT_V
+    ENT_V -. "7: +Variantes activas/inactivas" .-> CTR
+    CTR -- "8: +calcular discount_percent" --> CTR
+    CTR -. "9: +Actualizar catálogo" .-> IU
 ```
 
 ### CU08: Gestionar proveedores
@@ -865,20 +928,57 @@ flowchart LR
     CTR -. "8: +Mostrar éxito" .-> IU
 ```
 
-### CU11: Consultar catálogo (Público)
+### CU11: Consultar catálogo (Público) — grilla y detalle
+
+```mermaid
+flowchart LR
+    Actor(("👤 Visitante / Cliente"))
+    IU(["🖥️/📱 IU_Tienda"])
+    IUD(["🖥️/📱 IU_DetallePrenda"])
+    CTR(("⚙️ CTR_Catalogo"))
+    ENT[("🗄️ CE_Producto")]
+    ENT_R[("🗄️ CE_Resena")]
+
+    Actor -- "1: +navegar(categoría, texto)" --> IU
+    IU -- "2: +list_products() + ratings_summary()" --> CTR
+    CTR -- "3: +select_active() + avg/count(reseñas)" --> ENT
+    ENT -. "4: +Prendas con foto, oferta y ★ promedio" .-> CTR
+    CTR -. "5: +Renderizar categorías + grilla lookbook" .-> IU
+    Actor -- "6: +abrirPrenda(id)" --> IUD
+    IUD -- "7: +get_product(id) + get_reviews(id)" --> CTR
+    CTR -- "8: +select(producto, variantes, imágenes)" --> ENT
+    CTR -- "9: +select(reseñas del producto)" --> ENT_R
+    CTR -. "10: +Ficha: galería, colores, tallas por color, reseñas" .-> IUD
+    Actor -- "11: +elegirColor(color_id)" --> IUD
+    IUD -. "12: +Recalcular galería y tallas disponibles" .-> IUD
+```
+
+### CU14: Reseñas y favoritos de prendas
 
 ```mermaid
 flowchart LR
     Actor(("👤 Cliente"))
-    IU(["🖥️/📱 IU_Tienda"])
+    IU(["🖥️/📱 IU_DetallePrenda"])
+    IUW(["🖥️/📱 IU_Favoritos"])
     CTR(("⚙️ CTR_Catalogo"))
-    ENT[("🗄️ CE_Producto")]
+    ENT_R[("🗄️ CE_Resena")]
+    ENT_F[("🗄️ CE_Favorito")]
+    ENT_A[("🗄️ CE_Bitacora")]
 
-    Actor -- "1: +navegar(filtros)" --> IU
-    IU -- "2: +list_products(filtros)" --> CTR
-    CTR -- "3: +select_active()" --> ENT
-    ENT -. "4: +Lista de Productos" .-> CTR
-    CTR -. "5: +Renderizar cuadrícula" .-> IU
+    Actor -- "1: +publicarResena(rating, comentario)" --> IU
+    IU -- "2: +submit_review(product_id, rating, comment)" --> CTR
+    CTR -- "3: +upsert por (product_id, user_id)" --> ENT_R
+    ENT_R -. "4: +Reseña creada/actualizada + nuevo promedio" .-> CTR
+    CTR -- "5: +log_event(INSERT/UPDATE product_reviews)" --> ENT_A
+    CTR -. "6: +Refrescar reseñas y ★ promedio" .-> IU
+    Actor -- "7: +toggleFavorito(product_id)" --> IU
+    IU -- "8: +add/remove wishlist(product_id)" --> CTR
+    CTR -- "9: +insert/delete (user_id, product_id)" --> ENT_F
+    CTR -- "10: +log_event(favorito)" --> ENT_A
+    CTR -. "11: +♥ actualizado" .-> IU
+    Actor -- "12: +verFavoritos()" --> IUW
+    IUW -- "13: +get_wishlist()" --> CTR
+    CTR -. "14: +Prendas favoritas del usuario" .-> IUW
 ```
 
 ### CU36: Consultar bitácora de auditoría
@@ -1129,6 +1229,21 @@ classDiagram
         +entrarATienda()
         +buscar()
         +filtrarPorCategoria()
+        +abrirDetalle(id)
+        +toggleFavorito(id)
+    }
+    class IU_ProductDetail {
+        +galeria[]
+        +colorSeleccionado
+        +tallasDisponibles[]
+        +elegirColor(color_id)
+        +abrirGuiaTallas()
+        +publicarResena(rating, comentario)
+        +toggleFavorito()
+    }
+    class IU_Wishlist {
+        +favoritos[]
+        +quitarFavorito(id)
     }
     class CTR_Branches {
         +list_branches()
@@ -1140,13 +1255,21 @@ classDiagram
     }
     class CTR_Catalogo {
         +list_products()
-        +create_product(datos, variantes, imagenes)
-        +update_product(id, datos)
+        +get_product(id)
+        +create_product(datos, compare_at_price, variantes, imagenes)
+        +update_product(id, datos, variantes)
         +deactivate_product(id)
-        +create_category()
+        +create_category(image_url)
+        +update_category(id, image_url)
         +create_season()
         +create_color()
         +create_size()
+        +ratings_summary()
+        +list_reviews(product_id)
+        +submit_review(product_id, rating, comment)
+        +get_wishlist()
+        +add_to_wishlist(product_id)
+        +remove_from_wishlist(product_id)
     }
     class CE_Sucursal {
         +branches.id
@@ -1167,12 +1290,14 @@ classDiagram
         +products.name
         +products.description
         +products.base_price
+        +products.compare_at_price
         +products.category_id
         +products.season_id
         +products.is_active
         +select_active()
         +insert(datos)
         +update(datos)
+        +discount_percent()
     }
     class CE_Variante {
         +product_variants.id
@@ -1181,7 +1306,34 @@ classDiagram
         +product_variants.size_id
         +product_variants.sku
         +product_variants.price_override
+        +product_variants.is_active
         +insert(datos)
+        +reconciliar_por_sku(datos)
+    }
+    class CE_ImagenPrenda {
+        +product_images.id
+        +product_images.product_id
+        +product_images.color_id
+        +product_images.image_url
+        +product_images.is_primary
+        +insert(datos)
+        +delete(id)
+    }
+    class CE_Resena {
+        +product_reviews.id
+        +product_reviews.product_id
+        +product_reviews.user_id
+        +product_reviews.rating
+        +product_reviews.comment
+        +upsert(product_id, user_id, datos)
+        +avg_and_count(product_id)
+    }
+    class CE_Favorito {
+        +wishlist_items.user_id
+        +wishlist_items.product_id
+        +insert(user_id, product_id)
+        +delete(user_id, product_id)
+        +select_by_user(user_id)
     }
     class CE_ParametroCatalogo {
         +categories.name
@@ -1198,18 +1350,24 @@ classDiagram
     IU_Employees ..> CTR_Branches
     IU_Products ..> CTR_Catalogo
     IU_StoreHome ..> CTR_Catalogo
+    IU_ProductDetail ..> CTR_Catalogo
+    IU_Wishlist ..> CTR_Catalogo
     CTR_Branches ..> CE_Sucursal
     CTR_Catalogo ..> CE_Producto
     CTR_Catalogo ..> CE_Variante
+    CTR_Catalogo ..> CE_ImagenPrenda
     CTR_Catalogo ..> CE_ParametroCatalogo
+    CTR_Catalogo ..> CE_Resena
+    CTR_Catalogo ..> CE_Favorito
 ```
 
 | CU | Boundary | Control | Entidades |
 | :-- | :-- | :-- | :-- |
 | CU06 | IU_Branches | CTR_Branches | CE_Sucursal, CE_AuditLog |
-| CU07 | IU_Products | CTR_Catalogo | CE_Producto, CE_Variante, CE_ParametroCatalogo, CE_AuditLog |
+| CU07 | IU_Products | CTR_Catalogo | CE_Producto, CE_Variante, CE_ImagenPrenda, CE_ParametroCatalogo, CE_AuditLog |
 | CU09 | IU_Employees | CTR_Branches (+ CTR_Users) | CE_Usuario, CE_Rol, CE_Sucursal, CE_AuditLog |
-| CU11 | IU_StoreHome | CTR_Catalogo | CE_Producto, CE_Variante |
+| CU11 | IU_StoreHome, IU_ProductDetail | CTR_Catalogo | CE_Producto, CE_Variante, CE_ImagenPrenda, CE_Resena (★ promedio) |
+| CU14 | IU_ProductDetail, IU_Wishlist | CTR_Catalogo | CE_Resena, CE_Favorito, CE_AuditLog |
 
 ### Paquete `inventario_y_proveedores`
 
@@ -1632,18 +1790,26 @@ sequenceDiagram
     participant IU as IU_Products
     participant CTR as CTR_Products
     participant CE_P as CE_Producto
+    participant CE_IMG as CE_ImagenPrenda
     participant CE_V as CE_Variante
 
-    A->>+IU: 1: registrar(datos, variantes)
-    IU->>+CTR: 2: create_product(datos, variantes)
-    CTR->>+CE_P: 3: insert_product(datos)
-    CE_P-->>-CTR: 4: ID Producto
-    loop Por cada variante
-        CTR->>+CE_V: 5: insert_variants(variantes)
-        CE_V-->>-CTR: 6: Confirmación
+    A->>+IU: 1: registrar(datos, oferta, galería, variantes)
+    loop Por cada foto nueva
+        IU->>+CTR: 2: upload_image(archivo)
+        CTR-->>-IU: 3: image_url
     end
-    CTR-->>-IU: 7: Producto Creado
-    IU-->>-A: 8: Actualizar UI
+    IU->>+CTR: 4: create/update_product(datos, compare_at_price, images, variants)
+    CTR->>+CE_P: 5: insert/update_product(datos, compare_at_price)
+    CE_P-->>-CTR: 6: ID Producto
+    CTR->>+CE_IMG: 7: reconciliar galería (color_id, is_primary)
+    CE_IMG-->>-CTR: 8: OK
+    loop Por cada variante (por SKU)
+        CTR->>+CE_V: 9: nueva → insert / faltante → is_active=false
+        CE_V-->>-CTR: 10: Confirmación
+    end
+    CTR->>CTR: 11: discount_percent = round((1 - base/antes)*100)
+    CTR-->>-IU: 12: Producto guardado
+    IU-->>-A: 13: Actualizar UI
 ```
 
 **DSC008: Gestionar proveedores**
@@ -1711,21 +1877,58 @@ sequenceDiagram
     IU-->>-E: 12: Notificar éxito y limpiar
 ```
 
-**DSC011: Consultar catálogo**
+**DSC011: Consultar catálogo (grilla + detalle de prenda)**
 
 ```mermaid
 sequenceDiagram
     actor C as Cliente
     participant IU as IU_StoreHome
-    participant CTR as CTR_Products
+    participant IUD as IU_ProductDetail
+    participant CTR as CTR_Catalogo
     participant CE_P as CE_Producto
+    participant CE_R as CE_Resena
 
     C->>+IU: 1: entrarATienda()
-    IU->>+CTR: 2: get_products()
-    CTR->>+CE_P: 3: select_active()
-    CE_P-->>-CTR: 4: Lista de productos activos
+    IU->>+CTR: 2: list_products() + ratings_summary() + categories()
+    CTR->>+CE_P: 3: select_active() + avg/count(reseñas)
+    CE_P-->>-CTR: 4: Prendas con foto, oferta y ★ promedio
     CTR-->>-IU: 5: JSON Array
-    IU-->>-C: 6: Mostrar lista de prendas
+    IU-->>-C: 6: Categorías + grilla lookbook (oferta / ★ / ♥)
+    C->>+IUD: 7: abrirPrenda(id)
+    IUD->>+CTR: 8: get_product(id) + get_reviews(id)
+    CTR->>+CE_P: 9: select(producto, variantes, imágenes)
+    CE_P-->>-CTR: 10: Ficha completa
+    CTR->>+CE_R: 11: select(reseñas del producto)
+    CE_R-->>-CTR: 12: Reseñas + promedio
+    CTR-->>-IUD: 13: JSON detalle
+    IUD-->>-C: 14: Galería + color + tallas por color + reseñas
+    C->>IUD: 15: elegirColor(color_id) → recalcula galería y tallas
+```
+
+**DSC014: Reseñas y favoritos de prendas**
+
+```mermaid
+sequenceDiagram
+    actor C as Cliente
+    participant IU as IU_ProductDetail
+    participant CTR as CTR_Catalogo
+    participant CE_R as CE_Resena
+    participant CE_F as CE_Favorito
+    participant CE_A as CE_AuditLog
+
+    C->>+IU: 1: publicarResena(rating 1-5, comentario)
+    IU->>+CTR: 2: submit_review(product_id, rating, comment)
+    CTR->>+CE_R: 3: upsert por (product_id, user_id)
+    CE_R-->>-CTR: 4: Reseña creada/actualizada
+    CTR->>CE_A: 5: log_event(INSERT/UPDATE product_reviews)
+    CTR->>CE_R: 6: recalcular avg + count
+    CTR-->>-IU: 7: Reseñas + ★ promedio actualizados
+    C->>+IU: 8: toggleFavorito(product_id)
+    IU->>+CTR: 9: add_to_wishlist / remove_from_wishlist(product_id)
+    CTR->>+CE_F: 10: insert / delete (user_id, product_id)
+    CE_F-->>-CTR: 11: in_wishlist
+    CTR->>CE_A: 12: log_event(favorito)
+    CTR-->>-IU: 13: ♥ actualizado
 ```
 
 **DSC036: Consultar bitácora de auditoría**
@@ -1820,7 +2023,7 @@ flowchart LR
     NAV --> D["/admin/dashboard"]
     NAV --> U["/admin/usuarios · Usuarios y Roles (CU05)"]
     NAV --> B["/admin/branches · Sucursales (CU06)"]
-    NAV --> P["/admin/products · Catálogo (CU07)"]
+    NAV --> P["/admin/products · Catálogo: galería + oferta + variantes (CU07)"]
     NAV --> S["/admin/suppliers · Proveedores (CU08)"]
     NAV --> E["/admin/employees · Empleados (CU09)"]
     NAV --> M["/admin/purchases · Mercadería (CU10)"]
@@ -1835,15 +2038,23 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph WEB["Web (/tienda)"]
-        SH["IU_StoreHome: grilla de prendas activas"]
+        SH["IU_StoreHome: categorías + grilla lookbook (oferta / ★ / ♥)"]
         SH -->|"buscar / filtrar por categoría"| SH
+        SH -->|"tocar prenda"| PD["/tienda/producto/:id · IU_ProductDetail: galería, color, tallas, reseñas"]
+        SH -->|"♥ favoritos"| WL["/tienda/favoritos · IU_Wishlist"]
+        PD -->|"publicar / actualizar reseña (CU14)"| PD
+        PD -->|"♥ (CU14)"| PD
+        WL --> PD
         SH -->|"menú → cerrar sesión"| LG["/login"]
     end
     subgraph MOVIL["Móvil (Flutter)"]
         MLOGIN["login_view"] --> MREG["register_view"]
         MLOGIN --> MREC["recover_view (aviso: revisa tu correo)"]
-        MLOGIN -->|"sesión iniciada"| MCAT["catalogo_view: lista de prendas"]
-        MCAT -->|"inactividad 15 min / logout"| MLOGIN
+        MLOGIN -->|"sesión iniciada"| MSHELL["store_shell: Inicio · Catálogo · Carrito · Favoritos · Perfil"]
+        MSHELL --> MCAT["catalogo_view: categorías + grilla lookbook"]
+        MCAT -->|"tocar prenda"| MPD["product_detail_view: galería, color, tallas, reseñas (CU14)"]
+        MSHELL --> MWL["wishlist_view (CU14)"]
+        MSHELL -->|"Perfil → cerrar sesión / inactividad 15 min"| MLOGIN
     end
 ```
 
@@ -1857,7 +2068,8 @@ flowchart LR
 | login / register / recover / dashboard / tienda | ✅ | ✅ | ✅ |
 | CRUD admin: usuarios, sucursales, catálogo, proveedores, empleados, mercadería, auditoría | ✅ | ✅ | ✅ |
 | valoración / ajustes de inventario | ✅ | ✅ | ✅ |
-| ficha de prenda con variantes + filtro precio/talla/color (CU12) | | ✅ | ✅ |
+| detalle de prenda (galería, color, tallas por color), reseñas y favoritos (CU11 ampliado + CU14) | ✅ | ✅ | ✅ |
+| filtro avanzado precio/talla/color/ocasión + disponibilidad por sucursal (CU12) | | ✅ | ✅ |
 | carrito y checkout (CU17–CU20) | | ✅ | ✅ |
 | reservas, vestidor virtual, envíos, reportes por voz | | | ✅ |
 
@@ -1913,6 +2125,21 @@ stateDiagram-v2
 > **Regla clave (CU10 / CU37 / CU38):** `avg_cost` **solo** cambia con los **INGRESOS**. Las
 > salidas (venta, reserva, ajuste) se valoran al `avg_cost` vigente pero **no** lo modifican.
 
+**Diagrama de estados — Reseña de una prenda (CU14)**
+
+```mermaid
+stateDiagram-v2
+    [*] --> SinReseña: el cliente aún no opinó esta prenda
+    SinReseña --> Publicada: submit_review(rating 1-5, comentario) -> INSERT
+    Publicada --> Publicada: el cliente reenvía -> UPDATE (upsert por product_id+user_id)
+    Publicada --> [*]
+    note right of Publicada
+        Cuenta para el promedio y el conteo
+        que se muestran en la ficha (CU11).
+        Sin moderación en el Ciclo 1.
+    end note
+```
+
 **Diagrama de tiempo — Proceso Catálogo (consulta del cliente, CU11)**
 
 ```mermaid
@@ -1920,20 +2147,23 @@ gantt
     title Diagrama de tiempo — CU11 Consultar catálogo (una petición)
     dateFormat X
     axisFormat %s
-    section Cliente (IU_StoreHome)
+    section Cliente (IU_StoreHome / IU_ProductDetail)
     entrar a la tienda            :a1, 0, 1
     esperar respuesta             :a2, 1, 4
-    ver grilla / buscar / filtrar :a3, 4, 8
+    ver grilla / buscar / filtrar :a3, 4, 7
+    tocar prenda -> ver detalle   :a4, 7, 11
     section API (CTR_Catalogo)
-    recibir GET /catalog/products :b1, 1, 2
-    consultar CE_Producto         :b2, 2, 3
-    serializar JSON               :b3, 3, 4
-    section PostgreSQL (CE_Producto)
+    GET /catalog/products + ratings-summary :b1, 1, 2
+    consultar CE_Producto + avg/count       :b2, 2, 3
+    serializar JSON                          :b3, 3, 4
+    GET /catalog/products/{id} + reviews     :b4, 7, 9
+    section PostgreSQL
     SELECT products + variants + images :c1, 2, 3
+    SELECT producto + reseñas           :c2, 7, 9
 ```
 
-**Restricción de tiempo (RNF02):** la respuesta del catálogo debe tardar **< 1,5 s**. Índice de
-apoyo: `idx_variants_search (product_id, color_id, size_id)`.
+**Restricción de tiempo (RNF02):** la respuesta del catálogo debe tardar **< 1,5 s**. Índices de
+apoyo: `idx_variants_search (product_id, color_id, size_id)`, `idx_reviews_product (product_id)`.
 
 **Diagrama de tiempo — Sesión del usuario (CU01 → CU02 automático)**
 
@@ -2019,6 +2249,7 @@ classDiagram
     class categories {
         +id
         +name (unique)
+        +image_url
     }
     class seasons {
         +id
@@ -2040,6 +2271,7 @@ classDiagram
         +name
         +description
         +base_price
+        +compare_at_price
         +category_id
         +season_id
         +is_active
@@ -2051,13 +2283,30 @@ classDiagram
         +size_id
         +sku (unique)
         +price_override
+        +is_active
     }
     class product_images {
         +id
         +product_id
-        +color_id
+        +color_id (nullable)
         +image_url
         +is_primary
+    }
+    class product_reviews {
+        +id
+        +product_id
+        +user_id
+        +rating (1..5)
+        +comment
+        +created_at
+        +updated_at
+        +UNIQUE(product_id, user_id)
+    }
+    class wishlist_items {
+        +user_id
+        +product_id
+        +created_at
+        +PK(user_id, product_id)
     }
     class suppliers {
         +id
@@ -2112,6 +2361,10 @@ classDiagram
     colors "1" -- "*" product_variants
     sizes "1" -- "*" product_variants
     products "1" -- "*" product_images
+    products "1" -- "*" product_reviews
+    users "1" -- "*" product_reviews
+    users "1" -- "*" wishlist_items
+    products "1" -- "*" wishlist_items
     suppliers "1" -- "*" purchase_orders
     branches "1" -- "*" purchase_orders
     purchase_orders "1" -- "*" purchase_details
@@ -2129,8 +2382,10 @@ classDiagram
 | `roles`, `users`, `user_roles`, `session_tokens` | Identidad, RBAC y sesiones | CU01, CU02, CU04, CU05 |
 | `audit_logs` | Bitácora inmutable de escrituras | CU36 (transversal) |
 | `branches`, `branch_employees` | Sucursales físicas y su personal | CU06, CU09 |
-| `categories`, `seasons`, `colors`, `sizes` | Parámetros del catálogo | CU07 |
-| `products`, `product_variants`, `product_images` | Prendas, variantes (color+talla+SKU) e imágenes | CU07, CU11 |
+| `categories` (**+ `image_url`**), `seasons`, `colors`, `sizes` | Parámetros del catálogo (categoría con foto circular) | CU07 |
+| `products` (**+ `compare_at_price`**), `product_variants` (**+ `is_active`**), `product_images` (galería, `color_id` nullable) | Prendas, oferta directa, variantes (color+talla+SKU) y galería de fotos | CU07, CU11 |
+| `product_reviews` (`rating` 1–5, `comment`, `UNIQUE(product_id, user_id)`) | Reseñas de prendas (una por cliente, editable) | CU14 |
+| `wishlist_items` (PK `(user_id, product_id)`) | Prendas favoritas del cliente | CU14 |
 | `suppliers` | Directorio de proveedores | CU08 |
 | `purchase_orders`, `purchase_details` | Cabecera y detalle de los ingresos de mercadería | CU10 |
 | `inventory` (**incluye `avg_cost`**) | Stock y **costo promedio ponderado** por sucursal+variante | CU10, CU37, CU38 |
@@ -2167,8 +2422,10 @@ diagrama de clases del análisis de Ciclo 2): `orders`, `order_items`, `payments
 
 * **Arranque:** `main.py` importa los modelos de todos los paquetes, ejecuta
   `Base.metadata.create_all`, luego **migraciones ligeras idempotentes**
-  (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` para `inventory.avg_cost` y `orders.channel`,
-  y normalización de `users.email` a minúsculas), y monta los routers por paquete.
+  (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` para `inventory.avg_cost`, `orders.channel`,
+  `categories.image_url` y `products.compare_at_price`; `ALTER COLUMN product_images.color_id
+  DROP NOT NULL`; y normalización de `users.email` a minúsculas), y monta los routers por
+  paquete. Las tablas `product_reviews` y `wishlist_items` nacen del `create_all`.
 * **CORS:** restringido a `BACKEND_CORS_ORIGINS` (regex para `localhost` en desarrollo).
 * **Dependencias transversales:** `get_current_user` (valida el JWT contra `session_tokens` y
   la expiración), `RoleChecker(allowed_roles=[...])` (RBAC; `SUPERADMIN` siempre pasa),
@@ -2189,8 +2446,14 @@ diagrama de clases del análisis de Ciclo 2): `orders`, `order_items`, `payments
 | GET | `/audit/logs` | CU36 |
 | GET, POST · PUT, DELETE | `/branches`, `/branches/{id}` | CU06 |
 | POST, DELETE | `/branches/{id}/employees`, `/branches/{id}/employees/{uid}` | CU09 |
-| GET, POST | `/catalog/categories`, `/catalog/seasons`, `/catalog/colors`, `/catalog/sizes` | CU07 |
-| GET, POST · PUT, DELETE | `/catalog/products`, `/catalog/products/{id}` | CU07 (GET público = CU11) |
+| GET, POST · PUT | `/catalog/categories`, `/catalog/categories/{id}` (acepta `image_url`) | CU07 |
+| GET, POST | `/catalog/seasons`, `/catalog/colors`, `/catalog/sizes` | CU07 |
+| POST | `/catalog/upload-image` (multipart → `/uploads/products/…`) | CU07 |
+| GET, POST · PUT, DELETE | `/catalog/products`, `/catalog/products/{id}` (acepta `compare_at_price`, `images`, `variants`) | CU07 (GET público = CU11) |
+| GET | `/catalog/products/{id}` (ficha con variantes + galería + `rating_avg`/`discount_percent`) | CU11 |
+| GET | `/catalog/ratings-summary` (★ promedio y conteo por prenda, para la grilla) | CU11 |
+| GET · POST | `/catalog/products/{id}/reviews` (POST = *upsert*, requiere sesión) | CU14 |
+| GET · POST, DELETE | `/catalog/wishlist`, `/catalog/wishlist/{product_id}` (requiere sesión) | CU14 |
 | GET, POST · PUT, DELETE | `/suppliers`, `/suppliers/{id}` | CU08 |
 | POST · GET · GET | `/merchandise/intake` · `/merchandise/inventory` · `/merchandise/ledger` | CU10 |
 | GET | `/merchandise/valuation` | CU37 |
@@ -2235,7 +2498,14 @@ Formato: por caso de uso. Resultados verificados contra PostgreSQL real.
 | P-CU01c | Contraseña incorrecta | correo válido + clave mala | HTTP 400 "Correo o contraseña incorrectos" | ✅ |
 | P-CU03 | Recuperación completa | recover → `dev_reset_link` (SMTP off) → reset-password → login con nueva clave | reset 200 · login 200 · token reusado → rechazado | ✅ |
 | P-CU04 | Auto-registro | datos válidos + contraseña fuerte | HTTP 200, usuario con rol `CLIENTE` | ✅ |
+| P-CU07 | Prenda con oferta + galería + variantes | crear prenda `base_price=189`, `compare_at_price=259`, 2 fotos, 3 variantes × 2 colores | `GET /catalog/products/{id}` → `discount_percent=27`, precio tachado, galería y variantes completas | ✅ |
+| P-CU07-edit | Reconciliación de variantes al editar | editar la prenda quitando 1 SKU y añadiendo otro | el SKU quitado queda `is_active=false`, el nuevo se inserta; sin duplicados de SKU | ✅ |
 | P-CU10+CU37 | **Costo promedio ponderado** | 2 ingresos de la misma variante: 1 u. a 10 y 1 u. a 14 | `GET /merchandise/valuation` → `avg_cost = 12`, `valor = 24`, `capital_invertido = 24` (no 28) | ✅ |
+| P-CU11 | Detalle de prenda y cambio de color | `GET /catalog/products/{id}`; en la ficha elegir el 2.º color | cambian las fotos y la lista de tallas disponibles de ese color | ✅ |
+| P-CU14a | Reseña *upsert* | como `CLIENTE`, `POST .../reviews {rating:5}` y luego `{rating:3}` | primera crea, segunda actualiza; `summary` → `average=3`, `count=1` | ✅ |
+| P-CU14b | Reseña sin sesión | `POST .../reviews` sin token | HTTP 401 | ✅ |
+| P-CU14c | Favorito toggle | `POST /catalog/wishlist/{id}` → `DELETE` | `in_wishlist:true` luego `false`; `GET /catalog/wishlist` refleja el cambio; eventos en `/audit/logs` | ✅ |
+| P-CU14d | Rating en la grilla | tras P-CU14a, `GET /catalog/ratings-summary` | la prenda aparece con `average=3`, `count=1` | ✅ |
 | P-CU38a | Merma | `POST /merchandise/adjustments {quantity:-1, reason:"MERMA"}` | stock −1, fila `AJUSTE` (AJU-id) en `/ledger` con `unit_cost = 12`, `avg_cost` sin cambio, registro en `/audit/logs` | ✅ |
 | P-CU38b | Ajuste mayor al stock | `{quantity:-99}` sobre stock 1 | HTTP 400 "Stock insuficiente" | ✅ |
 | P-perm-1 | Endpoint de inventario sin token | `GET /merchandise/valuation` | HTTP 401 | ✅ |
@@ -2258,11 +2528,12 @@ Formato: por caso de uso. Resultados verificados contra PostgreSQL real.
 | **CU04** | `POST /auth/register` | `seguridad_y_usuarios/routers.py` · `register` | §2.2 CU04 / DSC004 | IU_Register → CTR_Auth → CE_Usuario/CE_Rol/CE_AuditLog | `users`, `roles`, `user_roles`, `audit_logs` | `seguridad_y_usuarios/register/` · `mobile register_view.dart` |
 | **CU05** | `GET/POST /users` · `PUT/DELETE /users/{id}` | `seguridad_y_usuarios/routers.py` · `list_users`, `create_user`, `update_user`, `deactivate_user` | §2.2 CU05 / DSC005 | IU_UsuariosRoles → CTR_Users → CE_Usuario/CE_Rol/CE_AuditLog | `users`, `roles`, `user_roles`, `audit_logs` | `seguridad_y_usuarios/usuarios_roles/` |
 | **CU06** | `GET/POST /branches` · `PUT/DELETE /branches/{id}` | `catalogo_y_tiendas/branches/routers.py` | §2.2 CU06 / DSC006 | IU_Branches → CTR_Branches → CE_Sucursal/CE_AuditLog | `branches`, `branch_employees`, `audit_logs` | `catalogo_y_tiendas/branches/` |
-| **CU07** | `GET/POST /catalog/{categories,seasons,colors,sizes}` · `GET/POST/PUT/DELETE /catalog/products` | `catalogo_y_tiendas/routers.py` | §2.2 CU07 / DSC007 | IU_Products → CTR_Catalogo → CE_Producto/CE_Variante/CE_ParametroCatalogo/CE_AuditLog | `products`, `product_variants`, `product_images`, `categories`, `seasons`, `colors`, `sizes`, `audit_logs` | `catalogo_y_tiendas/products/` |
+| **CU07** | `GET/POST/PUT /catalog/categories` · `GET/POST /catalog/{seasons,colors,sizes}` · `POST /catalog/upload-image` · `GET/POST/PUT/DELETE /catalog/products` | `catalogo_y_tiendas/routers.py` · `create_product`, `update_product` (reconcilia `variants` por SKU), `update_category` | §2.2 CU07 / DSC007 | IU_Products → CTR_Catalogo → CE_Producto/CE_Variante/CE_ImagenPrenda/CE_ParametroCatalogo/CE_AuditLog | `products` (`compare_at_price`), `product_variants` (`is_active`), `product_images`, `categories` (`image_url`), `seasons`, `colors`, `sizes`, `audit_logs` | `catalogo_y_tiendas/products/` |
 | **CU08** | `GET/POST /suppliers` · `PUT/DELETE /suppliers/{id}` | `inventario_y_proveedores/suppliers/routers.py` | §2.2 CU08 / DSC008 | IU_Suppliers → CTR_Proveedores → CE_Proveedor/CE_AuditLog | `suppliers`, `audit_logs` | `inventario_y_proveedores/suppliers/` |
 | **CU09** | `POST/DELETE /branches/{id}/employees` (+ `POST /users`) | `catalogo_y_tiendas/branches/routers.py` · `assign_employee_to_branch`, `remove_employee_from_branch` | §2.2 CU09 / DSC009 | IU_Employees → CTR_Branches/CTR_Users → CE_Usuario/CE_Rol/CE_Sucursal/CE_AuditLog | `users`, `roles`, `user_roles`, `branch_employees`, `branches`, `audit_logs` | `catalogo_y_tiendas/employees/` |
 | **CU10** | `POST /merchandise/intake` · `GET /merchandise/inventory` · `GET /merchandise/ledger` | `inventario_y_proveedores/merchandise/routers.py` · `register_merchandise_intake` | §2.2 CU10 / DSC010 | IU_Merchandise → CTR_Inventario → CE_Compra/CE_Inventario/CE_LibroMayor/CE_AuditLog | `purchase_orders`, `purchase_details`, `inventory` (`avg_cost`), `inventory_ledger`, `audit_logs` | `inventario_y_proveedores/merchandise/` |
-| **CU11** | `GET /catalog/products` | `catalogo_y_tiendas/routers.py` · `list_products` | §2.2 CU11 / DSC011 | IU_StoreHome → CTR_Catalogo → CE_Producto/CE_Variante | `products`, `product_variants`, `product_images`, `categories` | `catalogo_y_tiendas/store/` · `mobile catalogo_view.dart` |
+| **CU11** | `GET /catalog/products` · `GET /catalog/products/{id}` · `GET /catalog/ratings-summary` | `catalogo_y_tiendas/routers.py` · `list_products`, `get_product`, `ratings_summary`, `_attach_ratings` | §2.2 CU11 / DSC011 | IU_StoreHome, IU_ProductDetail → CTR_Catalogo → CE_Producto/CE_Variante/CE_ImagenPrenda/CE_Resena | `products`, `product_variants`, `product_images`, `categories`, `product_reviews` (★) | `catalogo_y_tiendas/store/store-home.component.*`, `product-detail.component.*` · `mobile catalogo_view.dart`, `product_detail_view.dart` |
+| **CU14** | `GET/POST /catalog/products/{id}/reviews` · `GET /catalog/wishlist` · `POST/DELETE /catalog/wishlist/{product_id}` | `catalogo_y_tiendas/routers.py` · `list_reviews`, `submit_review`, `get_wishlist`, `add_to_wishlist`, `remove_from_wishlist` | §2.2 CU14 / DSC014 | IU_ProductDetail, IU_Wishlist → CTR_Catalogo → CE_Resena/CE_Favorito/CE_AuditLog | `product_reviews`, `wishlist_items`, `audit_logs` | `catalogo_y_tiendas/store/product-detail.component.*`, `wishlist.component.*` · `mobile product_detail_view.dart`, `wishlist_view.dart` |
 | **CU36** | `GET /audit/logs` | `seguridad_y_usuarios/routers.py` · `get_audit_logs` | §2.2 CU36 / DSC036 | IU_Audit → CTR_Auditoria → CE_AuditLog | `audit_logs` | `seguridad_y_usuarios/audit/` |
 | **CU37** | `GET /merchandise/valuation` | `inventario_y_proveedores/merchandise/routers.py` · `get_inventory_valuation` | §2.2 CU37 / DSC037 | IU_Valuation → CTR_Inventario → CE_Inventario/CE_Variante/CE_Producto | `inventory` (`stock_actual`, `avg_cost`), `product_variants`, `products` | `inventario_y_proveedores/valuation/` |
 | **CU38** | `POST /merchandise/adjustments` | `inventario_y_proveedores/merchandise/routers.py` · `register_inventory_adjustment` | §2.2 CU38 / DSC038 | IU_Adjustments → CTR_Inventario → CE_Inventario/CE_LibroMayor/CE_AuditLog | `inventory` (`stock_actual`), `inventory_ledger`, `audit_logs` | `inventario_y_proveedores/adjustments/` |
@@ -2279,13 +2550,16 @@ Formato: por caso de uso. Resultados verificados contra PostgreSQL real.
 | RF03 (recuperación por enlace) | CU03 |
 | RF05 (CRUD de personal) | CU05, CU09 |
 | RF06 (roles) | CU05 |
-| RF07 / auditoría | CU36 (transversal a CU01–CU10 y CU38) |
+| RF07 / auditoría | CU36 (transversal a CU01–CU10, CU14 y CU38) |
 | RF08–RF09 (sucursales, encargados) | CU06, CU09 |
 | RF12–RF18 (temporadas, colores, tallas, prendas, variantes, SKU) | CU07 |
+| RF (galería de fotos, categoría con imagen, oferta directa por prenda) *(dentro del ámbito de catálogo y de CU13)* | CU07 |
 | RF23–RF26 (proveedores, órdenes de compra, ingreso) | CU08, CU10 |
 | **RF27 (costo por promedio ponderado)** | **CU10 + CU37** |
 | RF (mermas / ajustes) *(implícito en §1.4.6 de `Contexto.md`)* | **CU38** |
 | RF36 / RF38 (catálogo del cliente, búsqueda por texto) | CU11 |
+| RF (vista de detalle de prenda: galería, color, tallas por color, guía de tallas) | CU11 |
+| RF (reseñas 1–5★ con comentario · favoritos / wishlist) *(versión ligera de CU14)* | **CU14** |
 | RF84 (valoración monetaria del inventario) | **CU37** |
 
 ## 6.3 Mapa de equivalencias de numeración

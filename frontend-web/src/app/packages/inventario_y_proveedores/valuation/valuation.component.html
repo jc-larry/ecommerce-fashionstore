@@ -1,65 +1,126 @@
-<div class="container py-4">
-  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+<div class="admin-page">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
     <div>
-      <h2 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Valoración de Inventario</h2>
-      <small class="text-muted">CU37 · Capital invertido calculado por costo promedio ponderado</small>
+      <h3 class="fw-bold mb-0">Valoración de Inventario</h3>
+      <p class="text-muted small mb-0">CU37 · Capital invertido calculado por costo promedio ponderado</p>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <select class="form-select" [(ngModel)]="branchId" (change)="load()">
+      <select class="form-select form-select-sm" style="min-width: 200px;" [(ngModel)]="branchId" (change)="load()">
         <option [ngValue]="null">Todas las sucursales</option>
         <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
       </select>
-      <button class="btn btn-outline-secondary" (click)="load()" [disabled]="loading">
+      <button class="btn btn-sm btn-light border fw-bold" (click)="load()" [disabled]="loading" title="Actualizar">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
     </div>
   </div>
 
-  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
-  <div *ngIf="loading" class="text-muted">Cargando…</div>
+  <div *ngIf="error" class="alert alert-danger py-2 small">{{ error }}</div>
+
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
 
   <ng-container *ngIf="data && !loading">
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <div class="text-muted text-uppercase small">Capital invertido en mercadería</div>
-        <div class="display-6 fw-bold">Bs {{ data.capital_invertido | number: '1.2-2' }}</div>
-        <div class="small text-muted">
-          {{ data.branch_id ? 'Sucursal seleccionada' : 'Consolidado de todas las sucursales' }} ·
-          Σ (stock × costo promedio ponderado)
+    <!-- Tarjeta hero: capital invertido -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
+        <div>
+          <div class="stat-label text-uppercase mb-1">Capital invertido en mercadería</div>
+          <div class="display-6 fw-bold" style="color: #2B1F1D;">Bs {{ data.capital_invertido | number: '1.2-2' }}</div>
+          <div class="small text-muted mt-1">
+            {{ data.branch_id ? 'Sucursal seleccionada' : 'Consolidado de todas las sucursales' }}
+            · Σ (stock × costo promedio ponderado)
+          </div>
+        </div>
+        <div class="stat-icon stat-icon-lg"><i class="bi bi-cash-coin"></i></div>
+      </div>
+    </div>
+
+    <!-- KPIs de apoyo -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6 col-xl-4">
+        <div class="card stat-card h-100">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="stat-label">Unidades en stock</span>
+              <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+            </div>
+            <div class="stat-value">{{ totalUnits | number }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-4">
+        <div class="card stat-card h-100">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="stat-label">Variantes con stock</span>
+              <div class="stat-icon"><i class="bi bi-tags"></i></div>
+            </div>
+            <div class="stat-value">{{ variantsWithStock }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-4">
+        <div class="card stat-card h-100">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="stat-label">Sucursales con inventario</span>
+              <div class="stat-icon"><i class="bi bi-shop"></i></div>
+            </div>
+            <div class="stat-value">{{ branchesWithStock }}</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr>
-            <th>Prenda / Variante</th>
-            <th>SKU</th>
-            <th class="text-end">Stock</th>
-            <th class="text-end">Costo promedio</th>
-            <th class="text-end">Valor</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let it of data.items">
-            <td>{{ it.product_name }}</td>
-            <td><code>{{ it.sku }}</code></td>
-            <td class="text-end">{{ it.stock_actual }}</td>
-            <td class="text-end">Bs {{ it.avg_cost | number: '1.2-2' }}</td>
-            <td class="text-end fw-semibold">Bs {{ it.valor | number: '1.2-2' }}</td>
-          </tr>
-          <tr *ngIf="data.items.length === 0">
-            <td colspan="5" class="text-center text-muted py-3">Sin existencias registradas.</td>
-          </tr>
-        </tbody>
-        <tfoot *ngIf="data.items.length">
-          <tr>
-            <th colspan="4" class="text-end">Total</th>
-            <th class="text-end">Bs {{ data.capital_invertido | number: '1.2-2' }}</th>
-          </tr>
-        </tfoot>
-      </table>
+    <!-- Detalle por variante -->
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3">Detalle por prenda / variante</h5>
+
+        <div *ngIf="data.items.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-inboxes display-5 d-block mb-2"></i>
+          Sin existencias registradas todavía.
+        </div>
+
+        <div class="table-responsive" *ngIf="data.items.length">
+          <table class="table admin-table align-middle">
+            <thead>
+              <tr>
+                <th style="width: 56px;">Foto</th>
+                <th>Prenda / Variante</th>
+                <th>SKU</th>
+                <th class="text-end">Stock</th>
+                <th class="text-end">Costo promedio</th>
+                <th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let it of data.items">
+                <td>
+                  <img *ngIf="it.image_url" [src]="resolveImg(it.image_url)" [alt]="it.product_name || 'Prenda'"
+                       class="thumb">
+                  <div *ngIf="!it.image_url" class="thumb-ph">
+                    <i class="bi bi-image"></i>
+                  </div>
+                </td>
+                <td class="fw-semibold text-dark">{{ it.product_name }}</td>
+                <td><span class="badge bg-light text-dark border">{{ it.sku }}</span></td>
+                <td class="text-end">{{ it.stock_actual }}</td>
+                <td class="text-end">Bs {{ it.avg_cost | number: '1.2-2' }}</td>
+                <td class="text-end fw-bold text-primary">Bs {{ it.valor | number: '1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="5" class="text-end">Total</th>
+                <th class="text-end fw-bold text-primary">Bs {{ data.capital_invertido | number: '1.2-2' }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
     </div>
   </ng-container>
 </div>
