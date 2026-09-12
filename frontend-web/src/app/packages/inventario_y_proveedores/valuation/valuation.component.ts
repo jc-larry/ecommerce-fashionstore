@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
-import { InventarioService, InventoryValuation } from '../inventario.service';
+import { InventarioService, InventoryValuation, InventoryValuationItem } from '../inventario.service';
 import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
+import { BranchContextService } from '../../catalogo_y_tiendas/branches/branch-context.service';
 
 /**
  * [CU37] Consultar valoración de inventario / capital invertido.
- * El capital invertido se calcula con el COSTO PROMEDIO PONDERADO (Σ stock · avg_cost),
- * nunca con el último costo unitario.
+ * Presenta el estado patrimonial del inventario valorado al Costo Promedio Ponderado (CPP),
+ * junto con su valor de realización comercial y margen bruto comercial proyectado.
  */
 @Component({
   selector: 'app-valuation',
@@ -16,16 +17,29 @@ export class ValuationComponent implements OnInit {
   branches: any[] = [];
   branchId: number | null = null;
   data: InventoryValuation | null = null;
+  searchTerm = '';
   loading = false;
   error = '';
 
-  constructor(private inventario: InventarioService, private catalogo: CatalogoService) {}
+  constructor(
+    private inventario: InventarioService,
+    private catalogo: CatalogoService,
+    public branchContext: BranchContextService
+  ) {}
 
   ngOnInit(): void {
     this.catalogo.getBranches().subscribe({
       next: (b) => (this.branches = b),
       error: () => {},
     });
+    this.branchContext.activeBranch$.subscribe((active) => {
+      this.branchId = active ? active.id : null;
+      this.load();
+    });
+  }
+
+  onLocalBranchChange(): void {
+    this.branchContext.setActiveBranchById(this.branchId);
     this.load();
   }
 
@@ -50,17 +64,31 @@ export class ValuationComponent implements OnInit {
     return this.catalogo.resolveImageUrl(url);
   }
 
-  /** Unidades físicas totales en existencia (Σ stock_actual). */
-  get totalUnits(): number {
-    return (this.data?.items || []).reduce((acc, it) => acc + (it.stock_actual || 0), 0);
+  get filteredItems(): InventoryValuationItem[] {
+    if (!this.data?.items) return [];
+    if (!this.searchTerm.trim()) return this.data.items;
+    const term = this.searchTerm.toLowerCase();
+    return this.data.items.filter(
+      (it) =>
+        (it.product_name && it.product_name.toLowerCase().includes(term)) ||
+        (it.sku && it.sku.toLowerCase().includes(term)) ||
+        (it.color_name && it.color_name.toLowerCase().includes(term)) ||
+        (it.size_name && it.size_name.toLowerCase().includes(term)) ||
+        (it.branch_name && it.branch_name.toLowerCase().includes(term))
+    );
   }
 
-  /** Nº de variantes con al menos una unidad en stock. */
+  /** Unidades físicas totales en existencia */
+  get totalUnits(): number {
+    return this.data?.total_unidades ?? (this.data?.items || []).reduce((acc, it) => acc + (it.stock_actual || 0), 0);
+  }
+
+  /** Nº de variantes con existencias */
   get variantsWithStock(): number {
     return (this.data?.items || []).filter((it) => (it.stock_actual || 0) > 0).length;
   }
 
-  /** Nº de sucursales distintas con inventario (1 si hay una sucursal filtrada). */
+  /** Sucursales con inventario */
   get branchesWithStock(): number {
     if (this.branchId) return 1;
     return new Set((this.data?.items || []).map((it) => it.branch_id)).size;

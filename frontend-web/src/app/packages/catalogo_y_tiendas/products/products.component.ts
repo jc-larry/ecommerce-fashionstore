@@ -331,6 +331,8 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  validationErrors: { [key: string]: string } = {};
+
   addVariantRow(): void {
     this.form.variants.push({ color_id: null, size_id: null, sku: '' });
   }
@@ -345,14 +347,54 @@ export class ProductsComponent implements OnInit {
       .map((v) => ({ color_id: v.color_id, size_id: v.size_id, sku: v.sku.trim() }));
   }
 
+  validateProduct(): boolean {
+    this.validationErrors = {};
+
+    const name = (this.form.name || '').trim();
+    if (!name) {
+      this.validationErrors['name'] = 'El nombre de la prenda es obligatorio para catalogarla e identificarla en ventas.';
+    } else if (name.length < 3) {
+      this.validationErrors['name'] = 'El nombre de la prenda debe tener al menos 3 caracteres.';
+    }
+
+    if (!this.form.category_id) {
+      this.validationErrors['category_id'] = 'Debes seleccionar una subcategoría específica para clasificar la prenda en la tienda.';
+    }
+
+    const price = Number(this.form.base_price);
+    if (!this.form.base_price && this.form.base_price !== 0) {
+      this.validationErrors['base_price'] = 'El precio de venta al público (PVP) es obligatorio.';
+    } else if (isNaN(price) || price <= 0) {
+      this.validationErrors['base_price'] = 'El precio de venta debe ser un monto numérico mayor a 0 (ej. Bs. 89.50).';
+    }
+
+    if (this.form.compare_at_price) {
+      const comp = Number(this.form.compare_at_price);
+      if (isNaN(comp) || comp <= 0) {
+        this.validationErrors['compare_at_price'] = 'El precio anterior debe ser un número mayor a 0.';
+      } else if (comp <= price) {
+        this.validationErrors['compare_at_price'] = 'El precio anterior tachado debe ser mayor al precio actual de oferta.';
+      }
+    }
+
+    const validVariants = this.cleanVariants();
+    if (validVariants.length === 0) {
+      this.validationErrors['variants'] = 'La prenda debe contar con al menos una variante con Talla, Color y código SKU para control de inventario.';
+    } else {
+      const skus = validVariants.map((v) => v.sku.toLowerCase());
+      const hasDuplicates = new Set(skus).size !== skus.length;
+      if (hasDuplicates) {
+        this.validationErrors['variants'] = 'Existen códigos SKU duplicados en las variantes. Cada variante debe tener un SKU único.';
+      }
+    }
+
+    return Object.keys(this.validationErrors).length === 0;
+  }
+
   save(): void {
     this.error = '';
-    if (!this.form.name.trim()) {
-      this.error = 'El nombre de la prenda es obligatorio.';
-      return;
-    }
-    if (!this.form.category_id) {
-      this.error = 'Debes seleccionar una categoría o subcategoría.';
+    if (!this.validateProduct()) {
+      this.error = 'Por favor verifica los campos obligatorios antes de guardar la prenda.';
       return;
     }
 
@@ -388,12 +430,30 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  deactivate(p: any): void {
-    if (!confirm(`¿Ocultar la prenda "${p.name}" del catálogo?`)) return;
-    this.catalogo.deactivateProduct(p.id).subscribe({
-      next: () => this.loadAll(),
-      error: (e) => (this.error = e.error?.detail || 'Error al ocultar la prenda.'),
-    });
+  /**
+   * [CU11 / CU12] Visibilidad de prenda en catálogo:
+   * Prohibido eliminar prendas del catálogo para mantener la integridad referencial
+   * de ventas históricas, devoluciones y kardex de inventario.
+   */
+  toggleProductStatus(p: any): void {
+    const isCurrentlyActive = p.is_active;
+    const msg = isCurrentlyActive
+      ? `¿Deseas ocultar la prenda "${p.name}" del catálogo?\n\nℹ️ La prenda ya no aparecerá en la tienda virtual ni POS, pero todo su historial de ventas y stock permanecerá protegido.`
+      : `¿Deseas volver a publicar la prenda "${p.name}" en el catálogo?`;
+
+    if (!confirm(msg)) return;
+
+    if (isCurrentlyActive) {
+      this.catalogo.deactivateProduct(p.id).subscribe({
+        next: () => this.loadAll(),
+        error: (e) => (this.error = e.error?.detail || 'Error al ocultar la prenda.'),
+      });
+    } else {
+      this.catalogo.updateProduct(p.id, { is_active: true }).subscribe({
+        next: () => this.loadAll(),
+        error: (e) => (this.error = e.error?.detail || 'Error al publicar la prenda.'),
+      });
+    }
   }
 
   // ---- Alta rápida de parámetros con validación ----

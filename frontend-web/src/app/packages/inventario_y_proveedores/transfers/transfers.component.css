@@ -1,0 +1,12 @@
+/* Estilos para Transferencias entre Sucursales (CU15) */
+
+.table-hover tbody tr:hover {
+  background-color: rgba(248, 249, 250, 0.75);
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}

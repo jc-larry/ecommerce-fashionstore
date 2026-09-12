@@ -1,0 +1,84 @@
+<div class="container py-4" style="max-width: 1000px;">
+
+  <!-- Cabecera -->
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+    <div class="d-flex align-items-center gap-3">
+      <a routerLink="/tienda" class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 36px; height: 36px;">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div>
+        <h3 class="fw-bold mb-0">Mis Pedidos y Compras</h3>
+        <p class="text-muted small mb-0">Historial de compras realizadas en tienda física y pedidos en línea con comprobantes descargables.</p>
+      </div>
+    </div>
+    <a routerLink="/tienda" class="btn btn-primary rounded-pill px-3">
+      <i class="bi bi-bag me-1"></i> Seguir Comprando
+    </a>
+  </div>
+
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="text-muted small mt-2">Cargando compras...</p>
+  </div>
+
+  <div *ngIf="!loading && orders.length === 0" class="text-center py-5 card border-0 shadow-sm rounded-4 p-5 bg-white">
+    <i class="bi bi-bag-x display-3 text-muted opacity-50 mb-3"></i>
+    <h4 class="fw-bold text-dark">Aún no has realizado ninguna compra</h4>
+    <p class="text-muted mb-4">Explora nuestras últimas colecciones de temporada y adquiere prendas con envío inmediato.</p>
+    <div>
+      <a routerLink="/tienda" class="btn btn-primary rounded-pill px-4 fw-bold">Explorar Catálogo</a>
+    </div>
+  </div>
+
+  <div *ngIf="!loading && orders.length > 0" class="d-flex flex-column gap-3">
+    <div *ngFor="let ord of orders" class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+      <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-3 gap-2">
+        <div>
+          <span class="badge bg-light text-dark font-monospace me-2">{{ ord.order_number }}</span>
+          <span class="badge bg-success-subtle text-success border border-success">{{ ord.status }}</span>
+          <span class="badge bg-secondary-subtle text-secondary ms-1">{{ ord.channel }}</span>
+          <small class="text-muted d-block mt-1">Realizada el {{ ord.created_at | date:'dd/MM/yyyy HH:mm' }}</small>
+        </div>
+        <div class="text-end">
+          <span class="text-muted small d-block">Monto Total</span>
+          <span class="fs-4 fw-bold text-primary">Bs. {{ ord.total_amount | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <!-- Ítems del pedido -->
+      <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle mb-0">
+          <tbody>
+            <tr *ngFor="let it of ord.items">
+              <td class="w-50">
+                <strong>{{ it.product_name }}</strong>
+                <small class="text-muted d-block font-monospace">{{ it.sku }} &bull; Talla: {{ it.size }} / Color: {{ it.color }}</small>
+              </td>
+              <td class="text-center">{{ it.quantity }} unid.</td>
+              <td class="text-end">Bs. {{ it.unit_price | number:'1.2-2' }}</td>
+              <td class="text-end fw-bold">Bs. {{ it.subtotal | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Comprobante y método de pago -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-3 rounded-3 small">
+        <div class="d-flex align-items-center gap-3">
+          <span *ngIf="ord.payments.length > 0">
+            <i class="bi bi-credit-card-2-front me-1 text-primary"></i> Pago: <strong>{{ ord.payments[0].payment_type }}</strong>
+          </span>
+          <span *ngIf="ord.invoice">
+            <i class="bi bi-receipt me-1 text-success"></i> Comprobante: <strong>{{ ord.invoice.doc_type }}</strong>
+            <span *ngIf="ord.invoice.customer_nit" class="text-muted ms-1">(NIT: {{ ord.invoice.customer_nit }})</span>
+          </span>
+        </div>
+
+        <div *ngIf="ord.invoice?.control_code" class="text-muted font-monospace" style="font-size: 0.75rem;">
+          Código de Control: {{ ord.invoice?.control_code }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

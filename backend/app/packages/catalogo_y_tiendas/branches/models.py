@@ -41,6 +41,10 @@ class Branch(Base):
     
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    # [Control en tiempo real] Estado de atención diaria (Abierta vs Cerrada por refacciones/arreglos/feriado)
+    is_temporarily_closed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    closure_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
     # Relación N:N con los usuarios empleados (encargados y cajeros)
     employees: Mapped[List[User]] = relationship(
         "User",

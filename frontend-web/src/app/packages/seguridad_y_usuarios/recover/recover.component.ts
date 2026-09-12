@@ -20,8 +20,7 @@ export class RecoverComponent implements OnInit {
    */
   step = 1;
   requested = false;   // ya se envió el correo (paso 1 completado)
-  devResetLink = '';   // solo en desarrollo (SMTP sin configurar): enlace directo
-  private token = '';  // viene únicamente de la URL (?token=...)
+  private token = '';  // viene exclusivamente de la URL del correo (?token=...)
 
   errorMessage = '';
   successMessage = '';
@@ -33,6 +32,7 @@ export class RecoverComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // CU03: La pantalla de nueva contraseña solo se abre si viene el token en la URL
     const token = this.route.snapshot.queryParamMap.get('token');
     if (token) {
       this.token = token;
@@ -66,10 +66,9 @@ export class RecoverComponent implements OnInit {
 
     this.loading = true;
     this.authService.recoverCredentials(this.email).subscribe({
-      next: (res: any) => {
+      next: () => {
         this.loading = false;
         this.requested = true;
-        this.devResetLink = res?.dev_reset_link || '';
       },
       error: (err: any) => {
         this.loading = false;
@@ -83,11 +82,16 @@ export class RecoverComponent implements OnInit {
   }
 
   /**
-   * [CU03 · Paso 2] Define la nueva contraseña usando el token de la URL.
+   * [CU03 · Paso 2] Define la nueva contraseña usando el token del enlace del correo.
    */
   onResetPassword() {
     this.errorMessage = '';
     this.successMessage = '';
+
+    if (!this.token) {
+      this.errorMessage = 'El enlace de recuperación es inválido o no contiene un token. Por favor solicita uno nuevo desde tu correo.';
+      return;
+    }
 
     if (!this.newPassword || !this.confirmPassword) {
       this.errorMessage = 'Por favor, completa los dos campos de contraseña.';
@@ -106,13 +110,13 @@ export class RecoverComponent implements OnInit {
     this.authService.resetPassword(this.token, this.newPassword).subscribe({
       next: () => {
         this.loading = false;
-        this.successMessage = 'Tu contraseña ha sido restablecida con éxito. Redirigiendo al inicio de sesión…';
+        this.successMessage = '¡Tu contraseña ha sido restablecida con éxito! Redirigiendo al inicio de sesión…';
         setTimeout(() => this.router.navigate(['/login']), 2000);
       },
       error: (err: any) => {
         this.loading = false;
         this.errorMessage =
-          err.error?.detail || 'El enlace es inválido o expiró (5 minutos). Solicita uno nuevo.';
+          err.error?.detail || 'El enlace o código es inválido o expiró (30 minutos). Solicita uno nuevo.';
       }
     });
   }

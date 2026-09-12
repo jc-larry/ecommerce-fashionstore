@@ -1,121 +1,277 @@
 <div class="admin-page">
+  <!-- Page Header -->
   <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
     <div>
-      <h3 class="fw-bold mb-0">Valoración de Inventario</h3>
-      <p class="text-muted small mb-0">CU37 · Capital invertido calculado por costo promedio ponderado</p>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="fw-bold mb-0 text-dark">Valoración de Inventario</h3>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">Resumen Financiero</span>
+      </div>
+      <p class="text-muted small mb-0">
+        Resumen del valor económico del inventario disponible, cálculo a precio de costo y estimación de venta por sucursal.
+      </p>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <select class="form-select form-select-sm" style="min-width: 200px;" [(ngModel)]="branchId" (change)="load()">
-        <option [ngValue]="null">Todas las sucursales</option>
-        <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
-      </select>
-      <button class="btn btn-sm btn-light border fw-bold" (click)="load()" [disabled]="loading" title="Actualizar">
-        <i class="bi bi-arrow-clockwise"></i>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light text-muted"><i class="bi bi-geo-alt"></i></span>
+        <select class="form-select form-select-sm" style="min-width: 200px;" [(ngModel)]="branchId" (change)="onLocalBranchChange()">
+          <option [ngValue]="null">Todas las sucursales (Consolidado)</option>
+          <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+        </select>
+      </div>
+      <button class="btn btn-sm btn-light border fw-bold px-2.5" (click)="load()" [disabled]="loading" title="Actualizar datos">
+        <i class="bi bi-arrow-clockwise" [class.spin-icon]="loading"></i>
       </button>
     </div>
   </div>
 
-  <div *ngIf="error" class="alert alert-danger py-2 small">{{ error }}</div>
+  <!-- Tarjeta de Validación de Error -->
+  <div class="validation-card validation-card-error mb-4" *ngIf="error">
+    <div class="val-icon">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">No fue posible calcular la valoración</div>
+      <div class="val-desc">{{ error }}</div>
+    </div>
+    <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
+  </div>
 
   <div *ngIf="loading" class="text-center py-5">
     <div class="spinner-border text-primary" role="status"></div>
+    <div class="small text-muted mt-2">Calculando existencias y valores del inventario…</div>
   </div>
 
   <ng-container *ngIf="data && !loading">
-    <!-- Tarjeta hero: capital invertido -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-      <div class="card-body p-4 d-flex justify-content-between align-items-start gap-3">
-        <div>
-          <div class="stat-label text-uppercase mb-1">Capital invertido en mercadería</div>
-          <div class="display-6 fw-bold" style="color: #2B1F1D;">Bs {{ data.capital_invertido | number: '1.2-2' }}</div>
-          <div class="small text-muted mt-1">
-            {{ data.branch_id ? 'Sucursal seleccionada' : 'Consolidado de todas las sucursales' }}
-            · Σ (stock × costo promedio ponderado)
-          </div>
-        </div>
-        <div class="stat-icon stat-icon-lg"><i class="bi bi-cash-coin"></i></div>
-      </div>
-    </div>
-
-    <!-- KPIs de apoyo -->
+    <!-- Executive Financial Dashboard (4 KPI Cards) -->
     <div class="row g-3 mb-4">
-      <div class="col-sm-6 col-xl-4">
-        <div class="card stat-card h-100">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-              <span class="stat-label">Unidades en stock</span>
-              <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+      <!-- Card 1: Capital Invertido (Costo) -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card kpi-cost">
+          <div class="card-body p-3.5">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="kpi-label text-uppercase">Capital Invertido (CPP)</span>
+              <div class="kpi-icon bg-primary-subtle text-primary rounded-circle">
+                <i class="bi bi-safe2"></i>
+              </div>
             </div>
-            <div class="stat-value">{{ totalUnits | number }}</div>
+            <div class="h3 fw-bold mb-1 text-dark font-monospace">
+              Bs. {{ data.capital_invertido | number: '1.2-2' }}
+            </div>
+            <div class="extra-small text-muted">
+              Costo promedio ponderado en balance
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-sm-6 col-xl-4">
-        <div class="card stat-card h-100">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-              <span class="stat-label">Variantes con stock</span>
-              <div class="stat-icon"><i class="bi bi-tags"></i></div>
+
+      <!-- Card 2: Valor Comercial (PVP) -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card kpi-sale">
+          <div class="card-body p-3.5">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="kpi-label text-uppercase">Valor Comercial (PVP)</span>
+              <div class="kpi-icon bg-info-subtle text-info-emphasis rounded-circle">
+                <i class="bi bi-tag"></i>
+              </div>
             </div>
-            <div class="stat-value">{{ variantsWithStock }}</div>
+            <div class="h3 fw-bold mb-1 text-dark font-monospace">
+              Bs. {{ data.total_valor_venta | number: '1.2-2' }}
+            </div>
+            <div class="extra-small text-muted">
+              Valor de realización a precios de venta
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-sm-6 col-xl-4">
-        <div class="card stat-card h-100">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-              <span class="stat-label">Sucursales con inventario</span>
-              <div class="stat-icon"><i class="bi bi-shop"></i></div>
+
+      <!-- Card 3: Utilidad Bruta Proyectada -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card kpi-profit">
+          <div class="card-body p-3.5">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="kpi-label text-uppercase">Utilidad Bruta Proyectada</span>
+              <div class="kpi-icon bg-success-subtle text-success rounded-circle">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
             </div>
-            <div class="stat-value">{{ branchesWithStock }}</div>
+            <div class="h3 fw-bold mb-1 text-success font-monospace">
+              Bs. {{ data.utilidad_bruta_proyectada | number: '1.2-2' }}
+            </div>
+            <div class="extra-small text-muted">
+              Margen neto esperado tras liquidación
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Margen Bruto Promedio % -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card kpi-margin">
+          <div class="card-body p-3.5">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="kpi-label text-uppercase">Margen Bruto Promedio</span>
+              <div class="kpi-icon bg-warning-subtle text-warning-emphasis rounded-circle">
+                <i class="bi bi-pie-chart"></i>
+              </div>
+            </div>
+            <div class="h3 fw-bold mb-1 text-dark font-monospace">
+              {{ data.margen_bruto_promedio_percent | number: '1.1-1' }}%
+            </div>
+            <div class="extra-small text-muted">
+              Rentabilidad global sobre ventas
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Detalle por variante -->
+    <!-- Inventory Sub-bar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center bg-white p-3 rounded-4 shadow-sm border mb-4 gap-3">
+      <div class="d-flex flex-wrap align-items-center gap-4">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-boxes text-primary fs-5"></i>
+          <div>
+            <span class="extra-small text-muted text-uppercase fw-bold d-block">Prendas Físicas</span>
+            <span class="fw-bold text-dark">{{ totalUnits | number }} unidades</span>
+          </div>
+        </div>
+        <div class="border-start ps-3 d-flex align-items-center gap-2">
+          <i class="bi bi-palette text-secondary fs-5"></i>
+          <div>
+            <span class="extra-small text-muted text-uppercase fw-bold d-block">Variantes con Stock</span>
+            <span class="fw-bold text-dark">{{ variantsWithStock }} SKU(s)</span>
+          </div>
+        </div>
+        <div class="border-start ps-3 d-flex align-items-center gap-2">
+          <i class="bi bi-shop text-secondary fs-5"></i>
+          <div>
+            <span class="extra-small text-muted text-uppercase fw-bold d-block">Puntos de Almacén</span>
+            <span class="fw-bold text-dark">{{ branchesWithStock }} sucursales</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Search Filter -->
+      <div class="search-box" style="min-width: 250px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control border-start-0" [(ngModel)]="searchTerm" placeholder="Filtrar por prenda, color, SKU..." />
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Valuation Detail Table -->
     <div class="card border-0 shadow-sm rounded-4">
       <div class="card-body p-4">
-        <h5 class="fw-bold mb-3">Detalle por prenda / variante</h5>
-
-        <div *ngIf="data.items.length === 0" class="text-center py-5 text-muted">
-          <i class="bi bi-inboxes display-5 d-block mb-2"></i>
-          Sin existencias registradas todavía.
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-primary"></i>
+            Kárdex Valorizado por Prenda & Variante Textil
+          </h5>
+          <span class="badge bg-light text-muted border">Mostrando {{ filteredItems.length }} de {{ data.items.length }} variantes</span>
         </div>
 
-        <div class="table-responsive" *ngIf="data.items.length">
-          <table class="table admin-table align-middle">
+        <div *ngIf="data.items.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-inboxes display-5 d-block mb-2 text-secondary opacity-50"></i>
+          Sin existencias registradas todavía. Realiza un ingreso de mercadería en «Compras».
+        </div>
+
+        <div class="table-responsive" *ngIf="data.items.length > 0">
+          <table class="table admin-table align-middle mb-0">
             <thead>
               <tr>
-                <th style="width: 56px;">Foto</th>
-                <th>Prenda / Variante</th>
-                <th>SKU</th>
-                <th class="text-end">Stock</th>
-                <th class="text-end">Costo promedio</th>
-                <th class="text-end">Valor</th>
+                <th style="width: 50px;">Foto</th>
+                <th style="min-width: 220px;">Prenda & Atributos</th>
+                <th *ngIf="!branchId" style="min-width: 130px;">Sucursal</th>
+                <th class="text-center" style="width: 90px;">Stock</th>
+                <th class="text-end" style="width: 110px;">CPP Unit.</th>
+                <th class="text-end" style="width: 120px;">Cap. Invertido</th>
+                <th class="text-end" style="width: 110px;">PVP Venta</th>
+                <th class="text-end" style="width: 120px;">Valor Venta</th>
+                <th class="text-end" style="width: 125px;">Margen Bruto</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let it of data.items">
+              <tr *ngFor="let it of filteredItems" class="hover-row">
+                <!-- Photo -->
                 <td>
                   <img *ngIf="it.image_url" [src]="resolveImg(it.image_url)" [alt]="it.product_name || 'Prenda'"
-                       class="thumb">
-                  <div *ngIf="!it.image_url" class="thumb-ph">
-                    <i class="bi bi-image"></i>
+                       class="val-thumb rounded-2 border">
+                  <div *ngIf="!it.image_url" class="val-thumb-ph rounded-2 border">
+                    <i class="bi bi-image text-muted"></i>
                   </div>
                 </td>
-                <td class="fw-semibold text-dark">{{ it.product_name }}</td>
-                <td><span class="badge bg-light text-dark border">{{ it.sku }}</span></td>
-                <td class="text-end">{{ it.stock_actual }}</td>
-                <td class="text-end">Bs {{ it.avg_cost | number: '1.2-2' }}</td>
-                <td class="text-end fw-bold text-primary">Bs {{ it.valor | number: '1.2-2' }}</td>
+
+                <!-- Product, Color, Size, SKU -->
+                <td>
+                  <div class="fw-bold text-dark small">{{ it.product_name }}</div>
+                  <div class="d-flex align-items-center gap-2 extra-small text-muted mt-0.5">
+                    <span class="color-dot border" [style.background-color]="it.color_hex || '#999'"></span>
+                    <span class="badge bg-light text-dark border extra-small">{{ it.color_name }}</span>
+                    <span class="badge bg-light text-dark border extra-small">Talla: {{ it.size_name }}</span>
+                    <span class="font-monospace text-muted">{{ it.sku }}</span>
+                  </div>
+                </td>
+
+                <!-- Branch name (if consolidated) -->
+                <td *ngIf="!branchId">
+                  <span class="badge bg-light text-secondary border extra-small">
+                    <i class="bi bi-shop me-1"></i>{{ it.branch_name }}
+                  </span>
+                </td>
+
+                <!-- Stock units -->
+                <td class="text-center">
+                  <span class="badge fw-bold"
+                        [ngClass]="it.stock_actual > 0 ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'">
+                    {{ it.stock_actual }} unid.
+                  </span>
+                </td>
+
+                <!-- CPP Unit -->
+                <td class="text-end font-monospace small text-muted">
+                  Bs. {{ it.avg_cost | number: '1.2-2' }}
+                </td>
+
+                <!-- Invested Capital (Stock * CPP) -->
+                <td class="text-end font-monospace small fw-bold text-dark">
+                  Bs. {{ it.valor | number: '1.2-2' }}
+                </td>
+
+                <!-- Sale Price (PVP) -->
+                <td class="text-end font-monospace small text-secondary">
+                  Bs. {{ it.sale_price | number: '1.2-2' }}
+                </td>
+
+                <!-- Total Sale Value (Stock * PVP) -->
+                <td class="text-end font-monospace small fw-bold text-primary">
+                  Bs. {{ it.valor_venta | number: '1.2-2' }}
+                </td>
+
+                <!-- Gross Margin Unit & Percent -->
+                <td class="text-end">
+                  <div class="font-monospace extra-small fw-semibold text-success">
+                    +Bs. {{ it.margen_bruto_unit | number: '1.2-2' }}/u
+                  </div>
+                  <span class="badge extra-small fw-bold mt-0.5"
+                        [ngClass]="it.margen_bruto_percent >= 40 ? 'bg-success-subtle text-success border border-success-subtle' : (it.margen_bruto_percent >= 25 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle')">
+                    {{ it.margen_bruto_percent | number: '1.1-1' }}%
+                  </span>
+                </td>
               </tr>
             </tbody>
             <tfoot>
-              <tr>
-                <th colspan="5" class="text-end">Total</th>
-                <th class="text-end fw-bold text-primary">Bs {{ data.capital_invertido | number: '1.2-2' }}</th>
+              <tr class="table-light fw-bold">
+                <td [attr.colspan]="branchId ? 3 : 4" class="text-end text-uppercase small text-secondary">Totales Balances:</td>
+                <td class="text-center font-monospace text-dark">{{ totalUnits | number }}</td>
+                <td></td>
+                <td class="text-end font-monospace text-dark">Bs. {{ data.capital_invertido | number: '1.2-2' }}</td>
+                <td></td>
+                <td class="text-end font-monospace text-primary">Bs. {{ data.total_valor_venta | number: '1.2-2' }}</td>
+                <td class="text-end font-monospace text-success">
+                  +Bs. {{ data.utilidad_bruta_proyectada | number: '1.2-2' }}
+                  <div class="extra-small text-muted font-normal">{{ data.margen_bruto_promedio_percent | number: '1.1-1' }}% prom.</div>
+                </td>
               </tr>
             </tfoot>
           </table>

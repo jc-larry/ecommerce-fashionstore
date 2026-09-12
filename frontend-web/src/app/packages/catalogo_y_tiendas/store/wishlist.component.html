@@ -1,26 +1,101 @@
 <div class="store">
   <header class="store-header">
-    <div class="d-flex align-items-center gap-2">
-      <button class="btn btn-sm btn-light border-0" (click)="router.navigate(['/tienda'])"><i class="bi bi-arrow-left"></i></button>
-      <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
-      <span class="fw-bold">Mis favoritos</span>
+    <div class="d-flex align-items-center justify-content-between w-100">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-light border-0" (click)="router.navigate(['/tienda'])">
+          <i class="bi bi-arrow-left"></i>
+        </button>
+        <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
+        <span class="fw-bold">Mis Listas de Deseos (CU14+)</span>
+      </div>
+      <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" (click)="showCreateModal = true">
+        <i class="bi bi-plus-lg me-1"></i>Nueva Lista
+      </button>
     </div>
   </header>
 
   <main class="store-body">
-    <p *ngIf="loading" class="text-muted">Cargando…</p>
-    <p *ngIf="!loading && products.length === 0" class="text-muted">
-      Todavía no has guardado prendas. Toca el ♥ en cualquier prenda para agregarla aquí.
-    </p>
+    <!-- SELECTOR DE LISTAS / PESTAÑAS -->
+    <div class="d-flex align-items-center gap-2 overflow-auto pb-2 mb-3">
+      <button *ngFor="let wl of wishlists"
+              class="btn btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-2 text-nowrap"
+              [ngClass]="selectedWishlist?.id === wl.id ? 'btn-dark' : 'btn-outline-secondary'"
+              (click)="selectWishlist(wl)">
+        <span>{{ wl.name }}</span>
+        <span class="badge rounded-pill" [ngClass]="selectedWishlist?.id === wl.id ? 'bg-secondary' : 'bg-light text-dark'">
+          {{ wl.items_count }}
+        </span>
+        <i *ngIf="wl.is_public" class="bi bi-globe2 text-info small" title="Pública"></i>
+      </button>
+    </div>
 
-    <div class="row g-4">
+    <!-- BARRA DE ACCIONES DE LA LISTA SELECCIONADA -->
+    <div *ngIf="selectedWishlist" class="card border-0 shadow-sm p-3 mb-4 rounded-4 bg-light">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <h5 class="fw-bold mb-1 d-flex align-items-center gap-2">
+            {{ selectedWishlist.name }}
+            <span class="badge" [ngClass]="selectedWishlist.is_public ? 'bg-success' : 'bg-secondary'" style="font-size: 0.7rem;">
+              {{ selectedWishlist.is_public ? 'Pública' : 'Privada' }}
+            </span>
+          </h5>
+          <small class="text-muted">
+            {{ selectedWishlist.is_public ? 'Cualquiera con el enlace puede ver esta lista.' : 'Solo tú puedes ver esta lista.' }}
+          </small>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <!-- Switch público / privado -->
+          <button class="btn btn-sm btn-outline-secondary rounded-pill" (click)="togglePublic(selectedWishlist)">
+            <i class="bi" [ngClass]="selectedWishlist.is_public ? 'bi-lock' : 'bi-globe'"></i>
+            {{ selectedWishlist.is_public ? 'Hacer Privada' : 'Hacer Pública' }}
+          </button>
+
+          <!-- Copiar enlace compartido -->
+          <button *ngIf="selectedWishlist.is_public"
+                  class="btn btn-sm btn-outline-primary rounded-pill"
+                  (click)="copyShareLink()"
+                  title="Copiar enlace para compartir">
+            <i class="bi bi-share me-1"></i>Copiar enlace
+          </button>
+
+          <!-- Eliminar lista (si hay más de 1) -->
+          <button *ngIf="wishlists.length > 1"
+                  class="btn btn-sm btn-outline-danger rounded-circle"
+                  (click)="deleteCurrentList()"
+                  title="Eliminar esta lista">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="copiedMessage" class="alert alert-info py-2 px-3 mt-3 mb-0 small rounded-3 animate__animated animate__fadeIn">
+        <i class="bi bi-check-circle-fill me-1"></i>¡Enlace copiado al portapapeles! Compártelo con quien quieras.
+      </div>
+    </div>
+
+    <!-- PRENDAS DE LA LISTA -->
+    <div *ngIf="loadingItems" class="text-center py-5">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      <span class="ms-2 text-muted">Cargando prendas de la lista...</span>
+    </div>
+
+    <div *ngIf="!loadingItems && products.length === 0" class="text-center py-5">
+      <i class="bi bi-heart text-muted display-4"></i>
+      <p class="mt-3 text-muted">Esta lista está vacía. Explora la tienda y guarda tus looks preferidos.</p>
+      <button class="btn btn-primary btn-sm rounded-pill px-4 mt-2" (click)="router.navigate(['/tienda'])">
+        Ir a la Tienda
+      </button>
+    </div>
+
+    <div *ngIf="!loadingItems && products.length > 0" class="row g-4">
       <div class="col-6 col-md-4 col-lg-3" *ngFor="let p of products">
         <a class="card h-100 border-0 shadow-sm rounded-4 product text-decoration-none"
            [routerLink]="['/tienda/producto', p.id]">
           <div class="product-img">
             <img *ngIf="primaryImage(p)" [src]="primaryImage(p)" [alt]="p.name">
             <div *ngIf="!primaryImage(p)" class="product-img-placeholder"><i class="bi bi-image"></i></div>
-            <button class="wish-btn active" (click)="remove(p, $event)" title="Quitar de favoritos">
+            <button class="wish-btn active" (click)="remove(p, $event)" title="Quitar de la lista">
               <i class="bi bi-heart-fill"></i>
             </button>
           </div>
@@ -33,4 +108,37 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- MODAL CREAR NUEVA LISTA -->
+<div *ngIf="showCreateModal" class="modal-backdrop-custom">
+  <div class="modal-dialog-custom p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0"><i class="bi bi-folder-plus text-primary me-2"></i>Nueva Lista de Deseos</h5>
+      <button class="btn-close" (click)="showCreateModal = false"></button>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">Nombre de la lista *</label>
+      <input type="text"
+             class="form-control"
+             placeholder="Ej: Ropa de Fiesta, Verano 2026, Regalos"
+             [(ngModel)]="newListName"
+             maxlength="100">
+    </div>
+
+    <div class="form-check form-switch mb-4">
+      <input class="form-check-input" type="checkbox" id="publicSwitch" [(ngModel)]="newListIsPublic">
+      <label class="form-check-label small" for="publicSwitch">
+        Hacer pública (permitir compartir mediante enlace)
+      </label>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button class="btn btn-light btn-sm" (click)="showCreateModal = false">Cancelar</button>
+      <button class="btn btn-primary btn-sm px-3" [disabled]="!newListName.trim()" (click)="createList()">
+        Crear Lista
+      </button>
+    </div>
+  </div>
 </div>

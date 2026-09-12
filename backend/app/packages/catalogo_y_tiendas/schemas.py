@@ -144,7 +144,7 @@ class ProductResponse(ProductBase):
         from_attributes = True
 
 
-# ---------- Reseñas y favoritos (CU14) ----------
+# ---------- Reseñas y favoritos (CU14 / CU14+) ----------
 class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = Field(None, max_length=1000)
@@ -155,6 +155,7 @@ class ReviewResponse(BaseModel):
     comment: Optional[str] = None
     author_name: str
     is_mine: bool = False
+    status: str = "APPROVED"
     created_at: datetime
 
 class ReviewSummary(BaseModel):
@@ -170,6 +171,173 @@ class RatingSummaryItem(BaseModel):
     average: float
     count: int
 
+class ReviewModerationItem(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    user_id: int
+    author_name: str
+    author_email: str
+    rating: int
+    comment: Optional[str] = None
+    status: str
+    created_at: datetime
+
+class ReviewModerateAction(BaseModel):
+    status: str = Field(..., pattern="^(APPROVED|REJECTED)$")
+
 class WishlistToggleResponse(BaseModel):
     product_id: int
     in_wishlist: bool
+
+class WishlistCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    is_public: bool = False
+
+class WishlistUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    is_public: Optional[bool] = None
+
+class WishlistResponse(BaseModel):
+    id: int
+    name: str
+    is_public: bool
+    share_token: str
+    created_at: datetime
+    items_count: int = 0
+
+class WishlistDetailResponse(BaseModel):
+    id: int
+    name: str
+    is_public: bool
+    share_token: str
+    created_at: datetime
+    owner_name: Optional[str] = None
+    products: List[ProductResponse] = []
+
+
+# ---------- Búsqueda y Disponibilidad por Sucursal (CU12) ----------
+class BranchStockDetail(BaseModel):
+    branch_id: int
+    branch_name: str
+    branch_code: Optional[str] = None
+    city: Optional[str] = None
+    stock: int
+
+class VariantBranchStock(BaseModel):
+    variant_id: int
+    sku: str
+    color_id: int
+    color_name: str
+    color_hex: str
+    size_id: int
+    size_name: str
+    branches: List[BranchStockDetail] = []
+    total_stock: int = 0
+
+class ProductAvailabilityResponse(BaseModel):
+    product_id: int
+    product_name: str
+    variants: List[VariantBranchStock] = []
+    total_stock: int = 0
+
+class BranchOption(BaseModel):
+    id: int
+    name: str
+    code: Optional[str] = None
+    city: Optional[str] = None
+
+class CatalogFilterOptionsResponse(BaseModel):
+    min_price: float
+    max_price: float
+    categories: List[CategoryResponse]
+    sizes: List[SizeResponse]
+    colors: List[ColorResponse]
+    seasons: List[SeasonResponse]
+    branches: List[BranchOption]
+
+class ProductSearchResultItem(ProductResponse):
+    branch_stock: Optional[int] = None
+    total_stock: int = 0
+
+class ProductSearchResponse(BaseModel):
+    items: List[ProductSearchResultItem]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
+
+# ---------- Promociones y Cupones (CU13) ----------
+class CouponBase(BaseModel):
+    code: str = Field(..., min_length=3, max_length=30)
+    discount_type: str = Field("PORCENTAJE", pattern="^(PORCENTAJE|MONTO_FIJO)$")
+    discount_value: float = Field(..., gt=0)
+    min_purchase_amount: float = Field(0.0, ge=0)
+    valid_from: datetime
+    valid_until: datetime
+    max_uses: int = Field(100, gt=0)
+    is_active: bool = True
+
+class CouponCreate(CouponBase):
+    pass
+
+class CouponUpdate(BaseModel):
+    code: Optional[str] = Field(None, min_length=3, max_length=30)
+    discount_type: Optional[str] = Field(None, pattern="^(PORCENTAJE|MONTO_FIJO)$")
+    discount_value: Optional[float] = Field(None, gt=0)
+    min_purchase_amount: Optional[float] = Field(None, ge=0)
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    max_uses: Optional[int] = Field(None, gt=0)
+    is_active: Optional[bool] = None
+
+class CouponResponse(CouponBase):
+    id: int
+    used_count: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CouponValidateRequest(BaseModel):
+    code: str
+    cart_total: float = Field(..., ge=0)
+
+class CouponValidateResponse(BaseModel):
+    valid: bool
+    code: str
+    discount_type: str = "PORCENTAJE"
+    discount_value: float = 0.0
+    discount_amount: float = 0.0
+    new_total: float = 0.0
+    message: str
+
+class SeasonalPromotionBase(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+    discount_percent: int = Field(..., gt=0, le=100)
+    category_id: Optional[int] = None
+    start_date: date
+    end_date: date
+    is_active: bool = True
+
+class SeasonalPromotionCreate(SeasonalPromotionBase):
+    pass
+
+class SeasonalPromotionUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    description: Optional[str] = None
+    discount_percent: Optional[int] = Field(None, gt=0, le=100)
+    category_id: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+class SeasonalPromotionResponse(SeasonalPromotionBase):
+    id: int
+    created_at: datetime
+    category: Optional[CategoryResponse] = None
+
+    class Config:
+        from_attributes = True

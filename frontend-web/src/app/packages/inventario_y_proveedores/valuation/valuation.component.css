@@ -1,1 +1,83 @@
-:host { display: block; }
+.extra-small {
+  font-size: 0.72rem;
+}
+
+.kpi-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: #ffffff;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06) !important;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #6c757d;
+}
+
+.kpi-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.kpi-cost {
+  border-top: 3px solid #0d6efd !important;
+}
+
+.kpi-sale {
+  border-top: 3px solid #0dcaf0 !important;
+}
+
+.kpi-profit {
+  border-top: 3px solid #198754 !important;
+}
+
+.kpi-margin {
+  border-top: 3px solid #ffc107 !important;
+}
+
+.val-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.val-thumb-ph {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  flex-shrink: 0;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hover-row:hover {
+  background-color: #fafbfd;
+}

@@ -45,33 +45,88 @@
   --bs-primary-rgb: 198, 111, 92;
   --bs-link-color: #C66F5C;
   --bs-link-hover-color: #A95848;
-  --bs-body-bg: #FCFBFA;
+  --bs-body-bg: #F8F6F4;
   --bs-body-color: #2B1F1D;
   --bs-body-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --bs-border-color: #D4CECB;
+  --bs-border-color: #E6DFD9;
+  
+  /* Sistema de geometría unificado */
+  --bs-border-radius: 10px;
+  --bs-border-radius-sm: 8px;
+  --bs-border-radius-lg: 14px;
+  --bs-border-radius-xl: 18px;
+  --bs-border-radius-2xl: 20px;
+  --bs-border-radius-pill: 999px;
+}
+
+/* Unificación de radio de borde en controles interactivos */
+.btn {
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-sm {
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+.form-control,
+.form-select {
+  border-radius: 10px;
+  border: 1px solid #DDD6D0;
+  background-color: #FFFFFF;
+  color: #2B1F1D;
+  font-size: 0.875rem;
+}
+.form-control-sm,
+.form-select-sm {
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+.input-group-text {
+  border-radius: 10px;
+  border: 1px solid #DDD6D0;
+}
+.input-group > :not(:first-child):not(.dropdown-menu) {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+.input-group > :not(:last-child):not(.dropdown-toggle) {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
 }
 
 .btn-primary {
-  --bs-btn-bg: #C66F5C;
-  --bs-btn-border-color: #C66F5C;
-  --bs-btn-hover-bg: #A95848;
-  --bs-btn-hover-border-color: #A95848;
-  --bs-btn-active-bg: #97493B;
-  --bs-btn-active-border-color: #97493B;
-  --bs-btn-disabled-bg: #D98C7D;
-  --bs-btn-disabled-border-color: #D98C7D;
+  background-color: #C66F5C !important;
+  border-color: #C66F5C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(198, 111, 92, 0.25);
+}
+.btn-primary:hover {
+  background-color: #A95848 !important;
+  border-color: #A95848 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(198, 111, 92, 0.35);
+}
+.btn-primary:active,
+.btn-primary:focus {
+  background-color: #97493B !important;
+  border-color: #97493B !important;
+  color: #FFFFFF !important;
 }
 
 .btn-outline-primary {
-  --bs-btn-color: #C66F5C;
-  --bs-btn-border-color: #C66F5C;
-  --bs-btn-hover-bg: #C66F5C;
-  --bs-btn-hover-border-color: #C66F5C;
-  --bs-btn-active-bg: #A95848;
+  color: #C66F5C !important;
+  border-color: #C66F5C !important;
+  background-color: transparent !important;
+}
+.btn-outline-primary:hover {
+  background-color: #C66F5C !important;
+  border-color: #C66F5C !important;
+  color: #FFFFFF !important;
 }
 
 .text-primary { color: #C66F5C !important; }
-.bg-primary { background-color: #C66F5C !important; }
 .form-check-input:checked {
   background-color: #C66F5C;
   border-color: #C66F5C;
@@ -85,50 +140,121 @@
 a { color: #C66F5C; }
 a:hover { color: #A95848; }
 
-/* Utilidades que usan las plantillas y no existen en Bootstrap */
+/* Pestañas (nav-pills) alineadas con la gama Terracota (corrige el azul no deseado) */
+.nav-pills .nav-link {
+  border-radius: 10px;
+  color: #706361;
+  font-weight: 600;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid #EAE4E0;
+  background-color: #FFFFFF;
+  transition: all 0.2s ease;
+}
+.nav-pills .nav-link:hover {
+  background-color: #F8F3EF;
+  color: #2B1F1D;
+}
+.nav-pills .nav-link.active {
+  background-color: #C66F5C !important;
+  border-color: #C66F5C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 3px 10px rgba(198, 111, 92, 0.3);
+}
+.nav-pills .nav-link.active .badge {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+/* Utilidades que usan las plantillas */
 .cursor-pointer { cursor: pointer; }
 .fw-500 { font-weight: 500; }
 
 /* ---- Patrón común de pantallas del panel administrativo ---- */
-.admin-page { padding: 0.25rem; }
+.admin-page { padding: 0.5rem; }
 
-/* Títulos de página del panel: compactos, como la referencia de diseño */
+/* Títulos de página del panel: compactos, jerarquía visual limpia */
 .admin-page h1,
 .admin-page h2,
 .admin-page h3,
 .content-area > .container > .d-flex h2,
 .content-area > .container h2 {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #2B1F1D;
+  letter-spacing: -0.3px;
   line-height: 1.3;
   margin-bottom: 0;
 }
 .admin-page .form-label,
-.admin-page label { font-size: 0.8rem; }
+.admin-page label { 
+  font-size: 0.8rem; 
+  font-weight: 600;
+  color: #5A4E4C;
+}
 
+/* Tablas administrativas limpias y legibles */
 .admin-table { margin-bottom: 0; }
-.admin-table > thead { background-color: #FBEAE8; }
+.admin-table > thead { 
+  background-color: #FAF4F2; 
+  border-bottom: 1px solid #EFE4E0;
+}
 .admin-table > thead th {
-  color: #C66F5C;
-  font-size: 0.75rem;
-  letter-spacing: 0.4px;
+  color: #A95848;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   border: 0;
-  padding: 0.9rem 0.75rem;
+  padding: 0.85rem 1rem;
   white-space: nowrap;
 }
 .admin-table > tbody td {
-  padding: 0.85rem 0.75rem;
+  padding: 0.9rem 1rem;
   vertical-align: middle;
-  border-color: #F1EBE8;
+  border-color: #F4ECE8;
+  font-size: 0.86rem;
 }
 
-.pill {
+/* Botones de acción estándar en tablas para reemplazar botones planos y ásperos */
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid #E6DFD9;
+  background-color: #FFFFFF;
+  color: #3B2E2C;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-action:hover {
+  background-color: #FAF5F2;
+  border-color: #D98C7D;
+  color: #C66F5C;
+}
+.btn-action-danger {
+  color: #C62828;
+  border-color: #F8DADA;
+}
+.btn-action-danger:hover {
+  background-color: #FDF2F2;
+  border-color: #EF9A9A;
+  color: #B71C1C;
+}
+
+/* Badges y Pills armónicos */
+.pill,
+.badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 999px;
 }
 .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
@@ -136,6 +262,17 @@ a:hover { color: #A95848; }
 .pill-ok .pill-dot { background: #2E7D32; }
 .pill-off  { background: rgba(198, 111, 92, 0.14); color: #A95848; }
 .pill-off .pill-dot { background: #A95848; }
+
+/* Badge de categoría que corrige la barra sólida sin texto */
+.badge-category {
+  background-color: #F9ECE8 !important;
+  color: #C66F5C !important;
+  border: 1px solid #F1D4CC !important;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  border-radius: 999px;
+}
 
 /* Badges de rol con color por tipo (Superadmin / Encargado / Cajero / Cliente) */
 .pill-role { background: rgba(198, 111, 92, 0.12); color: #A95848; }               /* por defecto */
@@ -308,4 +445,110 @@ input, select, textarea {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted);
+}
+
+/* ================================================================
+   Validation Feedback Cards (Tarjetas de Validación Premium)
+   Diseñadas para máxima visibilidad, contornos suaves y UX clara
+   ================================================================ */
+.validation-card {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(43, 31, 29, 0.04);
+  transition: all 0.25s ease;
+  animation: fadeInDown 0.25s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.validation-card-error {
+  background-color: #FEF2F2;
+  border-color: #FCA5A5;
+  border-left: 5px solid #DC2626;
+  color: #7F1D1D;
+}
+
+.validation-card-warning {
+  background-color: #FFFBEB;
+  border-color: #FDE68A;
+  border-left: 5px solid #D97706;
+  color: #78350F;
+}
+
+.validation-card-success {
+  background-color: #F0FDF4;
+  border-color: #BBF7D0;
+  border-left: 5px solid #16A34A;
+  color: #14532D;
+}
+
+.validation-card-info {
+  background-color: #EFF6FF;
+  border-color: #BFDBFE;
+  border-left: 5px solid #2563EB;
+  color: #1E3A8A;
+}
+
+.validation-card .val-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.validation-card-error .val-icon { color: #DC2626; }
+.validation-card-warning .val-icon { color: #D97706; }
+.validation-card-success .val-icon { color: #16A34A; }
+.validation-card-info .val-icon { color: #2563EB; }
+
+.validation-card .val-content {
+  flex: 1;
+}
+
+.validation-card .val-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+
+.validation-card .val-desc {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin-bottom: 0;
+}
+
+.validation-card .val-desc small {
+  display: block;
+  margin-top: 4px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.validation-card .val-close {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: inherit;
+  opacity: 0.5;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.validation-card .val-close:hover {
+  opacity: 1;
 }

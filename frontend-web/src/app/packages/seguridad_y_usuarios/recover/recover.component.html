@@ -27,26 +27,24 @@
         <input type="email" class="form-control" name="email" [(ngModel)]="email"
                placeholder="ejemplo@correo.com" autocomplete="email" required>
 
-        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-4" [disabled]="loading">
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-4 shadow-sm" [disabled]="loading">
           <span *ngIf="!loading">Enviar enlace de recuperación</span>
           <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status"></span>
         </button>
       </form>
 
-      <!-- 1b · confirmación "revisa tu correo" -->
-      <div *ngIf="requested" class="text-center py-2">
-        <div class="check-circle mx-auto mb-3"><i class="bi bi-envelope-check"></i></div>
-        <p class="mb-1 fw-500">Revisa tu correo</p>
-        <p class="text-muted small mb-0">
-          Si <strong>{{ email }}</strong> está registrado, te llegó un enlace para crear tu
-          nueva contraseña. Ábrelo desde tu bandeja de entrada (revisa también spam).
-          El enlace <strong>vence en 5 minutos</strong>.
+      <!-- 1b · confirmación: revisa tu correo -->
+      <div *ngIf="requested" class="text-center py-3">
+        <div class="check-circle mx-auto mb-3 text-primary" style="font-size: 2.8rem;">
+          <i class="bi bi-envelope-check-fill"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2">Revisa tu correo electrónico</h5>
+        <p class="text-muted small mb-3">
+          Si <strong>{{ email }}</strong> está registrado en el sistema, hemos enviado un correo con el enlace seguro para restablecer tu contraseña.
         </p>
-
-        <!-- Solo en desarrollo: SMTP sin configurar → enlace directo para probar el flujo -->
-        <div *ngIf="devResetLink" class="alert alert-warning small mt-3 mb-0 text-start">
-          <strong>Modo desarrollo (sin SMTP).</strong> Usa este enlace para continuar:
-          <a [href]="devResetLink" class="d-block text-break mt-1">{{ devResetLink }}</a>
+        <div class="alert alert-light border small text-muted text-start mb-0">
+          <i class="bi bi-info-circle me-1 text-primary"></i>
+          Abre el enlace directamente desde tu bandeja de entrada (o carpeta de spam). El enlace <strong>vence en 5 minutos</strong> y es de un solo uso.
         </div>
       </div>
     </ng-container>

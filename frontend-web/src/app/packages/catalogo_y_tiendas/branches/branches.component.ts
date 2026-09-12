@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { CatalogoService } from '../catalogo.service';
 import { UsersService } from '../../seguridad_y_usuarios/users.service';
+import { BranchContextService } from './branch-context.service';
 
 declare let L: any;
 
@@ -31,7 +33,65 @@ export class BranchesComponent implements OnInit {
   assignBranch: any = null;
   assignUserId: number | null = null;
 
-  constructor(private catalogo: CatalogoService, private users: UsersService) {}
+  constructor(
+    private catalogo: CatalogoService,
+    private users: UsersService,
+    public branchContext: BranchContextService,
+    private router: Router
+  ) {}
+
+  enterBranch(branch: any): void {
+    if (!branch.is_active) {
+      alert('Esta sucursal está dada de baja y no admite operaciones.');
+      return;
+    }
+    if (branch.is_temporarily_closed) {
+      const proceed = confirm(
+        `AVISO: La sucursal ${branch.name} se encuentra CERRADA TEMPORALMENTE al público (${branch.closure_reason || 'Por mantenimiento / refacciones'}).\n\n¿Deseas ingresar de todas maneras en modo administrativo / operativo interno?`
+      );
+      if (!proceed) return;
+    }
+    this.branchContext.setActiveBranchById(branch.id);
+    this.router.navigate(['/admin/dashboard']);
+  }
+
+  toggleClosure(b: any): void {
+    if (!b.is_temporarily_closed) {
+      const reason = prompt(
+        `Indica el motivo del cierre temporal para ${b.name} (ej. En refacciones y arreglos, Inventario, Mantenimiento):`,
+        'En refacciones y arreglos'
+      );
+      if (reason === null) return;
+      this.catalogo.toggleBranchClosure(b.id, true, reason.trim() || 'Cerrada por mantenimiento').subscribe({
+        next: () => {
+          b.is_temporarily_closed = true;
+          b.closure_reason = reason.trim() || 'Cerrada por mantenimiento';
+          this.branchContext.initBranches();
+        },
+        error: (err) => alert(err.error?.detail || 'Error al cambiar estado de atención.')
+      });
+    } else {
+      if (!confirm(`¿Reabrir la sucursal ${b.name} para atención normal al público?`)) return;
+      this.catalogo.toggleBranchClosure(b.id, false, '').subscribe({
+        next: () => {
+          b.is_temporarily_closed = false;
+          b.closure_reason = null;
+          this.branchContext.initBranches();
+        },
+        error: (err) => alert(err.error?.detail || 'Error al reabrir sucursal.')
+      });
+    }
+  }
+
+  exitToCentral(): void {
+    this.branchContext.setActiveBranchById(null);
+    this.load();
+  }
+
+  isCurrentBranch(branch: any): boolean {
+    const active = this.branchContext.getActiveBranch();
+    return !!active && active.id === branch.id;
+  }
 
   ngOnInit(): void {
     this.load();
@@ -56,7 +116,9 @@ export class BranchesComponent implements OnInit {
       image_url: '',
       latitude: -17.7833 as number | null,
       longitude: -63.1821 as number | null,
-      is_active: true
+      is_active: true,
+      is_temporarily_closed: false,
+      closure_reason: ''
     };
   }
 
@@ -126,6 +188,8 @@ export class BranchesComponent implements OnInit {
       latitude: b.latitude ? Number(b.latitude) : -17.7833,
       longitude: b.longitude ? Number(b.longitude) : -63.1821,
       is_active: b.is_active,
+      is_temporarily_closed: !!b.is_temporarily_closed,
+      closure_reason: b.closure_reason || '',
     };
     this.activeTab = 'info';
     this.geoError = '';

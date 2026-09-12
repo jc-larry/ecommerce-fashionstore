@@ -1,118 +1,346 @@
 <div class="admin-page">
+  <!-- Page Header -->
   <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
     <div>
-      <h3 class="fw-bold mb-0">Registro de Mercadería</h3>
-      <p class="text-muted small mb-0">CU10 · Ingreso de compras a proveedores · recalcula el costo promedio ponderado</p>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="fw-bold mb-0 text-dark">Ingreso de Mercadería</h3>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">Recepción de Stock</span>
+      </div>
+      <p class="text-muted small mb-0">
+        Registro de compras a proveedores con distribución de costos de transporte, actualización de inventario y proyección de margen.
+      </p>
     </div>
   </div>
 
-  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-success py-2 small" *ngIf="success">{{ success }}</div>
+  <!-- Tarjetas de Validación con Contorno Visible y Mensajes Claros -->
+  <div class="validation-card validation-card-error mb-4" *ngIf="error">
+    <div class="val-icon">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">Atención requerida en el registro</div>
+      <div class="val-desc">{{ error }}</div>
+    </div>
+    <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <div class="validation-card validation-card-success mb-4" *ngIf="success">
+    <div class="val-icon">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">¡Ingreso guardado exitosamente!</div>
+      <div class="val-desc">{{ success }}</div>
+    </div>
+    <button class="val-close" (click)="success = ''" title="Cerrar">&times;</button>
+  </div>
 
   <div *ngIf="loading" class="text-center py-5">
     <div class="spinner-border text-primary" role="status"></div>
+    <div class="small text-muted mt-2">Cargando catálogo, proveedores y sucursales...</div>
   </div>
 
   <div class="row g-4" *ngIf="!loading">
-    <!-- Formulario de ingreso -->
-    <div class="col-lg-8">
-      <div class="card shadow-sm border-0 rounded-4">
+    <!-- Main Intake Form Area -->
+    <div class="col-xl-8">
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
-          <h5 class="fw-bold mb-4">Ingreso de Nueva Mercadería</h5>
+          <h5 class="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-text text-primary"></i>
+            Cabecera del Comprobante de Compra
+          </h5>
 
-          <div class="row g-3 mb-4">
+          <!-- Supplier & Branch row -->
+          <div class="row g-3 mb-3">
             <div class="col-md-6">
-              <label class="form-label small fw-bold text-muted">Proveedor</label>
-              <select class="form-select" [(ngModel)]="supplierId">
-                <option [ngValue]="null" disabled>Selecciona un proveedor…</option>
-                <option *ngFor="let s of suppliers" [ngValue]="s.id">{{ s.name }}</option>
+              <label class="form-label small fw-bold text-secondary mb-1">Proveedor <span class="text-danger">*</span></label>
+              <select class="form-select custom-select" [(ngModel)]="supplierId">
+                <option [ngValue]="null" disabled>Selecciona un proveedor de confección…</option>
+                <option *ngFor="let s of suppliers" [ngValue]="s.id">
+                  {{ s.name }} (NIT/RUC: {{ s.tax_id || 'S/N' }})
+                </option>
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label small fw-bold text-muted">Sucursal destino</label>
-              <select class="form-select" [(ngModel)]="branchId">
-                <option [ngValue]="null" disabled>Selecciona una sucursal…</option>
+              <label class="form-label small fw-bold text-secondary mb-1 d-flex justify-content-between align-items-center">
+                <span>Sucursal destino <span class="text-danger">*</span></span>
+                <span class="badge bg-primary-subtle text-primary fw-normal" *ngIf="(branchContext.activeBranch$ | async)">
+                  📍 Sucursal Activa
+                </span>
+                <span class="badge bg-secondary-subtle text-secondary ms-1 fw-normal" *ngIf="loadingInventory">Cargando stock...</span>
+              </label>
+              <select class="form-select custom-select" [(ngModel)]="branchId" (change)="onBranchChange()">
+                <option [ngValue]="null" disabled>Selecciona la sucursal de recepción…</option>
                 <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
               </select>
             </div>
           </div>
 
+          <!-- Invoice, Shipping Cost, Notes -->
+          <div class="row g-3 mb-2">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold text-secondary mb-1">
+                Nº Factura / Remisión
+                <i class="bi bi-info-circle text-muted" title="Número de factura o guía emitida por el proveedor"></i>
+              </label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light text-muted"><i class="bi bi-receipt"></i></span>
+                <input type="text" class="form-control" [(ngModel)]="invoiceNumber" placeholder="Ej. FAC-00941" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold text-secondary mb-1">
+                Flete / Transporte (Bs.)
+                <i class="bi bi-truck text-muted" title="Gasto de envío a prorratear entre las prendas por su valor"></i>
+              </label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light text-muted">Bs.</span>
+                <input type="number" min="0" step="0.5" class="form-control text-end fw-semibold" [(ngModel)]="shippingCost" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold text-secondary mb-1">Observaciones / Lote</label>
+              <input type="text" class="form-control form-control-sm" [(ngModel)]="notes" placeholder="Ej. Colección Otoño lote 1" />
+            </div>
+          </div>
+
+          <!-- Freight Factor Informative Pill -->
+          <div class="freight-callout p-2 px-3 rounded-3 mt-3 d-flex justify-content-between align-items-center" *ngIf="safeShippingCost > 0">
+            <div class="small text-muted d-flex align-items-center gap-2">
+              <i class="bi bi-calculator text-primary"></i>
+              <span>Prorrateo de Flete Activo: <strong>+{{ (freightFactor * 100) | number:'1.2-2' }}%</strong> sobre el costo base de cada prenda.</span>
+            </div>
+            <span class="badge bg-light text-dark border">Costo Landed en vigor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Items Section -->
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-boxes text-primary"></i>
+              Detalle de Prendas a Ingresar
+            </h5>
+            <span class="badge bg-light text-muted border">{{ rows.length }} ítem(s) en lista</span>
+          </div>
+
           <div class="table-responsive mb-3">
-            <table class="table align-middle admin-table">
+            <table class="table align-middle intake-table mb-0">
               <thead>
                 <tr>
-                  <th>Variante (prenda · color · talla · SKU)</th>
-                  <th style="width: 110px;">Cantidad</th>
-                  <th style="width: 140px;">Costo unitario</th>
-                  <th class="text-end" style="width: 120px;">Subtotal</th>
-                  <th style="width: 40px;"></th>
+                  <th style="min-width: 260px;">Prenda · Color · Talla</th>
+                  <th style="min-width: 110px;" class="text-center">Estado Actual</th>
+                  <th style="width: 95px;" class="text-center">Cant.</th>
+                  <th style="width: 120px;" class="text-end">Costo Compra</th>
+                  <th style="width: 120px;" class="text-end" title="Costo unitario con flete prorrateado">Costo Landed</th>
+                  <th style="width: 125px;" class="text-end" title="Costo Promedio Ponderado que quedará registrado en Kárdex">Nuevo CPP</th>
+                  <th style="width: 110px;" class="text-end" title="Precio de Venta al Público y Margen">PVP / Margen</th>
+                  <th style="width: 45px;"></th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let r of rows; let i = index">
+                <tr *ngFor="let r of rows; let i = index" class="intake-row">
+                  <!-- Variant Selector & Visual Info -->
                   <td>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-start gap-2">
                       <img *ngIf="getVariant(r.variant_id)?.imageUrl"
                            [src]="getVariant(r.variant_id)?.imageUrl"
-                           class="thumb">
-                      <div *ngIf="!getVariant(r.variant_id)?.imageUrl" class="thumb-ph">
-                        <i class="bi bi-image"></i>
+                           class="item-thumb rounded-2 border">
+                      <div *ngIf="!getVariant(r.variant_id)?.imageUrl" class="item-thumb-ph rounded-2 border">
+                        <i class="bi bi-image text-muted"></i>
                       </div>
-                      <select class="form-select form-select-sm" [(ngModel)]="r.variant_id">
-                        <option [ngValue]="null" disabled>Selecciona prenda…</option>
-                        <option *ngFor="let v of variants" [ngValue]="v.id">{{ v.label }}</option>
-                      </select>
+
+                      <div class="flex-grow-1">
+                        <select class="form-select form-select-sm" [(ngModel)]="r.variant_id">
+                          <option [ngValue]="null" disabled>Seleccionar prenda...</option>
+                          <option *ngFor="let v of variants" [ngValue]="v.id">
+                            {{ v.label }}
+                          </option>
+                        </select>
+
+                        <div class="d-flex align-items-center gap-2 mt-1" *ngIf="getVariant(r.variant_id) as v">
+                          <span class="color-dot border" [style.background-color]="v.colorHex"></span>
+                          <span class="badge bg-light text-dark border extra-small">{{ v.colorName }}</span>
+                          <span class="badge bg-light text-dark border extra-small">Talla: {{ v.sizeName }}</span>
+                          <span class="text-muted extra-small font-monospace">{{ v.sku }}</span>
+                        </div>
+                      </div>
                     </div>
                   </td>
-                  <td><input type="number" min="1" class="form-control form-control-sm" [(ngModel)]="r.quantity"></td>
-                  <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" [(ngModel)]="r.unit_cost"></td>
-                  <td class="text-end fw-bold small">Bs. {{ subtotal(r) | number:'1.2-2' }}</td>
-                  <td><button class="btn btn-sm btn-light border" (click)="removeRow(i)"><i class="bi bi-trash"></i></button></td>
+
+                  <!-- Current Stock & CPP in Branch -->
+                  <td class="text-center">
+                    <div *ngIf="branchId && r.variant_id">
+                      <span class="badge bg-secondary-subtle text-secondary fw-semibold">
+                        {{ getCurrentStock(r.variant_id) }} unid.
+                      </span>
+                      <div class="extra-small text-muted mt-0.5">
+                        CPP: Bs. {{ getCurrentAvgCost(r.variant_id) | number:'1.2-2' }}
+                      </div>
+                    </div>
+                    <span *ngIf="!branchId" class="text-muted extra-small fst-italic">Elija sucursal</span>
+                    <span *ngIf="branchId && !r.variant_id" class="text-muted extra-small">-</span>
+                  </td>
+
+                  <!-- Quantity -->
+                  <td>
+                    <input type="number" min="1" class="form-control form-control-sm text-center fw-bold"
+                           [(ngModel)]="r.quantity" placeholder="1" />
+                  </td>
+
+                  <!-- Raw Unit Cost -->
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-light p-1 px-1.5 extra-small">Bs.</span>
+                      <input type="number" min="0" step="0.5" class="form-control form-control-sm text-end fw-semibold"
+                             [(ngModel)]="r.unit_cost" placeholder="0.00" />
+                    </div>
+                    <div class="text-end extra-small text-muted mt-0.5">
+                      Subt: Bs. {{ ((r.quantity || 0) * (r.unit_cost || 0)) | number:'1.2-2' }}
+                    </div>
+                  </td>
+
+                  <!-- Landed Unit Cost (With Freight) -->
+                  <td class="text-end">
+                    <span class="fw-bold text-dark font-monospace small">
+                      Bs. {{ getLandedCost(r) | number:'1.2-2' }}
+                    </span>
+                    <div *ngIf="freightFactor > 0" class="extra-small text-primary">
+                      +{{ (getLandedCost(r) - (r.unit_cost || 0)) | number:'1.2-2' }} flete
+                    </div>
+                  </td>
+
+                  <!-- Simulated New CPP -->
+                  <td class="text-end">
+                    <div class="cpp-pill px-2 py-1 rounded-2 d-inline-block text-end">
+                      <div class="fw-bold text-success font-monospace small">
+                        Bs. {{ getSimulatedNewCpp(r) | number:'1.2-2' }}
+                      </div>
+                      <div class="extra-small text-muted">
+                        Δ {{ (getSimulatedNewCpp(r) - getCurrentAvgCost(r.variant_id)) >= 0 ? '+' : '' }}{{ (getSimulatedNewCpp(r) - getCurrentAvgCost(r.variant_id)) | number:'1.2-2' }}
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Retail Price & Projected Margin -->
+                  <td class="text-end">
+                    <div *ngIf="getVariant(r.variant_id) as v">
+                      <div class="small fw-semibold text-dark">
+                        PVP: Bs. {{ v.salePrice | number:'1.2-2' }}
+                      </div>
+                      <span class="badge extra-small fw-bold mt-1"
+                            [ngClass]="getProjectedMarginPercent(r) >= 30 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'">
+                        {{ getProjectedMarginPercent(r) | number:'1.1-1' }}% marg.
+                      </span>
+                    </div>
+                    <span *ngIf="!r.variant_id" class="text-muted extra-small">-</span>
+                  </td>
+
+                  <!-- Remove Row -->
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-light text-danger border-0 p-1" (click)="removeRow(i)" title="Quitar fila">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <button class="btn btn-sm btn-outline-primary mb-4" (click)="addRow()">
-            <i class="bi bi-plus-lg me-1"></i> Añadir prenda
-          </button>
-
-          <div class="d-flex justify-content-between align-items-center bg-light rounded-3 p-3 mb-4">
-            <span class="text-muted small fw-semibold">Total calculado del ingreso</span>
-            <h4 class="fw-bold mb-0 text-primary">Bs. {{ total | number:'1.2-2' }}</h4>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <button class="btn btn-sm btn-outline-primary fw-semibold rounded-3" (click)="addRow()">
+              <i class="bi bi-plus-circle me-1"></i> Añadir otra prenda al lote
+            </button>
+            <span class="text-muted small">
+              Prendas seleccionadas: <strong>{{ totalPieces }}</strong> unidades
+            </span>
           </div>
 
-          <button class="btn btn-primary w-100 py-2 fw-bold" [disabled]="saving" (click)="register()">
-            <span *ngIf="!saving">Registrar Ingreso de Mercadería</span>
-            <span *ngIf="saving" class="spinner-border spinner-border-sm" role="status"></span>
-          </button>
+          <!-- Total Summary Bar -->
+          <div class="financial-summary-card p-3 rounded-4 mb-4">
+            <div class="row g-3 align-items-center">
+              <div class="col-sm-3 border-end">
+                <span class="text-muted extra-small text-uppercase fw-bold d-block mb-1">Subtotal Prendas</span>
+                <span class="h6 fw-bold mb-0 text-dark">Bs. {{ subtotalRaw | number:'1.2-2' }}</span>
+              </div>
+              <div class="col-sm-3 border-end">
+                <span class="text-muted extra-small text-uppercase fw-bold d-block mb-1">Flete Prorrateado</span>
+                <span class="h6 fw-bold mb-0 text-primary">Bs. {{ safeShippingCost | number:'1.2-2' }}</span>
+              </div>
+              <div class="col-sm-3 border-end">
+                <span class="text-muted extra-small text-uppercase fw-bold d-block mb-1">Total Compra (Landed)</span>
+                <span class="h5 fw-bold mb-0 text-success">Bs. {{ totalWithShipping | number:'1.2-2' }}</span>
+              </div>
+              <div class="col-sm-3 text-sm-end">
+                <span class="text-muted extra-small text-uppercase fw-bold d-block mb-1">Unidades Totales</span>
+                <span class="h6 fw-bold mb-0 text-dark">{{ totalPieces }} prendas</span>
+              </div>
+            </div>
+          </div>
 
-          <p class="text-muted small mt-2 mb-0" *ngIf="variants.length === 0">
-            No hay variantes de prenda. Crea prendas con variantes en «Catálogo» primero.
-          </p>
+          <!-- Submit Button -->
+          <button class="btn btn-primary w-100 py-2.5 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2"
+                  [disabled]="saving" (click)="register()">
+            <i class="bi bi-check2-circle fs-5" *ngIf="!saving"></i>
+            <span *ngIf="!saving">Registrar Ingreso y Asentar en Kárdex Ponderado</span>
+            <span *ngIf="saving" class="spinner-border spinner-border-sm" role="status"></span>
+            <span *ngIf="saving">Procesando costeo y kárdex...</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Ingresos recientes -->
-    <div class="col-lg-4">
-      <h6 class="fw-bold text-uppercase text-muted small mb-3">Ingresos Recientes</h6>
-      <div class="d-flex flex-column gap-3">
-        <div class="text-center text-muted py-4 border rounded-4" *ngIf="recentEntries.length === 0">
-          <i class="bi bi-inboxes display-6 d-block mb-2"></i>
-          Sin ingresos registrados aún.
+    <!-- Right Sidebar: Explanation & Recent Receipts -->
+    <div class="col-xl-4">
+      <!-- Expert Accounting Guide Card -->
+      <div class="card border-0 shadow-sm rounded-4 mb-4 bg-light">
+        <div class="card-body p-3.5">
+          <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-primary"></i>
+            Rigor Contable Textil & Retail
+          </h6>
+          <p class="text-secondary extra-small mb-2">
+            En la industria textil, el costo de adquisición de prendas debe incluir fletes y aduanas para reflejar el <strong>Costo Landed</strong> real.
+          </p>
+          <ul class="text-muted extra-small ps-3 mb-0">
+            <li class="mb-1"><strong>Fórmula CPP:</strong> (Stock Anterior × CPP Anterior + Cantidad Nueva × Costo Landed) ÷ Stock Total Resultante.</li>
+            <li class="mb-1"><strong>Variación por Color/Talla:</strong> Cada SKU mantiene su propio Kárdex independiente respetando precios diferenciados.</li>
+            <li><strong>Margen Bruto:</strong> Indica la ganancia comercial proyectada frente al PVP catálogo.</li>
+          </ul>
         </div>
-        <div class="card shadow-sm border-0 rounded-4" *ngFor="let e of recentEntries">
-          <div class="card-body p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="fw-bold">{{ e.ref }}</span>
-              <span class="pill pill-ok"><span class="pill-dot"></span>Completado</span>
-            </div>
-            <div class="text-muted small mb-1">{{ e.items }} línea(s)</div>
-            <div class="text-muted small mb-2">Fecha: {{ e.date | date:'dd/MM/yyyy HH:mm' }}</div>
-            <div class="d-flex justify-content-between align-items-end">
-              <span class="text-muted small">Valor total</span>
-              <span class="fw-bold text-primary">Bs. {{ e.total | number:'1.2-2' }}</span>
+      </div>
+
+      <!-- Recent Entries Card -->
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-uppercase text-secondary small mb-0">
+              {{ (branchContext.activeBranch$ | async) ? 'Ingresos en ' + (branchContext.activeBranch$ | async)?.name : 'Historial Consolidado de Ingresos' }}
+            </h6>
+            <span class="badge bg-light text-muted border">{{ recentEntries.length }}</span>
+          </div>
+
+          <div class="text-center text-muted py-4" *ngIf="recentEntries.length === 0">
+            <i class="bi bi-inboxes display-6 d-block mb-2 text-secondary opacity-50"></i>
+            Sin compras registradas aún.
+          </div>
+
+          <div class="d-flex flex-column gap-2" *ngIf="recentEntries.length > 0">
+            <div class="p-3 border rounded-3 bg-white hover-card transition-all" *ngFor="let e of recentEntries">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark font-monospace small">{{ e.ref }}</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle extra-small">Kárdex OK</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center text-muted extra-small mb-1">
+                <span>{{ e.items }} línea(s) ingresadas</span>
+                <span>{{ e.date | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-end pt-2 border-top mt-2">
+                <span class="text-secondary extra-small">Costo total asentado</span>
+                <span class="fw-bold text-primary font-monospace small">Bs. {{ e.total | number:'1.2-2' }}</span>
+              </div>
             </div>
           </div>
         </div>

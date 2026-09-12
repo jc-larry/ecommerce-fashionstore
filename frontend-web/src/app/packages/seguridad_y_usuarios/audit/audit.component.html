@@ -1,47 +1,141 @@
 <div class="admin-page">
+  <!-- Cabecera de Página y Controles de Filtrado -->
   <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0">Bitácora de Auditoría</h3>
-    <div class="d-flex gap-2 align-items-center">
-      <select class="form-select form-select-sm" style="width: 160px;" [(ngModel)]="actionFilter">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="fw-bold mb-0 text-dark">Bitácora de Auditoría</h3>
+        <span class="badge bg-white border text-secondary shadow-sm">
+          <i class="bi bi-shield-check text-primary me-1"></i>{{ filtered.length }} eventos
+        </span>
+      </div>
+      <p class="text-muted small mb-0">Registro y trazabilidad de accesos de seguridad y operaciones del sistema.</p>
+    </div>
+
+    <!-- Filtros de búsqueda rápidos -->
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <!-- Input de búsqueda libre -->
+      <div class="input-group input-group-sm" style="width: 220px;">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" class="form-control" placeholder="Buscar IP, tabla, ID…" [(ngModel)]="searchQuery">
+      </div>
+
+      <!-- Filtro por Acción -->
+      <select class="form-select form-select-sm" style="width: 140px;" [(ngModel)]="actionFilter">
         <option value="TODOS">Acción: Todas</option>
         <option *ngFor="let a of actions" [value]="a">{{ a }}</option>
       </select>
-      <button class="btn btn-sm btn-light border fw-bold" (click)="load()">
-        <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+
+      <!-- Filtro por Módulo / Tabla -->
+      <select class="form-select form-select-sm" style="width: 170px;" [(ngModel)]="tableFilter">
+        <option value="TODAS">Módulo: Todos</option>
+        <option *ngFor="let t of tables" [value]="t">{{ getTableLabel(t) }}</option>
+      </select>
+
+      <!-- Botón recargar -->
+      <button class="btn btn-sm btn-light border fw-bold shadow-sm" (click)="load()" title="Refrescar registros">
+        <i class="bi bi-arrow-clockwise text-primary"></i>
       </button>
     </div>
   </div>
 
-  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+  <!-- Tarjeta de Validación con Contorno Visible -->
+  <div class="validation-card validation-card-error mb-4" *ngIf="error">
+    <div class="val-icon">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">No fue posible cargar la bitácora</div>
+      <div class="val-desc">{{ error }}</div>
+    </div>
+    <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
+  </div>
 
-  <div class="card shadow-sm border-0 rounded-4">
+  <!-- Tabla Principal de Auditoría -->
+  <div class="card shadow-sm border-0">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover admin-table">
+        <table class="table table-hover admin-table align-middle">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Usuario</th>
+              <th>Fecha y Hora</th>
+              <th>Operador</th>
               <th>Acción</th>
-              <th>Tabla</th>
+              <th>Módulo Afectado</th>
               <th>Registro</th>
-              <th>Detalle</th>
-              <th>IP</th>
+              <th>Resumen del Evento</th>
+              <th>Dirección IP</th>
+              <th class="text-end pe-3">Detalle</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngIf="loading"><td colspan="7" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="loading">
+              <td colspan="8" class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                Cargando bitácora de eventos…
+              </td>
+            </tr>
             <tr *ngIf="!loading && filtered.length === 0">
-              <td colspan="7" class="text-center text-muted py-4">Sin eventos registrados.</td>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-shield-slash fs-2 d-block mb-2 text-black-50"></i>
+                No se encontraron eventos con los filtros seleccionados.
+              </td>
             </tr>
             <tr *ngFor="let l of filtered">
-              <td class="text-muted small">{{ l.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
-              <td class="small">{{ l.user_id ?? 'Sistema' }}</td>
-              <td><span class="pill pill-role">{{ l.action }}</span></td>
-              <td class="text-muted small">{{ l.table_name }}</td>
-              <td class="text-muted small">#{{ l.row_id }}</td>
-              <td class="text-muted small text-truncate" style="max-width: 320px;">{{ summary(l.new_values) }}</td>
-              <td class="text-muted small">{{ l.ip_address || '—' }}</td>
+              <!-- Fecha -->
+              <td>
+                <span class="badge bg-white border text-secondary px-2 py-1 shadow-sm font-monospace" style="font-size: 0.76rem;">
+                  <i class="bi bi-clock text-muted me-1"></i>{{ l.timestamp | date:'dd/MM/yy HH:mm:ss' }}
+                </span>
+              </td>
+
+              <!-- Operador -->
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0"
+                       style="width: 28px; height: 28px; background-color: #F7EAE6; color: #C66F5C; font-size: 0.7rem;">
+                    {{ l.user_id ? 'U' + l.user_id : 'SYS' }}
+                  </div>
+                  <span class="fw-semibold text-dark small">{{ l.user_id ? ('Usuario #' + l.user_id) : 'Sistema / Auto' }}</span>
+                </div>
+              </td>
+
+              <!-- Acción -->
+              <td>
+                <span class="pill" [ngClass]="getActionBadge(l.action).badgeClass">
+                  <i class="bi {{ getActionBadge(l.action).icon }} me-1"></i>{{ getActionBadge(l.action).label }}
+                </span>
+              </td>
+
+              <!-- Módulo -->
+              <td>
+                <span class="badge bg-light text-dark border py-1">
+                  {{ getTableLabel(l.table_name) }}
+                </span>
+              </td>
+
+              <!-- ID del registro -->
+              <td>
+                <span class="badge bg-light text-muted border font-monospace">
+                  #{{ l.row_id }}
+                </span>
+              </td>
+
+              <!-- Resumen legible -->
+              <td class="text-muted small text-truncate" style="max-width: 280px;" [title]="summary(l.new_values)">
+                {{ summary(l.new_values) }}
+              </td>
+
+              <!-- IP -->
+              <td>
+                <span class="text-muted small font-monospace">{{ l.ip_address || '127.0.0.1' }}</span>
+              </td>
+
+              <!-- Acciones -->
+              <td class="text-end pe-3">
+                <button class="btn-action" (click)="openDetail(l)" title="Ver carga útil completa (Payload)">
+                  <i class="bi bi-eye text-primary"></i> Inspeccionar
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -49,3 +143,68 @@
     </div>
   </div>
 </div>
+
+<!-- Modal / Drawer Lateral de Inspección de Evento -->
+<ng-container *ngIf="selectedLog">
+  <div class="slide-overlay" (click)="closeDetail()"></div>
+  <div class="slide-panel slide-panel-lg">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="pill" [ngClass]="getActionBadge(selectedLog.action).badgeClass">
+            <i class="bi {{ getActionBadge(selectedLog.action).icon }} me-1"></i>{{ getActionBadge(selectedLog.action).label }}
+          </span>
+          <span class="badge bg-light border text-muted">ID Evento #{{ selectedLog.id || selectedLog.row_id }}</span>
+        </div>
+        <h5 class="fw-bold mb-0 text-dark">Inspección de Registro de Auditoría</h5>
+      </div>
+      <button class="btn btn-sm btn-light border-0 rounded-circle" (click)="closeDetail()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="slide-panel-body">
+      <!-- Datos clave en tarjetas compactas -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <div class="p-2 rounded-3 bg-light border">
+            <small class="text-muted d-block" style="font-size: 0.72rem;">FECHA Y HORA</small>
+            <strong class="small text-dark">{{ selectedLog.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 rounded-3 bg-light border">
+            <small class="text-muted d-block" style="font-size: 0.72rem;">USUARIO OPERADOR</small>
+            <strong class="small text-dark">{{ selectedLog.user_id ? ('Usuario #' + selectedLog.user_id) : 'Sistema' }}</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 rounded-3 bg-light border">
+            <small class="text-muted d-block" style="font-size: 0.72rem;">TABLA / ENTIDAD</small>
+            <strong class="small text-dark">{{ selectedLog.table_name }} (#{{ selectedLog.row_id }})</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 rounded-3 bg-light border">
+            <small class="text-muted d-block" style="font-size: 0.72rem;">DIRECCIÓN IP</small>
+            <strong class="small text-dark">{{ selectedLog.ip_address || '127.0.0.1' }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- JSON Payload formateado -->
+      <label class="form-label small fw-bold text-secondary mb-1">
+        <i class="bi bi-code-slash text-primary me-1"></i>Carga de Datos Registrada (Payload / Parámetros)
+      </label>
+      <div class="p-3 bg-dark text-white rounded-3 font-monospace small" style="max-height: 400px; overflow-y: auto;">
+        <pre class="mb-0 text-white" style="font-size: 0.8rem; line-height: 1.4;">{{ formatJson(selectedLog.new_values) }}</pre>
+      </div>
+    </div>
+
+    <div class="slide-panel-footer d-flex justify-content-end">
+      <button class="btn btn-sm btn-light border fw-bold px-3" (click)="closeDetail()">
+        Cerrar Inspección
+      </button>
+    </div>
+  </div>
+</ng-container>

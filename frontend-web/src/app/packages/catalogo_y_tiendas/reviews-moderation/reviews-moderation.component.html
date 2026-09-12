@@ -1,0 +1,139 @@
+<div class="admin-page">
+  <!-- ENCABEZADO -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">Moderación de Reseñas</h3>
+      <p class="text-muted small mb-0">Supervisa las opiniones y valoraciones de los clientes sobre las prendas del catálogo.</p>
+    </div>
+    <button class="btn btn-sm btn-light border fw-bold shadow-sm" (click)="loadReviews()">
+      <i class="bi bi-arrow-clockwise text-primary me-1"></i>Actualizar
+    </button>
+  </div>
+
+  <!-- Tarjetas de Validación con Contorno Visible y Mensajes Claros -->
+  <div class="validation-card validation-card-error mb-4" *ngIf="errorMessage">
+    <div class="val-icon">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">Atención requerida</div>
+      <div class="val-desc">{{ errorMessage }}</div>
+    </div>
+    <button class="val-close" (click)="errorMessage = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <div class="validation-card validation-card-success mb-4" *ngIf="successMessage">
+    <div class="val-icon">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">¡Operación realizada!</div>
+      <div class="val-desc">{{ successMessage }}</div>
+    </div>
+    <button class="val-close" (click)="successMessage = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <!-- FILTROS POR ESTADO -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small fw-semibold">Filtrar por estado:</span>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn" [ngClass]="statusFilter === '' ? 'btn-primary' : 'btn-light border'" (click)="onFilterChange('')">
+            Todas
+          </button>
+          <button type="button" class="btn" [ngClass]="statusFilter === 'APPROVED' ? 'btn-primary' : 'btn-light border'" (click)="onFilterChange('APPROVED')">
+            Aprobadas
+          </button>
+          <button type="button" class="btn" [ngClass]="statusFilter === 'PENDING' ? 'btn-primary' : 'btn-light border'" (click)="onFilterChange('PENDING')">
+            Pendientes
+          </button>
+          <button type="button" class="btn" [ngClass]="statusFilter === 'REJECTED' ? 'btn-primary' : 'btn-light border'" (click)="onFilterChange('REJECTED')">
+            Rechazadas
+          </button>
+        </div>
+      </div>
+      <span class="badge bg-white border text-secondary shadow-sm">
+        <i class="bi bi-chat-quote-fill text-primary me-1"></i>{{ reviews.length }} reseña(s)
+      </span>
+    </div>
+  </div>
+
+  <!-- LISTA DE RESEÑAS -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <p class="text-muted mt-2 small">Cargando opiniones…</p>
+  </div>
+
+  <div *ngIf="!loading && reviews.length === 0" class="text-center py-5 bg-white rounded-4 shadow-sm border">
+    <i class="bi bi-chat-left-dots text-muted fs-1 d-block mb-2"></i>
+    <p class="mb-0 text-muted">No se encontraron reseñas con el filtro seleccionado.</p>
+  </div>
+
+  <div *ngIf="!loading && reviews.length > 0" class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table admin-table align-middle mb-0 table-hover">
+        <thead>
+          <tr>
+            <th>Prenda</th>
+            <th>Cliente</th>
+            <th>Calificación</th>
+            <th style="width: 35%;">Comentario</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let rv of reviews">
+            <td class="fw-semibold text-dark">{{ rv.product_name }}</td>
+            <td>
+              <div class="fw-medium text-dark">{{ rv.author_name }}</div>
+              <small class="text-muted" style="font-size: 0.75rem;">{{ rv.author_email }}</small>
+            </td>
+            <td>
+              <span class="text-warning me-1">
+                <i *ngFor="let s of getStarsArray(rv.rating)" class="bi bi-star-fill"></i>
+              </span>
+              <small class="fw-bold text-muted">({{ rv.rating }}/5)</small>
+            </td>
+            <td>
+              <p class="mb-0 text-secondary" style="font-size: 0.86rem; line-height: 1.4;">
+                {{ rv.comment || 'Sin comentario escrito.' }}
+              </p>
+            </td>
+            <td>
+              <span class="pill" [ngClass]="{
+                'pill-ok': rv.status === 'APPROVED',
+                'pill-role': rv.status === 'PENDING',
+                'pill-off': rv.status === 'REJECTED'
+              }">
+                <span class="pill-dot"></span>
+                {{ rv.status === 'APPROVED' ? 'Aprobada' : (rv.status === 'PENDING' ? 'Pendiente' : 'Rechazada') }}
+              </span>
+            </td>
+            <td class="text-muted small">
+              {{ rv.created_at | date:'dd/MM/yyyy HH:mm' }}
+            </td>
+            <td class="text-end pe-4">
+              <div class="d-flex justify-content-end gap-2">
+                <button *ngIf="rv.status !== 'APPROVED'"
+                        class="btn-action"
+                        (click)="moderate(rv, 'APPROVED')"
+                        title="Aprobar para mostrar en la tienda">
+                  <i class="bi bi-check-circle text-success"></i> Aprobar
+                </button>
+                <button *ngIf="rv.status !== 'REJECTED'"
+                        class="btn-action btn-action-danger"
+                        (click)="moderate(rv, 'REJECTED')"
+                        title="Ocultar de la tienda">
+                  <i class="bi bi-slash-circle"></i> Ocultar
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

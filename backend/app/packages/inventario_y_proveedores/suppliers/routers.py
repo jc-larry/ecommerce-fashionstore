@@ -77,14 +77,35 @@ def delete_supplier(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_check)
 ):
-    """[CU08] Elimina un proveedor de la base de datos"""
+    """[CU08] Desactiva lógicamente un proveedor preservando integridad y trazabilidad"""
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
 
-    db.delete(supplier)
+    supplier.is_active = False
     db.commit()
+    db.refresh(supplier)
 
-    # Auditar remoción de proveedor (CU36)
-    log_event(db, current_user.id, "DELETE", "suppliers", supplier_id, {"nit": supplier.nit, "name": supplier.name}, request.client.host)
+    # Auditar desactivación de proveedor (CU36)
+    log_event(db, current_user.id, "DEACTIVATE", "suppliers", supplier_id, {"nit": supplier.nit, "name": supplier.name, "status": "INACTIVE"}, request.client.host)
+    return supplier
+
+@router.patch("/{supplier_id}/toggle", response_model=SupplierResponse)
+def toggle_supplier_status(
+    supplier_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_check)
+):
+    """[CU08] Alterna el estado activo/inactivo de un proveedor"""
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+
+    supplier.is_active = not bool(supplier.is_active)
+    db.commit()
+    db.refresh(supplier)
+
+    action = "ACTIVATE" if supplier.is_active else "DEACTIVATE"
+    log_event(db, current_user.id, action, "suppliers", supplier_id, {"nit": supplier.nit, "name": supplier.name, "is_active": supplier.is_active}, request.client.host)
     return supplier

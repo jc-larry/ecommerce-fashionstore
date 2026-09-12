@@ -1,37 +1,183 @@
 <div class="store">
+  <!-- Cabecera de la Tienda -->
   <header class="store-header">
     <div class="d-flex align-items-center gap-2">
       <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
       <span class="fw-bold fs-5">FashionStore</span>
     </div>
+
     <div class="d-flex align-items-center gap-2">
-      <a routerLink="/tienda/favoritos" class="btn btn-sm btn-light border" title="Mis favoritos">
-        <i class="bi bi-heart"></i>
+      <a [href]="downloadApkUrl" target="_blank" class="btn btn-sm btn-outline-success d-flex align-items-center gap-1" title="Descargar APK Móvil Android">
+        <i class="bi bi-phone"></i>
+        <span class="d-none d-md-inline">App Móvil</span>
       </a>
-      <span class="text-muted small d-none d-sm-inline">Hola, {{ userName }}</span>
-      <button class="btn btn-sm btn-outline-primary" (click)="logout()">
-        <i class="bi bi-box-arrow-right me-1"></i> Salir
+
+      <!-- Botón Carrito (disponible para todos) -->
+      <button class="btn btn-sm btn-light border position-relative" (click)="isCartOpen = true" title="Mi Carrito de Compras">
+        <i class="bi bi-bag-check"></i>
       </button>
+
+      <!-- Si el usuario está autenticado -->
+      <ng-container *ngIf="auth.isLoggedIn()">
+        <!-- Acceso rápido al panel operativo para empleados/administradores -->
+        <a *ngIf="auth.isAdminUser()" routerLink="/admin/dashboard" class="btn btn-sm btn-dark d-flex align-items-center gap-1 shadow-sm">
+          <i class="bi bi-speedometer2 text-warning"></i>
+          <span class="d-none d-sm-inline fw-semibold">Panel Operativo</span>
+        </a>
+
+        <a routerLink="/tienda/pedidos" class="btn btn-sm btn-light border" title="Mis Pedidos (CU24)">
+          <i class="bi bi-receipt"></i>
+        </a>
+        <a routerLink="/tienda/favoritos" class="btn btn-sm btn-light border" title="Mis favoritos">
+          <i class="bi bi-heart"></i>
+        </a>
+        <span class="text-muted small d-none d-sm-inline">Hola, <strong>{{ userName }}</strong></span>
+        <button class="btn btn-sm btn-outline-primary" (click)="logout()" title="Cerrar sesión">
+          <i class="bi bi-box-arrow-right me-1"></i> Salir
+        </button>
+      </ng-container>
+
+      <!-- Si el usuario NO está autenticado (invitado / cliente nuevo) -->
+      <ng-container *ngIf="!auth.isLoggedIn()">
+        <a routerLink="/login" class="btn btn-sm btn-outline-dark fw-500">
+          <i class="bi bi-person me-1"></i> Iniciar Sesión
+        </a>
+        <a routerLink="/register" class="btn btn-sm btn-primary fw-500">
+          Crear Cuenta
+        </a>
+      </ng-container>
     </div>
   </header>
 
   <main class="store-body">
-    <!-- Buscador -->
-    <div class="input-group mb-4" style="max-width: 420px;">
-      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-      <input type="text" class="form-control" placeholder="Buscar colecciones…" [(ngModel)]="search">
+    <!-- Barra de Búsqueda y Sucursal (CU12) -->
+    <div class="search-bar-wrapper mb-3 p-3 bg-white rounded-4 shadow-sm border">
+      <div class="row g-2 align-items-center">
+        <!-- Input de búsqueda por texto libre -->
+        <div class="col-12 col-md-5">
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0"
+                   placeholder="Buscar por prenda, ocasión, material..."
+                   [(ngModel)]="search"
+                   (ngModelChange)="onSearchChange($event)">
+          </div>
+        </div>
+
+        <!-- Selector de Sucursal (CU12) -->
+        <div class="col-12 col-sm-6 col-md-4">
+          <div class="input-group">
+            <span class="input-group-text bg-white text-primary"><i class="bi bi-geo-alt-fill"></i></span>
+            <select class="form-select" [ngModel]="branchFilter" (ngModelChange)="selectBranch($event)">
+              <option [ngValue]="null">📍 Todas las sucursales</option>
+              <option *ngFor="let b of branches" [ngValue]="b.id">
+                {{ b.name }} ({{ b.city || 'Santa Cruz' }})
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Botón Filtros Facetados & Ordenamiento -->
+        <div class="col-12 col-sm-6 col-md-3 d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-secondary d-flex align-items-center gap-1 w-100 justify-content-center"
+                  [class.btn-primary]="showFilters || activeFiltersCount > 0"
+                  [class.text-white]="showFilters || activeFiltersCount > 0"
+                  (click)="showFilters = !showFilters">
+            <i class="bi bi-sliders"></i>
+            <span>Filtros</span>
+            <span class="badge bg-white text-dark ms-1" *ngIf="activeFiltersCount > 0">{{ activeFiltersCount }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel Expandible de Filtros Facetados (CU12) -->
+      <div class="filters-panel mt-3 pt-3 border-top" *ngIf="showFilters">
+        <div class="row g-3">
+          <!-- Filtro por Tallas -->
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-bold text-muted mb-1">TALLAS DISPONIBLES</label>
+            <div class="d-flex flex-wrap gap-1">
+              <button *ngFor="let s of sizes" type="button"
+                      class="btn btn-sm size-filter-btn"
+                      [class.btn-primary]="sizeFilter === s.id"
+                      [class.btn-outline-secondary]="sizeFilter !== s.id"
+                      (click)="toggleSize(s.id)">
+                {{ s.name }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Filtro por Colores -->
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-bold text-muted mb-1">COLORES</label>
+            <div class="d-flex flex-wrap gap-1">
+              <button *ngFor="let c of colors" type="button"
+                      class="btn btn-sm color-filter-btn d-flex align-items-center gap-1"
+                      [class.active-color]="colorFilter === c.id"
+                      (click)="toggleColor(c.id)">
+                <span class="color-dot" [style.background]="c.hex_code"></span>
+                <span>{{ c.name }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Rango de Precios y Ordenamiento -->
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-bold text-muted mb-1">RANGO DE PRECIO (Bs.)</label>
+            <div class="d-flex gap-2 align-items-center mb-2">
+              <input type="number" class="form-control form-control-sm" placeholder="Mín"
+                     [(ngModel)]="minPrice" (change)="fetchFilteredProducts()">
+              <span class="text-muted">-</span>
+              <input type="number" class="form-control form-control-sm" placeholder="Máx"
+                     [(ngModel)]="maxPrice" (change)="fetchFilteredProducts()">
+            </div>
+
+            <!-- Ordenamiento -->
+            <div class="mt-2">
+              <label class="form-label small fw-bold text-muted mb-1">ORDENAR POR</label>
+              <select class="form-select form-select-sm" [(ngModel)]="sortBy" (change)="fetchFilteredProducts()">
+                <option value="newest">Más recientes</option>
+                <option value="price_asc">Menor precio</option>
+                <option value="price_desc">Mayor precio</option>
+                <option value="rating">Mejor calificados ★</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra inferior de filtros: Checkbox Stock y Limpiar -->
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="stockOnlyCheck"
+                   [(ngModel)]="inStockOnly" (change)="fetchFilteredProducts()">
+            <label class="form-check-label small fw-semibold text-dark" for="stockOnlyCheck">
+              Solo prendas con stock disponible <span *ngIf="selectedBranchName">en {{ selectedBranchName }}</span>
+            </label>
+          </div>
+          <button class="btn btn-sm btn-link text-danger text-decoration-none p-0" (click)="resetFilters()">
+            <i class="bi bi-x-circle me-1"></i> Limpiar filtros
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Categorías -->
-    <section class="mb-4" *ngIf="categories.length">
-      <div class="section-title">Categorías</div>
+    <!-- Categorías Principales y Subcategorías (CU12 Jerarquía) -->
+    <section class="mb-4" *ngIf="mainCategories.length">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="section-title mb-0">Categorías Principales</div>
+        <span class="text-muted small" *ngIf="selectedMainCategoryId !== 'TODAS'">
+          {{ currentSubcategories.length }} subcategorías disponibles
+        </span>
+      </div>
+
+      <!-- Tira de Categorías Principales -->
       <div class="cat-strip">
-        <button class="cat-chip" [class.active]="categoryFilter === 'TODAS'" (click)="selectCategory('TODAS')">
+        <button class="cat-chip" [class.active]="selectedMainCategoryId === 'TODAS'" (click)="selectMainCategory('TODAS')">
           <span class="cat-circle cat-all"><i class="bi bi-grid"></i></span>
           <span class="cat-name">Todas</span>
         </button>
-        <button class="cat-chip" *ngFor="let c of categories" [class.active]="categoryFilter === c.id"
-                (click)="selectCategory(c.id)">
+        <button class="cat-chip" *ngFor="let c of mainCategories" [class.active]="selectedMainCategoryId === c.id"
+                (click)="selectMainCategory(c.id)">
           <span class="cat-circle">
             <img *ngIf="categoryImg(c)" [src]="categoryImg(c)" [alt]="c.name">
             <span *ngIf="!categoryImg(c)" class="cat-initial">{{ c.name[0] }}</span>
@@ -39,26 +185,57 @@
           <span class="cat-name">{{ c.name }}</span>
         </button>
       </div>
+
+      <!-- Subcategorías Hijas (Aparecen solo cuando se selecciona una categoría principal) -->
+      <div class="subcat-panel mt-3 p-3 bg-white rounded-4 border shadow-sm" *ngIf="selectedMainCategoryId !== 'TODAS' && currentSubcategories.length > 0">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-diagram-2-fill text-primary"></i>
+          <span class="small fw-bold text-dark">Subcategorías de {{ activeCategoryName.split(' ›')[0] }}:</span>
+        </div>
+        <div class="subcat-strip border-0 p-0 bg-transparent">
+          <button type="button" class="subcat-pill"
+                  [class.active]="selectedSubcategoryId === null"
+                  (click)="selectSubcategory(null)">
+            <i class="bi bi-check2-all me-1" *ngIf="selectedSubcategoryId === null"></i>
+            Ver todo en {{ activeCategoryName.split(' ›')[0] }}
+          </button>
+          <button *ngFor="let sub of currentSubcategories" type="button" class="subcat-pill"
+                  [class.active]="selectedSubcategoryId === sub.id"
+                  (click)="selectSubcategory(sub.id)">
+            <i class="bi bi-tag me-1" *ngIf="selectedSubcategoryId === sub.id"></i>
+            {{ sub.name }}
+          </button>
+        </div>
+      </div>
     </section>
 
-    <!-- Hero de colección -->
-    <div class="hero mb-4" *ngIf="categoryFilter === 'TODAS'">
-      <div class="hero-tag">TENDENCIAS DE TEMPORADA</div>
-      <h2 class="fw-bold mb-1">La nueva colección ya está aquí</h2>
-      <p class="mb-0 text-white-50">Prendas femeninas para cada momento. El carrito y la prueba en realidad aumentada llegan pronto.</p>
-    </div>
-
-    <!-- Grilla -->
+    <!-- Indicador de Resultados de Búsqueda -->
     <div class="d-flex align-items-center justify-content-between mb-3">
-      <div class="section-title mb-0">{{ activeCategoryName || 'Nuevos Ingresos' }}</div>
-      <span class="text-muted small">{{ filtered.length }} prendas</span>
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="fw-bold mb-0 text-dark">{{ activeCategoryName || 'Catálogo de Prendas' }}</h5>
+        <span class="badge bg-light text-secondary border" *ngIf="selectedBranchName">
+          <i class="bi bi-geo-alt me-1 text-primary"></i> {{ selectedBranchName }}
+        </span>
+      </div>
+      <span class="text-muted small">{{ products.length }} prenda{{ products.length === 1 ? '' : 's' }} encontrada{{ products.length === 1 ? '' : 's' }}</span>
     </div>
 
-    <p *ngIf="loading" class="text-muted">Cargando catálogo…</p>
-    <p *ngIf="!loading && filtered.length === 0" class="text-muted">No hay prendas disponibles por el momento.</p>
+    <!-- Estado de Carga y Sin Resultados -->
+    <div *ngIf="loading" class="text-center py-5 text-muted">
+      <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+      <div>Buscando prendas disponibles…</div>
+    </div>
 
-    <div class="row g-3 g-md-4">
-      <div class="col-6 col-md-4 col-lg-3" *ngFor="let p of filtered">
+    <div *ngIf="!loading && products.length === 0" class="text-center py-5 bg-white rounded-4 shadow-sm border p-4">
+      <div class="fs-1 text-muted mb-2"><i class="bi bi-search"></i></div>
+      <h6 class="fw-bold text-dark">No encontramos prendas con esos criterios</h6>
+      <p class="text-muted small mb-3">Intenta modificar los filtros seleccionados o buscar en otra sucursal.</p>
+      <button class="btn btn-sm btn-primary" (click)="resetFilters()">Ver todo el catálogo</button>
+    </div>
+
+    <!-- Grilla de Productos con Disponibilidad por Sucursal (CU12) -->
+    <div class="row g-3 g-md-4" *ngIf="!loading && products.length > 0">
+      <div class="col-6 col-md-4 col-lg-3" *ngFor="let p of products">
         <a class="card h-100 border-0 shadow-sm rounded-4 product text-decoration-none"
            [routerLink]="['/tienda/producto', p.id]">
           <div class="product-img">
@@ -70,13 +247,15 @@
               <i class="bi" [ngClass]="isWished(p) ? 'bi-heart-fill' : 'bi-heart'"></i>
             </button>
           </div>
-          <div class="card-body">
+          <div class="card-body d-flex flex-column">
             <div class="text-muted small text-truncate">{{ categoryName(p) }}</div>
             <div class="fw-bold text-dark text-truncate">{{ p.name }}</div>
             <div class="d-flex align-items-baseline gap-2 mt-1">
               <span class="text-primary fw-bold">Bs. {{ p.base_price | number: '1.0-2' }}</span>
               <span class="price-old small" *ngIf="p.compare_at_price">Bs. {{ p.compare_at_price | number: '1.0-2' }}</span>
             </div>
+
+            <!-- Calificación y Paleta de Colores -->
             <div class="d-flex align-items-center gap-2 mt-1">
               <span class="mini-stars" *ngIf="rating(p).count > 0">
                 <i class="bi bi-star-fill"></i> {{ rating(p).average | number: '1.1-1' }}
@@ -86,12 +265,77 @@
                 <span class="dot" *ngFor="let hx of colorDots(p)" [style.background]="hx"></span>
               </span>
             </div>
+
+            <!-- Tallas Disponibles -->
             <div class="size-badges mt-1" *ngIf="sizeLabels(p).length">
               <span class="size-badge" *ngFor="let s of sizeLabels(p)">{{ s }}</span>
+            </div>
+
+            <!-- Badge de Disponibilidad por Sucursal (CU12) -->
+            <div class="mt-auto pt-2">
+              <!-- Caso 1: Filtro por sucursal específica activo -->
+              <div *ngIf="selectedBranchName">
+                <span class="badge w-100 py-1 bg-success-subtle text-success border border-success-subtle text-truncate"
+                      *ngIf="p.branch_stock !== null && p.branch_stock !== undefined && p.branch_stock > 0">
+                  <i class="bi bi-check-circle-fill me-1"></i> {{ p.branch_stock }} u. en sucursal
+                </span>
+                <span class="badge w-100 py-1 bg-danger-subtle text-danger border border-danger-subtle text-truncate"
+                      *ngIf="!p.branch_stock || p.branch_stock <= 0">
+                  <i class="bi bi-x-circle me-1"></i> Agotado en sucursal
+                </span>
+              </div>
+
+              <!-- Caso 2: Vista global de todas las sucursales -->
+              <div *ngIf="!selectedBranchName">
+                <span class="badge w-100 py-1 bg-light text-secondary border text-truncate"
+                      *ngIf="p.total_stock > 0">
+                  <i class="bi bi-boxes me-1 text-primary"></i> {{ p.total_stock }} u. disponibles
+                </span>
+                <span class="badge w-100 py-1 bg-warning-subtle text-warning border border-warning-subtle text-truncate"
+                      *ngIf="p.total_stock === 0">
+                  <i class="bi bi-clock-history me-1"></i> Por reponer
+                </span>
+              </div>
             </div>
           </div>
         </a>
       </div>
     </div>
   </main>
+
+  <!-- Pie de página de la Tienda (E-Commerce & Acceso Operativo) -->
+  <footer class="mt-5 pt-4 pb-4 border-top bg-white text-muted">
+    <div class="container-fluid px-4">
+      <div class="row g-4 align-items-center justify-content-between">
+        <div class="col-12 col-md-6">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="brand-badge small"><i class="bi bi-bag-heart-fill"></i></div>
+            <span class="fw-bold text-dark">FashionStore Bolivia</span>
+          </div>
+          <p class="small mb-0 text-muted">
+            Moda femenina, masculina y urbana. Catálogo multicanal con disponibilidad y retiro en nuestras sucursales físicas.
+          </p>
+        </div>
+
+        <div class="col-12 col-md-6 text-md-end">
+          <div class="d-inline-flex flex-wrap gap-3 align-items-center">
+            <span class="small text-muted"><i class="bi bi-shield-check text-success me-1"></i> Compras Seguras</span>
+            <span class="text-secondary">|</span>
+            <!-- Enlace al Área Operativa para Colaboradores y Administradores -->
+            <a *ngIf="!auth.isLoggedIn()" routerLink="/login" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+              <i class="bi bi-lock-fill text-primary"></i>
+              <span>Acceso Personal y Operaciones</span>
+            </a>
+            <a *ngIf="auth.isLoggedIn() && auth.isAdminUser()" routerLink="/admin/dashboard" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+              <i class="bi bi-speedometer2"></i>
+              <span>Ir al Panel de Administración</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal de Carrito y Checkout Digital (CU17, CU18, CU20) -->
+  <app-cart-modal [isOpen]="isCartOpen" (close)="isCartOpen = false"></app-cart-modal>
 </div>

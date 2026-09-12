@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { UsersService } from '../../seguridad_y_usuarios/users.service';
+import { AuthService } from '../../seguridad_y_usuarios/auth.service';
 import { CatalogoService } from '../catalogo.service';
+import { BranchContextService } from '../branches/branch-context.service';
 
 @Component({
   selector: 'app-employees',
@@ -10,16 +12,29 @@ import { CatalogoService } from '../catalogo.service';
 })
 export class EmployeesComponent implements OnInit {
   employees: any[] = [];
+  allEmployees: any[] = [];
   branches: any[] = [];
   loading = false;
   error = '';
+  activeBranchName = 'Casa Matriz (Todas las Sucursales)';
+  isCentral = true;
 
   showForm = false;
   form = this.emptyForm();
 
-  constructor(private users: UsersService, private catalogo: CatalogoService) {}
+  constructor(
+    private users: UsersService,
+    private catalogo: CatalogoService,
+    public branchContext: BranchContextService,
+    public authService: AuthService
+  ) {}
 
   ngOnInit(): void {
+    this.branchContext.activeBranch$.subscribe((active) => {
+      this.isCentral = !active;
+      this.activeBranchName = active ? active.name : 'Casa Matriz (Todas las Sucursales)';
+      this.applyFilter();
+    });
     this.load();
   }
 
@@ -31,26 +46,60 @@ export class EmployeesComponent implements OnInit {
       phone: '',
       password: '',
       role: 'CAJERO',
-      branch_id: null as number | null,
+      branch_id: this.branchContext.getActiveBranchId() || (null as number | null),
     };
+  }
+
+  applyFilter(): void {
+    const activeId = this.branchContext.getActiveBranchId();
+    if (!activeId) {
+      this.employees = [...this.allEmployees];
+    } else {
+      this.employees = this.allEmployees.filter((e: any) => e.branch?.id === activeId);
+    }
   }
 
   load(): void {
     this.loading = true;
     this.error = '';
+
+    // [Separación por sucursal] GET /users es exclusivo de SUPERADMIN en el backend.
+    // ENCARGADO/CAJERO ven, en modo solo lectura, únicamente el personal de su propia
+    // sucursal, derivado de la lista pública de sucursales (branches[].employees).
+    if (!this.authService.isCentralUser()) {
+      this.catalogo.getBranches().subscribe({
+        next: (branches: any[]) => {
+          this.branches = branches;
+          const own = branches.find((b: any) => b.id === this.branchContext.getActiveBranchId());
+          this.allEmployees = ((own?.employees) || [])
+            .filter((u: any) => (u.roles || []).some((r: any) => ['ENCARGADO', 'CAJERO'].includes(r.name)))
+            .map((u: any) => ({
+              ...u,
+              role: (u.roles || []).map((r: any) => r.name).find((n: string) => ['ENCARGADO', 'CAJERO'].includes(n)),
+              branch: own,
+            }));
+          this.applyFilter();
+          this.loading = false;
+        },
+        error: () => { this.error = 'No se pudieron cargar los empleados.'; this.loading = false; },
+      });
+      return;
+    }
+
     forkJoin({
       users: this.users.getUsers(),
       branches: this.catalogo.getBranches(),
     }).subscribe({
       next: ({ users, branches }) => {
         this.branches = branches;
-        this.employees = users
+        this.allEmployees = users
           .filter((u: any) => (u.roles || []).some((r: any) => ['ENCARGADO', 'CAJERO'].includes(r.name)))
           .map((u: any) => ({
             ...u,
             role: (u.roles || []).map((r: any) => r.name).find((n: string) => ['ENCARGADO', 'CAJERO'].includes(n)),
             branch: branches.find((b: any) => (b.employees || []).some((e: any) => e.id === u.id)),
           }));
+        this.applyFilter();
         this.loading = false;
       },
       error: () => { this.error = 'No se pudieron cargar los empleados.'; this.loading = false; },

@@ -1,13 +1,38 @@
 <div class="store">
   <header class="store-header">
     <div class="d-flex align-items-center gap-2">
-      <button class="btn btn-sm btn-light border-0" (click)="router.navigate(['/tienda'])"><i class="bi bi-arrow-left"></i></button>
+      <button class="btn btn-sm btn-light border" (click)="router.navigate(['/tienda'])" title="Volver al catálogo">
+        <i class="bi bi-arrow-left me-1"></i> <span class="d-none d-sm-inline">Catálogo</span>
+      </button>
       <div class="brand-badge"><i class="bi bi-bag-heart-fill"></i></div>
-      <span class="fw-bold">FashionStore</span>
+      <span class="fw-bold fs-5">FashionStore</span>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <a routerLink="/tienda/favoritos" class="btn btn-sm btn-light border" title="Favoritos"><i class="bi bi-heart"></i></a>
-      <button class="btn btn-sm btn-outline-primary" (click)="logout()"><i class="bi bi-box-arrow-right"></i></button>
+      <button class="btn btn-sm btn-light border" (click)="isCartOpen = true" title="Mi Carrito de Compras">
+        <i class="bi bi-bag-check"></i>
+      </button>
+
+      <ng-container *ngIf="auth.isLoggedIn()">
+        <a *ngIf="auth.isAdminUser()" routerLink="/admin/dashboard" class="btn btn-sm btn-dark d-flex align-items-center gap-1 shadow-sm">
+          <i class="bi bi-speedometer2 text-warning"></i>
+          <span class="d-none d-sm-inline fw-semibold">Panel Operativo</span>
+        </a>
+        <a routerLink="/tienda/favoritos" class="btn btn-sm btn-light border" title="Favoritos">
+          <i class="bi bi-heart"></i>
+        </a>
+        <button class="btn btn-sm btn-outline-primary" (click)="logout()" title="Cerrar sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="!auth.isLoggedIn()">
+        <a routerLink="/login" class="btn btn-sm btn-outline-dark fw-500">
+          <i class="bi bi-person me-1"></i> Iniciar Sesión
+        </a>
+        <a routerLink="/register" class="btn btn-sm btn-primary fw-500">
+          Crear Cuenta
+        </a>
+      </ng-container>
     </div>
   </header>
 
@@ -85,15 +110,81 @@
           <p class="text-muted small mb-0">{{ product.description }}</p>
         </details>
 
+        <!-- Disponibilidad por Sucursal y Cita de Vestidor (CU12 / CU15) -->
+        <div class="branch-stock-section p-3 rounded-4 bg-light border mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small fw-bold text-dark d-flex align-items-center gap-1">
+              <i class="bi bi-shop text-primary"></i> Disponibilidad y Estado de Sucursales
+            </span>
+            <span class="badge" [ngClass]="totalSelectedVariantStock > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'">
+              {{ totalSelectedVariantStock > 0 ? (totalSelectedVariantStock + ' u. disponibles') : 'Agotado' }}
+            </span>
+          </div>
+
+          <div class="list-group list-group-flush rounded-3 border-0 gap-2" *ngIf="branchStockList.length > 0">
+            <div class="list-group-item p-2 bg-white rounded-3 border shadow-2xs"
+                 *ngFor="let b of branchStockList">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-bold text-dark small d-flex align-items-center gap-1">
+                    <i class="bi bi-geo-alt-fill text-danger"></i> {{ b.branchName }}
+                    <span class="text-muted fw-normal" style="font-size: 11px;">({{ b.city }})</span>
+                  </div>
+                  <!-- Estado de atención en vivo de la sucursal -->
+                  <div class="mt-1">
+                    <span class="badge py-1 px-2"
+                          [ngClass]="b.isTemporarilyClosed ? 'bg-danger text-white' : 'bg-success-subtle text-success border border-success-subtle'"
+                          style="font-size: 10px;">
+                      <i class="bi me-1" [ngClass]="b.isTemporarilyClosed ? 'bi-cone-striped' : 'bi-door-open-fill'"></i>
+                      {{ b.isTemporarilyClosed ? 'Cerrada hoy: ' + (b.closureReason || 'En refacciones') : 'Abierta hoy (' + b.openingTime + ' - ' + b.closingTime + ')' }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="text-end">
+                  <span class="badge rounded-pill mb-1 d-inline-block"
+                        [ngClass]="b.hasStock ? 'bg-success text-white' : 'bg-secondary text-white-50'">
+                    {{ b.hasStock ? (b.stock + ' u. en tienda') : 'Sin stock' }}
+                  </span>
+                  <!-- Botón para agendar cita de probador / vestidor -->
+                  <div *ngIf="b.hasFittingRoom && b.hasStock">
+                    <button class="btn btn-xs btn-outline-primary py-1 px-2 rounded-pill fw-bold shadow-2xs"
+                            style="font-size: 11px;"
+                            [disabled]="b.isTemporarilyClosed"
+                            (click)="openFittingModal(b)"
+                            [title]="b.isTemporarilyClosed ? 'Sucursal cerrada temporalmente' : 'Agendar cita para probarse esta prenda en tienda'">
+                      <i class="bi bi-person-standing me-1"></i>
+                      {{ b.isTemporarilyClosed ? 'Probador cerrado' : 'Agendar Cita en Vestidor' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-muted small mb-0 mt-1" *ngIf="branchStockList.length === 0">
+            Selecciona una talla y color para verificar la disponibilidad y estado de las tiendas.
+          </p>
+        </div>
+
         <p class="delivery small text-success"><i class="bi bi-truck me-1"></i> Entrega estimada: 3–5 días hábiles</p>
 
-        <div class="d-flex gap-2 mt-3">
-          <button class="btn btn-primary flex-grow-1 py-2 fw-bold" disabled>
-            <i class="bi bi-bag me-1"></i> Añadir al carrito (próximamente)
-          </button>
-          <button class="btn btn-outline-primary" (click)="toggleWishlist()" [title]="inWishlist ? 'Quitar de favoritos' : 'Añadir a favoritos'">
-            <i class="bi" [ngClass]="inWishlist ? 'bi-heart-fill' : 'bi-heart'"></i>
-          </button>
+        <div class="d-flex flex-column gap-2 mt-3">
+          <div *ngIf="cartFeedback" class="alert py-2 px-3 small mb-1" [ngClass]="addingToCart ? 'alert-info' : (cartFeedback.includes('éxito') || cartFeedback.includes('agregada') ? 'alert-success' : 'alert-warning')">
+            {{ cartFeedback }}
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary flex-grow-1 py-2 fw-bold"
+                    (click)="addToCart()"
+                    [disabled]="addingToCart || totalSelectedVariantStock <= 0">
+              <span *ngIf="addingToCart" class="spinner-border spinner-border-sm me-1"></span>
+              <i *ngIf="!addingToCart" class="bi bi-bag-check-fill me-1"></i>
+              {{ totalSelectedVariantStock <= 0 ? 'Agotado' : 'Añadir al carrito (CU17)' }}
+            </button>
+            <button class="btn btn-outline-primary" (click)="toggleWishlist()" [title]="inWishlist ? 'Quitar de favoritos' : 'Añadir a favoritos'">
+              <i class="bi" [ngClass]="inWishlist ? 'bi-heart-fill' : 'bi-heart'"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -161,4 +252,119 @@
       <p class="text-muted small mb-0">Mide sobre el cuerpo, sin apretar la cinta. Si estás entre dos tallas, elige la mayor.</p>
     </div>
   </div>
+
+  <!-- Modal de Carrito y Checkout (CU17, CU18, CU20) -->
+  <app-cart-modal [isOpen]="isCartOpen" (close)="isCartOpen = false"></app-cart-modal>
+
+  <!-- MODAL DE AGENDAR CITA Y VESTIDOR PARA ENSAYO EN TIENDA -->
+  <div class="modal-backdrop fade show" *ngIf="showFittingModal" style="z-index: 1060;"></div>
+  <div class="modal fade show d-block" *ngIf="showFittingModal" tabindex="-1" role="dialog" style="z-index: 1065; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content rounded-4 border-0 shadow-lg p-3">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary">
+              <i class="bi bi-person-standing fs-3"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">Reserva de Cita y Vestidor</h5>
+              <small class="text-muted">Ensayo presencial de prendas en sucursal</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeFittingModal()" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="modal-body py-3">
+          <!-- Vista de Reserva Pendiente -->
+          <div *ngIf="!bookingConfirmed">
+            <!-- Resumen de tienda y prenda -->
+            <div class="p-3 bg-light rounded-3 mb-3 border">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <strong class="d-block text-dark">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ selectedAppointmentBranch?.branchName }}
+                  </strong>
+                  <small class="text-muted">{{ selectedAppointmentBranch?.city }} · Horario: {{ selectedAppointmentBranch?.openingTime }} - {{ selectedAppointmentBranch?.closingTime }}</small>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Vestidor Disponible</span>
+              </div>
+              <hr class="my-2">
+              <div class="d-flex align-items-center justify-content-between small">
+                <span class="text-secondary">Prenda a ensayar:</span>
+                <strong class="text-dark">{{ product?.name }}</strong>
+              </div>
+              <div class="d-flex align-items-center justify-content-between small mt-1">
+                <span class="text-secondary">Variante elegida:</span>
+                <span class="badge bg-dark text-white">Color: {{ selectedColor?.name }} · Talla: {{ selectedSize?.name }}</span>
+              </div>
+            </div>
+
+            <!-- Formulario de visita -->
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Fecha de tu visita <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" [(ngModel)]="appointmentDate">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Hora estimada de llegada <span class="text-danger">*</span></label>
+                <input type="time" class="form-control form-control-sm" [(ngModel)]="appointmentTime">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Teléfono / WhatsApp de contacto</label>
+                <input type="tel" class="form-control form-control-sm" placeholder="Ej. +591 70012345" [(ngModel)]="customerPhone">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Instrucciones o notas adicionales para el asesor</label>
+                <textarea class="form-control form-control-sm" rows="2"
+                          placeholder="Ej. Deseo probarme también un modelo alternativo si tienen en esa talla"
+                          [(ngModel)]="appointmentNotes"></textarea>
+              </div>
+            </div>
+
+            <div class="alert alert-info py-2 px-3 small rounded-3 mt-3 mb-0">
+              <i class="bi bi-info-circle-fill me-1"></i>
+              El vendedor de la tienda tendrá el probador reservado y las prendas separadas en tu talla para entregártelas de inmediato cuando llegues.
+            </div>
+          </div>
+
+          <!-- Vista de Reserva Confirmada (Voucher) -->
+          <div *ngIf="bookingConfirmed" class="text-center py-3">
+            <div class="p-3 bg-success bg-opacity-10 text-success rounded-circle d-inline-flex mb-3">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-1">¡Cita de Vestidor Agendada!</h5>
+            <p class="text-muted small mb-3">Tu solicitud ha quedado registrada en la sucursal.</p>
+
+            <div class="p-3 bg-light rounded-3 border text-start mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-muted">Código de Cita:</span>
+                <span class="badge bg-primary fs-6 font-monospace">{{ bookingCode }}</span>
+              </div>
+              <div class="small mb-1"><strong>Sucursal:</strong> {{ selectedAppointmentBranch?.branchName }} ({{ selectedAppointmentBranch?.city }})</div>
+              <div class="small mb-1"><strong>Fecha y Hora:</strong> {{ appointmentDate }} a las {{ appointmentTime }}</div>
+              <div class="small mb-1"><strong>Prenda y Talla:</strong> {{ product?.name }} (Talla {{ selectedSize?.name }} - Color {{ selectedColor?.name }})</div>
+              <div class="small text-muted mt-2 border-top pt-2">
+                <i class="bi bi-person-check me-1 text-success"></i> El asesor de tienda te estará esperando para entregarte directamente las prendas en el vestidor.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0 d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-light px-4 fw-semibold border" *ngIf="!bookingConfirmed" (click)="closeFittingModal()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" *ngIf="!bookingConfirmed" (click)="confirmAppointment()">
+            <i class="bi bi-calendar-check me-1"></i> Confirmar Cita
+          </button>
+          <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" *ngIf="bookingConfirmed" (click)="closeFittingModal()">
+            <i class="bi bi-check2 me-1"></i> Entendido / Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Carrito y Checkout (CU17, CU18, CU20) -->
+  <app-cart-modal [isOpen]="isCartOpen" (close)="isCartOpen = false"></app-cart-modal>
 </div>

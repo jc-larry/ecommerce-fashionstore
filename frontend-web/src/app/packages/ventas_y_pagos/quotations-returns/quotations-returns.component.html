@@ -1,0 +1,490 @@
+<div class="admin-page">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 d-flex align-items-center gap-2 text-dark">
+        <i class="bi bi-file-earmark-ruled text-primary"></i> Cotizaciones y Devoluciones
+      </h3>
+      <p class="text-muted mb-0 small">Emisión de propuestas comerciales para clientes y gestión de cambios o devoluciones de prendas.</p>
+    </div>
+
+    <!-- Navegación por pestañas unificada -->
+    <ul class="nav nav-pills gap-2 bg-white p-1.5 rounded-3 border shadow-sm">
+      <li class="nav-item">
+        <button class="nav-link px-3 py-1.5 fw-bold"
+                [class.active]="activeTab === 'QUOTATIONS'"
+                (click)="activeTab = 'QUOTATIONS'">
+          <i class="bi bi-file-text me-1"></i> Cotizaciones a Clientes
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-1.5 fw-bold"
+                [class.active]="activeTab === 'RETURNS'"
+                (click)="activeTab = 'RETURNS'">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Cambios y Devoluciones
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Tarjetas de validación y feedback -->
+  <div *ngIf="successMessage" class="validation-card validation-card-success">
+    <i class="bi bi-check-circle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Operación completada con éxito</div>
+      <p class="val-desc">{{ successMessage }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="successMessage = null" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="validation-card validation-card-error">
+    <i class="bi bi-exclamation-octagon-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Atención al procesar la solicitud</div>
+      <p class="val-desc">{{ errorMessage }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="errorMessage = null" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PESTAÑA 1: COTIZACIONES FORMALES (CU21)                                  -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'QUOTATIONS'">
+
+    <!-- FORMULARIO MODAL / POPUP PARA CONVERTIR COTIZACIÓN A VENTA -->
+    <div *ngIf="convertingQuote" class="card border-primary shadow-lg rounded-4 p-4 bg-white mb-4 border-2">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <span class="badge bg-primary-subtle text-primary fw-bold text-uppercase px-3 py-1.5 rounded-pill mb-1">
+            Cobro y Facturación en Caja
+          </span>
+          <h4 class="fw-bold mb-0">Convertir Cotización #{{ convertingQuote.quotation_number }} a Venta</h4>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" (click)="convertingQuote = null">
+          <i class="bi bi-x-lg"></i> Cancelar
+        </button>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="p-3 bg-light rounded-3 h-100">
+            <h6 class="fw-bold mb-2 text-dark">Detalle del Presupuesto</h6>
+            <p class="small text-muted mb-1">Cliente: <strong>{{ convertingQuote.customer_name }}</strong></p>
+            <p class="small text-muted mb-1">Prendas cotizadas: <strong>{{ convertingQuote.items.length }}</strong></p>
+            <p class="small text-muted mb-2">Vigencia hasta: <strong>{{ convertingQuote.valid_until | date:'dd/MM/yyyy' }}</strong></p>
+            <div class="fs-4 fw-bold text-primary mt-2">
+              Total: Bs. {{ convertingQuote.total_amount | number:'1.2-2' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-8">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Método de Pago *</label>
+              <select class="form-select" [(ngModel)]="convertPaymentMethod">
+                <option value="EFECTIVO">Efectivo en Caja</option>
+                <option value="QR">Pago QR Simple</option>
+                <option value="TARJETA">Tarjeta de Débito / Crédito</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">NIT / CI para Factura *</label>
+              <input type="text" class="form-control" [(ngModel)]="convertNit" placeholder="0 para Sin NIT">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small fw-bold">Razón Social para Factura (IVA 13%) *</label>
+              <input type="text" class="form-control" [(ngModel)]="convertBusinessName" placeholder="Nombre en Factura">
+            </div>
+
+            <div class="col-12 text-end mt-4">
+              <button class="btn btn-outline-secondary me-2 fw-bold" (click)="convertingQuote = null">
+                Volver
+              </button>
+              <button class="btn btn-primary fw-bold px-4" [disabled]="loading" (click)="onConfirmConvertQuotation()">
+                <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                <i *ngIf="!loading" class="bi bi-cash-coin me-1"></i> Confirmar Pago, Emitir Factura y Descontar Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generador de Nueva Cotización -->
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+          <h4 class="fw-bold mb-3">Nueva Cotización Formal</h4>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Cliente / Empresa *</label>
+            <input type="text" class="form-control" placeholder="Ej: Importadora Boliviana SRL" [(ngModel)]="customerName">
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">Email de Contacto</label>
+              <input type="email" class="form-control" placeholder="contacto@empresa.com" [(ngModel)]="customerEmail">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">Teléfono / Celular</label>
+              <input type="text" class="form-control" placeholder="77012345" [(ngModel)]="customerPhone">
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold">Validez de la Oferta (Garantía de Precio)</label>
+            <select class="form-select" [(ngModel)]="validDays">
+              <option [ngValue]="7">7 días calendario</option>
+              <option [ngValue]="15">15 días calendario</option>
+              <option [ngValue]="30">30 días calendario</option>
+            </select>
+            <small class="text-muted">Plazo durante el cual la tienda congela los precios cotizados al cliente.</small>
+          </div>
+
+          <hr>
+
+          <!-- Agregar Prenda -->
+          <h6 class="fw-bold mb-2">Agregar Prendas al Presupuesto</h6>
+          <div class="mb-2">
+            <label class="form-label small text-muted">Seleccionar Prenda</label>
+            <select class="form-select" [(ngModel)]="selectedVariantId">
+              <option [ngValue]="null">-- Selecciona una prenda --</option>
+              <ng-container *ngFor="let p of allProducts">
+                <option *ngFor="let v of p.variants" [value]="v.id">
+                  {{ p.name }} - {{ v.sku }} ({{ v.size.name || 'M' }} / {{ v.color.name || 'Color' }}) - Bs. {{ p.base_price }}
+                </option>
+              </ng-container>
+            </select>
+          </div>
+
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-4">
+              <label class="form-label small text-muted">Cantidad</label>
+              <input type="number" class="form-control" min="1" [(ngModel)]="itemQty">
+            </div>
+            <div class="col-8">
+              <button class="btn btn-outline-primary w-100 fw-bold" (click)="addQuoteItem()">
+                <i class="bi bi-plus-lg me-1"></i> Agregar al Desglose
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desglose de ítems cotizados -->
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="fw-bold mb-0">Desglose de Ítems Cotizados</h4>
+              <span class="badge bg-light text-dark border">{{ quoteItems.length }} prendas</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-muted text-uppercase">
+                  <tr>
+                    <th>Prenda</th>
+                    <th class="text-center">Cant.</th>
+                    <th class="text-end">P. Unit.</th>
+                    <th class="text-end">Subtotal</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let it of quoteItems; let idx = index">
+                    <td>
+                      <span class="fw-bold d-block">{{ it.product_name }}</span>
+                      <small class="text-muted">{{ it.sku }}</small>
+                    </td>
+                    <td class="text-center fw-bold">{{ it.quantity }}</td>
+                    <td class="text-end">Bs. {{ it.price | number:'1.2-2' }}</td>
+                    <td class="text-end fw-bold">Bs. {{ it.subtotal | number:'1.2-2' }}</td>
+                    <td class="text-center">
+                      <button class="btn btn-sm btn-light text-danger rounded-circle" (click)="removeQuoteItem(idx)">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr *ngIf="quoteItems.length === 0">
+                    <td colspan="5" class="text-center text-muted py-5">
+                      No hay prendas agregadas a la cotización aún.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center mt-3">
+              <span class="fs-5 fw-bold text-dark">Monto Total Cotizado:</span>
+              <span class="fs-3 fw-bold text-primary">Bs. {{ quoteTotal | number:'1.2-2' }}</span>
+            </div>
+
+            <button class="btn btn-primary btn-lg fw-bold mt-3 w-100 shadow-sm"
+                    [disabled]="quoteItems.length === 0 || loading"
+                    (click)="onSubmitQuotation()">
+              <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+              <i *ngIf="!loading" class="bi bi-send-check-fill me-1"></i> Generar y Guardar Cotización Formal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTADO DE COTIZACIONES RECIENTES CON BOTÓN DE PAGO / CONVERSIÓN -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mt-4">
+      <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-clock-history text-primary"></i> Historial de Cotizaciones y Conversión a Venta
+      </h5>
+      <p class="text-muted small mb-3">
+        Las cotizaciones en estado <strong>Vigente</strong> pueden convertirse directamente a una venta formal facturada al momento que el cliente acude a pagar.
+      </p>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light small text-muted text-uppercase">
+            <tr>
+              <th>Código</th>
+              <th>Cliente / Razón Social</th>
+              <th>Total (Bs.)</th>
+              <th>Fecha Emisión</th>
+              <th>Validez de Oferta</th>
+              <th>Estado</th>
+              <th class="text-end">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let q of quotationsList">
+              <td>
+                <span class="fw-bold text-primary font-monospace">{{ q.quotation_number }}</span>
+              </td>
+              <td>
+                <div class="fw-bold">{{ q.customer_name }}</div>
+                <small class="text-muted">{{ q.customer_email || 'Sin correo' }}</small>
+              </td>
+              <td class="fw-bold fs-6">Bs. {{ q.total_amount | number:'1.2-2' }}</td>
+              <td><small class="text-muted">{{ q.created_at | date:'dd/MM/yyyy' }}</small></td>
+              <td>
+                <span class="badge" [ngClass]="q.status === 'VIGENTE' ? 'bg-success-subtle text-success border border-success' : 'bg-danger-subtle text-danger border border-danger'">
+                  Vence: {{ q.valid_until | date:'dd/MM/yyyy' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge rounded-pill px-2.5 py-1"
+                      [ngClass]="{
+                        'bg-success text-white': q.status === 'VIGENTE',
+                        'bg-secondary text-white': q.status === 'CONVERTIDA',
+                        'bg-danger text-white': q.status === 'EXPIRADA'
+                      }">
+                  {{ q.status }}
+                </span>
+              </td>
+              <td class="text-end">
+                <button *ngIf="q.status === 'VIGENTE'" class="btn btn-sm btn-primary fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
+                        (click)="openConvertModal(q)">
+                  <i class="bi bi-cash-coin"></i> Cobrar / Facturar
+                </button>
+                <span *ngIf="q.status === 'CONVERTIDA'" class="text-success small fw-bold">
+                  <i class="bi bi-check-all"></i> Venta Concretada
+                </span>
+                <span *ngIf="q.status === 'EXPIRADA'" class="text-muted small">
+                  Oferta Vencida
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="quotationsList.length === 0">
+              <td colspan="7" class="text-center text-muted py-4">
+                No hay cotizaciones registradas en el sistema.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PESTAÑA 2: DEVOLUCIONES Y CAMBIOS CON VALIDACIÓN DE 30 DÍAS (CU22)        -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'RETURNS'">
+    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+      <h4 class="fw-bold mb-1">Recepción de Devolución / Cambio de Prenda</h4>
+      <p class="text-muted small mb-4">
+        Ingresa el ID de la orden de venta o factura. El sistema cargará automáticamente las prendas efectivamente compradas y validará la política comercial de <strong>30 días de plazo máximo</strong>.
+      </p>
+
+      <!-- PASO 1: BÚSQUEDA Y VALIDACIÓN DE ORDEN -->
+      <div class="row g-3 align-items-end mb-4 p-3 bg-light rounded-4">
+        <div class="col-md-5">
+          <label class="form-label small fw-bold">Número / ID de Orden de Venta *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white fw-bold">#</span>
+            <input type="number" class="form-control" placeholder="Ej: 1" [(ngModel)]="orderIdToReturn" (keyup.enter)="onSearchOrder()">
+            <button class="btn btn-primary fw-bold" (click)="onSearchOrder()" [disabled]="orderSearchLoading">
+              <span *ngIf="orderSearchLoading" class="spinner-border spinner-border-sm me-1"></span>
+              <i *ngIf="!orderSearchLoading" class="bi bi-search me-1"></i> Buscar Orden
+            </button>
+          </div>
+        </div>
+        <div class="col-md-7">
+          <div *ngIf="orderSearchError" class="alert alert-danger mb-0 py-2 small d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+            <div>{{ orderSearchError }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETALLE DE LA ORDEN ENCONTRADA -->
+      <div *ngIf="searchedOrder" class="mb-4">
+        <div class="card border rounded-4 p-3 shadow-xs mb-3"
+             [ngClass]="isReturnExpired ? 'border-danger bg-danger-subtle' : 'border-success bg-success-subtle'">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <h5 class="fw-bold mb-1" [ngClass]="isReturnExpired ? 'text-danger' : 'text-success'">
+                <i class="bi" [ngClass]="isReturnExpired ? 'bi-x-circle-fill' : 'bi-check-circle-fill'"></i>
+                Orden #{{ searchedOrder.id }} — Emitida en {{ searchedOrder.branch_name }}
+              </h5>
+              <div class="small text-muted">
+                Fecha de compra: <strong>{{ searchedOrder.created_at | date:'dd/MM/yyyy HH:mm' }}</strong>
+                &bull; Transcurridos: <strong>{{ daysSincePurchase }} días</strong>
+                <span class="badge ms-2" [ngClass]="isReturnExpired ? 'bg-danger' : 'bg-success'">
+                  {{ isReturnExpired ? 'PLAZO 30 DÍAS VENCIDO' : 'DENTRO DEL PLAZO DE 30 DÍAS' }}
+                </span>
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="small text-muted d-block">Monto Facturado</span>
+              <strong class="fs-4 text-dark">Bs. {{ searchedOrder.total_amount | number:'1.2-2' }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de prendas compradas en la orden -->
+        <h6 class="fw-bold mb-2">Prendas Compradas en esta Orden (Selecciona cuál devolver):</h6>
+        <div class="table-responsive mb-4">
+          <table class="table table-bordered table-hover align-middle mb-0 bg-white">
+            <thead class="table-light small text-muted text-uppercase">
+              <tr>
+                <th>Prenda Comprada</th>
+                <th>Código SKU</th>
+                <th class="text-center">Cant. Comprada</th>
+                <th class="text-end">Precio Unit.</th>
+                <th class="text-end">Subtotal</th>
+                <th class="text-center">Seleccionar</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let it of searchedOrder.items">
+                <td>
+                  <strong>{{ it.product_name }}</strong>
+                  <span class="badge bg-light text-dark border ms-2">{{ it.size }} / {{ it.color }}</span>
+                </td>
+                <td><code>{{ it.sku }}</code></td>
+                <td class="text-center fw-bold">{{ it.quantity }}</td>
+                <td class="text-end">Bs. {{ it.unit_price | number:'1.2-2' }}</td>
+                <td class="text-end fw-bold">Bs. {{ it.subtotal | number:'1.2-2' }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary fw-bold"
+                          [disabled]="isReturnExpired"
+                          (click)="selectItemForReturn(it)">
+                    <i class="bi bi-arrow-return-left me-1"></i> Seleccionar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PASO 2: FORMULARIO DE DEVOLUCIÓN / CAMBIO DE LA PRENDA SELECCIONADA -->
+      <div *ngIf="searchedOrder && !isReturnExpired" class="p-3 bg-light rounded-4 mb-4">
+        <h6 class="fw-bold mb-3">Configurar Devolución o Cambio</h6>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Prenda Seleccionada para Devolver *</label>
+            <input type="text" class="form-control" [value]="selectedItemDescription || 'Selecciona una prenda de la tabla de arriba'" readonly>
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label small fw-bold">Cantidad a Devolver *</label>
+            <input type="number" class="form-control" min="1" [max]="maxReturnQty" [(ngModel)]="returnQty" [disabled]="!returnVariantId">
+            <small class="text-muted">Máx: {{ maxReturnQty }} unidades</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label small fw-bold">Tipo de Operación *</label>
+            <select class="form-select" [(ngModel)]="returnType">
+              <option value="DEVOLUCION_DINERO">Devolución de Dinero (Reembolso)</option>
+              <option value="CAMBIO_PRENDA">Cambio de Prenda (Talla / Color)</option>
+            </select>
+          </div>
+
+          <div class="col-md-6" *ngIf="returnType === 'CAMBIO_PRENDA'">
+            <label class="form-label small fw-bold text-primary">Prenda de Reemplazo a Entregar al Cliente *</label>
+            <select class="form-select" [(ngModel)]="replacementVariantId">
+              <option [ngValue]="null">-- Selecciona la prenda a entregar --</option>
+              <ng-container *ngFor="let p of allProducts">
+                <option *ngFor="let v of p.variants" [value]="v.id">
+                  {{ p.name }} ({{ v.sku }}) - {{ v.size.name || 'M' }} / {{ v.color.name || 'Color' }} - Bs. {{ p.base_price }}
+                </option>
+              </ng-container>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Motivo del Cambio o Devolución *</label>
+            <select class="form-select" [(ngModel)]="returnReason">
+              <option value="Talla no adecuada">Talla no adecuada</option>
+              <option value="Defecto de costura o tela">Defecto de costura o tela</option>
+              <option value="Prenda manchada o dañada">Prenda manchada o dañada</option>
+              <option value="Preferencia de otro modelo">Preferencia de otro modelo</option>
+              <option value="Reclamación de cliente">Reclamación de cliente</option>
+            </select>
+          </div>
+
+          <div class="col-12 text-end">
+            <button class="btn btn-warning fw-bold px-4" [disabled]="!returnVariantId" (click)="addReturnItem()">
+              <i class="bi bi-plus-circle me-1"></i> Agregar a la Lista de Devolución
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de prendas acumuladas en esta solicitud -->
+        <div *ngIf="returnItems.length > 0" class="mt-4 pt-3 border-top">
+          <h6 class="fw-bold mb-2">Prendas a Procesar en esta Solicitud:</h6>
+          <ul class="list-group mb-3">
+            <li *ngFor="let it of returnItems; let i = index" class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ it.product_name }}</strong>
+                <span class="badge bg-primary ms-2">{{ it.quantity }} un.</span>
+                <span *ngIf="it.replacement_variant_id" class="badge bg-info ms-2">
+                  Cambio por Variante #{{ it.replacement_variant_id }}
+                </span>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" (click)="removeReturnItem(i)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </li>
+          </ul>
+
+          <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" [disabled]="loading" (click)="onSubmitReturn()">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+            <i *ngIf="!loading" class="bi bi-check2-circle me-1"></i> Confirmar y Aplicar Devolución en Inventario
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

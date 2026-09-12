@@ -33,16 +33,34 @@ def _send(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
     msg.add_alternative(html_body, subtype="html")
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
-        server.starttls(context=context)
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        refused = server.send_message(msg)
-        if refused:
-            # Gmail rechazó explícitamente al menos un destinatario.
-            print(f"[EMAIL:RECHAZADO] Gmail rechazó destinatarios: {refused}")
+    
+    # Intento 1: Puerto estándar 587 con STARTTLS
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            refused = server.send_message(msg)
+            if not refused:
+                print(f"[EMAIL:ENVIADO] Correo de recuperación entregado a {to_email} vía STARTTLS {settings.SMTP_PORT}")
+                return True
+            print(f"[EMAIL:RECHAZADO] Servidor rechazó destinatario: {refused}")
             return False
-    print(f"[EMAIL:ENVIADO] Correo de recuperación aceptado por Gmail para {to_email}")
-    return True
+    except Exception as e587:
+        print(f"[EMAIL:WARN] Falló envío por puerto {settings.SMTP_PORT} ({e587}). Intentando SSL directo puerto 465...")
+
+    # Intento 2 (Fallback): Puerto 465 con SSL directo (ideal para hostings cloud con puerto 587 filtrado)
+    try:
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, 465, context=context, timeout=15) as server_ssl:
+            server_ssl.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            refused_ssl = server_ssl.send_message(msg)
+            if not refused_ssl:
+                print(f"[EMAIL:ENVIADO] Correo de recuperación entregado a {to_email} vía SSL 465")
+                return True
+            print(f"[EMAIL:RECHAZADO] Servidor rechazó destinatario vía SSL: {refused_ssl}")
+            return False
+    except Exception as e465:
+        print(f"[EMAIL:ERROR] Falló envío por puerto 465 SSL ({e465})")
+        raise e465
 
 
 def send_password_recovery_email(to_email: str, reset_link: str) -> bool:

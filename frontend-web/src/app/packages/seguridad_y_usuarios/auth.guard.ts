@@ -36,3 +36,19 @@ export class SessionGuard implements CanActivate {
     return this.router.createUrlTree(['/login']);
   }
 }
+
+/**
+ * [Separación por sucursal] Protege las rutas exclusivas de Casa Matriz (SUPERADMIN):
+ * un ENCARGADO/CAJERO que navegue directo a la URL es redirigido a su propio dashboard.
+ */
+@Injectable({ providedIn: 'root' })
+export class CentralOnlyGuard implements CanActivate {
+  constructor(private auth: AuthService, private router: Router) {}
+
+  canActivate(): boolean | UrlTree {
+    if (this.auth.isCentralUser()) {
+      return true;
+    }
+    return this.router.createUrlTree(['/admin/dashboard']);
+  }
+}

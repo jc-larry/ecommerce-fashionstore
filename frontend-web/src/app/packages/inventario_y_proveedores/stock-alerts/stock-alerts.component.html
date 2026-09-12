@@ -1,0 +1,164 @@
+<div class="admin-page">
+  <!-- ENCABEZADO -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">Alertas y Control de Stock</h3>
+      <p class="text-muted small mb-0">Supervisión en tiempo real de prendas con inventario bajo o exceso de existencias.</p>
+    </div>
+    <button class="btn btn-sm btn-light border fw-bold shadow-sm" (click)="loadAlerts()">
+      <i class="bi bi-arrow-clockwise text-primary me-1"></i>Actualizar
+    </button>
+  </div>
+
+  <!-- Tarjetas de Validación con Contorno Visible y Mensajes Claros -->
+  <div class="validation-card validation-card-error mb-4" *ngIf="errorMessage">
+    <div class="val-icon">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">Atención requerida</div>
+      <div class="val-desc">{{ errorMessage }}</div>
+    </div>
+    <button class="val-close" (click)="errorMessage = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <div class="validation-card validation-card-success mb-4" *ngIf="successMessage">
+    <div class="val-icon">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <div class="val-content">
+      <div class="val-title">¡Configuración guardada!</div>
+      <div class="val-desc">{{ successMessage }}</div>
+    </div>
+    <button class="val-close" (click)="successMessage = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <!-- FILTRO POR SUCURSAL -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small fw-semibold">Sucursal:</span>
+        <select class="form-select form-select-sm" style="width: 240px;" [(ngModel)]="branchFilter" (change)="onLocalBranchChange()">
+          <option [ngValue]="null">📍 Todas las sucursales</option>
+          <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }} ({{ b.city }})</option>
+        </select>
+      </div>
+      <span class="badge bg-white border text-secondary shadow-sm">
+        <span class="pill" [ngClass]="alerts.length > 0 ? 'pill-off' : 'pill-ok'">
+          <span class="pill-dot"></span>
+          {{ alerts.length }} alerta(s) activa(s)
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <!-- LISTADO DE ALERTAS -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <p class="text-muted mt-2 small">Verificando niveles de inventario…</p>
+  </div>
+
+  <div *ngIf="!loading && alerts.length === 0" class="text-center py-5 bg-white rounded-4 shadow-sm border">
+    <i class="bi bi-shield-check text-success fs-1 d-block mb-2"></i>
+    <h5 class="fw-bold text-dark mb-1">¡Inventario en niveles óptimos!</h5>
+    <p class="text-muted small mb-0">No se detectan quiebres de stock ni excesos en las sucursales seleccionadas.</p>
+  </div>
+
+  <div *ngIf="!loading && alerts.length > 0" class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table admin-table align-middle mb-0 table-hover">
+        <thead>
+          <tr>
+            <th>Severidad / Tipo</th>
+            <th>Sucursal</th>
+            <th>Prenda / Modelo</th>
+            <th>Variante</th>
+            <th>SKU</th>
+            <th>Stock Actual</th>
+            <th>Umbral Mín / Máx</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of alerts">
+            <td>
+              <span class="pill" [ngClass]="a.alert_type === 'QUIEBRE_STOCK' ? 'pill-off' : 'pill-role'">
+                <i class="bi" [ngClass]="a.alert_type === 'QUIEBRE_STOCK' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-box-arrow-up-right'"></i>
+                {{ a.alert_type === 'QUIEBRE_STOCK' ? 'Quiebre de Stock' : 'Sobrestock' }}
+              </span>
+            </td>
+            <td class="fw-medium text-dark">{{ a.branch_name }}</td>
+            <td class="fw-semibold text-dark">{{ a.product_name }}</td>
+            <td>
+              <span class="badge bg-light text-dark border me-1">{{ a.size }}</span>
+              <span class="badge bg-light text-dark border">{{ a.color }}</span>
+            </td>
+            <td><code class="text-primary font-monospace">{{ a.sku }}</code></td>
+            <td>
+              <span class="fw-bold" [ngClass]="a.stock_actual <= a.stock_minimo ? 'text-danger' : 'text-warning'">
+                {{ a.stock_actual }} u.
+              </span>
+            </td>
+            <td class="text-muted small">
+              Mín: <strong>{{ a.stock_minimo }}</strong> / Máx: <strong>{{ a.stock_maximo }}</strong>
+            </td>
+            <td class="text-end pe-4">
+              <button class="btn-action" (click)="openThresholdModal(a)" title="Configurar umbrales de stock">
+                <i class="bi bi-sliders text-primary"></i> Ajustar Mín/Máx
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIGURAR UMBRALES -->
+<div *ngIf="selectedAlert" class="modal-backdrop-custom">
+  <div class="modal-dialog-custom p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0 text-dark">
+        <i class="bi bi-sliders text-primary me-2"></i>Configurar Umbrales de Stock
+      </h5>
+      <button class="btn-close" (click)="selectedAlert = null"></button>
+    </div>
+
+    <div class="p-3 rounded-3 bg-light border small mb-3">
+      <div><strong>Prenda:</strong> {{ selectedAlert.product_name }} (<code class="text-primary">{{ selectedAlert.sku }}</code>)</div>
+      <div><strong>Sucursal:</strong> {{ selectedAlert.branch_name }}</div>
+      <div><strong>Existencias actuales:</strong> {{ selectedAlert.stock_actual }} unidades</div>
+    </div>
+
+    <div class="validation-card validation-card-error mb-3 py-2" *ngIf="modalError">
+      <div class="val-icon">
+        <i class="bi bi-exclamation-circle-fill"></i>
+      </div>
+      <div class="val-content">
+        <div class="val-title">Revisa los valores ingresados</div>
+        <div class="val-desc">{{ modalError }}</div>
+      </div>
+      <button class="val-close" (click)="modalError = ''" title="Cerrar">&times;</button>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="form-label small fw-semibold">Stock Mínimo (Quiebre)</label>
+        <input type="number" class="form-control" [(ngModel)]="editStockMin" min="0">
+        <small class="text-muted" style="font-size: 0.72rem;">Dispara alerta si cae a este valor.</small>
+      </div>
+      <div class="col-6">
+        <label class="form-label small fw-semibold">Stock Máximo (Sobrestock)</label>
+        <input type="number" class="form-control" [(ngModel)]="editStockMax" min="1">
+        <small class="text-muted" style="font-size: 0.72rem;">Dispara alerta si supera este valor.</small>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4">
+      <button class="btn btn-light btn-sm border" (click)="selectedAlert = null">Cancelar</button>
+      <button class="btn btn-primary btn-sm px-4" (click)="saveThresholds()">
+        Guardar Umbrales
+      </button>
+    </div>
+  </div>
+</div>

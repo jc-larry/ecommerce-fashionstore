@@ -43,9 +43,9 @@ class Settings:
     # --- Correo saliente (SMTP) para el enlace de recuperación (CU03) ---
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER: str = os.getenv("SMTP_USER", "")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    SMTP_FROM: str = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", ""))
+    SMTP_USER: str = os.getenv("SMTP_USER", "marilynesthercondori@gmail.com")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "efnoskvuyotrwtuh")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "marilynesthercondori@gmail.com"))
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "FashionStore")
 
     @property

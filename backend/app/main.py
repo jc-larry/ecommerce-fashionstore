@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -19,6 +20,7 @@ from app.packages.catalogo_y_tiendas.routers import router as catalog_router
 from app.packages.catalogo_y_tiendas.branches.routers import router as branches_router
 from app.packages.inventario_y_proveedores.suppliers.routers import router as suppliers_router
 from app.packages.inventario_y_proveedores.merchandise.routers import router as merchandise_router
+from app.packages.ventas_y_pagos.routers import router as sales_router
 
 # Crear tablas automáticamente al arrancar.
 # Si la conexión a PostgreSQL falla, mostramos una guía clara y detenemos el arranque.
@@ -53,6 +55,26 @@ _COLUMN_UPGRADES = [
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS neck_type VARCHAR(100)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS sleeve_length VARCHAR(100)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS tags VARCHAR(255)",
+    "ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'APPROVED'",
+    "ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS moderated_at TIMESTAMP WITH TIME ZONE",
+    "ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS moderator_id INTEGER REFERENCES users(id) ON DELETE SET NULL",
+    "ALTER TABLE inventory_ledger ALTER COLUMN movement_type TYPE VARCHAR(30)",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(30)",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cash_shift_id INTEGER REFERENCES cash_shifts(id) ON DELETE SET NULL",
+    "CREATE INDEX IF NOT EXISTS idx_inventory_branch_stock ON inventory (branch_id, stock_actual)",
+    "CREATE INDEX IF NOT EXISTS idx_inventory_variant_stock ON inventory (variant_id, stock_actual)",
+    "CREATE INDEX IF NOT EXISTS idx_products_active_price ON products (is_active, base_price)",
+    "CREATE INDEX IF NOT EXISTS idx_products_category ON products (category_id)",
+    "CREATE INDEX IF NOT EXISTS idx_product_variants_size_color ON product_variants (size_id, color_id)",
+    "CREATE INDEX IF NOT EXISTS idx_product_reviews_status ON product_reviews (status, product_id)",
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(50)",
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS notes VARCHAR(255)",
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS previous_avg_cost NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS new_avg_cost NUMERIC(10, 2) DEFAULT 0",
 ]
 
 # Normalización de datos: el correo es único e insensible a mayúsculas. Se pasan a
@@ -119,8 +141,36 @@ app.include_router(branches_router)
 app.include_router(suppliers_router)
 # PKG Inventario y Proveedores  → CU10 (ingresos), CU37 (valoración), CU38 (ajustes)
 app.include_router(merchandise_router)
+# PKG Ventas y Pagos            → CU17 a CU24 (Carrito, Checkout, POS, Facturación, Cotización, Devolución, Arqueo)
+app.include_router(sales_router)
 
 
 @app.get("/")
 async def root():
     return {"message": "Bienvenido a la API de FashionStore"}
+
+
+@app.get("/download-apk", tags=["Móvil"])
+@app.get("/api/v1/download-apk", tags=["Móvil"])
+async def download_mobile_apk():
+    """Descarga directa del APK compilado de la aplicación móvil de FashionStore."""
+    apk_candidates = [
+        os.path.join(UPLOAD_DIR, "apk", "fashionstore.apk"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mobile", "build", "app", "outputs", "flutter-apk", "app-release.apk"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mobile", "build", "app", "outputs", "flutter-apk", "app-debug.apk"),
+    ]
+    for apk_path in apk_candidates:
+        if os.path.exists(apk_path) and os.path.getsize(apk_path) > 0:
+            return FileResponse(
+                path=apk_path,
+                media_type="application/vnd.android.package-archive",
+                filename="fashionstore.apk",
+                headers={
+                    "Content-Disposition": 'attachment; filename="fashionstore.apk"',
+                    "Cache-Control": "no-cache",
+                }
+            )
+    raise HTTPException(
+        status_code=404,
+        detail="El archivo APK aún no está disponible para descarga. Ejecuta 'flutter build apk --release' en la carpeta mobile/."
+    )

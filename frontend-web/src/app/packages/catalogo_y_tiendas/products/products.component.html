@@ -63,8 +63,8 @@
                 </div>
               </td>
               <td>
-                <span class="badge bg-primary bg-opacity-10 text-primary fw-medium px-2 py-1">
-                  {{ categoryName(p) }}
+                <span class="badge-category">
+                  {{ categoryName(p) || 'General' }}
                 </span>
               </td>
               <td>
@@ -73,8 +73,8 @@
                 <span class="badge bg-danger bg-opacity-10 text-danger ms-1" *ngIf="discountPct(p) > 0">-{{ discountPct(p) }}%</span>
               </td>
               <td>
-                <span class="badge bg-light border text-muted">
-                  {{ (p.variants || []).length }} en stock
+                <span class="badge bg-white border text-secondary shadow-sm">
+                  <i class="bi bi-box-seam me-1 text-primary"></i>{{ (p.variants || []).length }} variantes
                 </span>
               </td>
               <td class="text-muted small">{{ seasonName(p) }}</td>
@@ -84,9 +84,18 @@
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-light border fw-bold me-2" (click)="openEdit(p)">Editar</button>
-                <button class="btn btn-sm btn-light border text-danger fw-bold"
-                        [disabled]="!p.is_active" (click)="deactivate(p)">Ocultar</button>
+                <div class="d-flex justify-content-end gap-2">
+                  <button class="btn-action" (click)="openEdit(p)" title="Editar prenda y variantes">
+                    <i class="bi bi-pencil text-primary"></i> Editar
+                  </button>
+                  <button class="btn-action"
+                          [ngClass]="p.is_active ? 'btn-action-danger' : 'text-success'"
+                          (click)="toggleProductStatus(p)"
+                          [title]="p.is_active ? 'Ocultar del catálogo' : 'Publicar en catálogo'">
+                    <i class="bi" [ngClass]="p.is_active ? 'bi-eye-slash' : 'bi-eye'"></i>
+                    {{ p.is_active ? 'Ocultar' : 'Publicar' }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -290,7 +299,13 @@
       <!-- 1. Datos Principales -->
       <div class="mb-3">
         <label class="form-label small fw-bold">Nombre de la prenda <span class="text-danger">*</span></label>
-        <input class="form-control" placeholder="ej. Camisa de Lino Santorini" [(ngModel)]="form.name">
+        <input class="form-control"
+               [class.is-invalid]="validationErrors['name']"
+               placeholder="ej. Camisa de Lino Santorini"
+               [(ngModel)]="form.name">
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['name']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['name'] }}
+        </div>
       </div>
 
       <div class="row g-3 mb-3">
@@ -304,10 +319,15 @@
         </div>
         <div class="col-md-6">
           <label class="form-label small fw-bold">Subcategoría específica <span class="text-danger">*</span></label>
-          <select class="form-select" [(ngModel)]="form.category_id">
+          <select class="form-select"
+                  [class.is-invalid]="validationErrors['category_id']"
+                  [(ngModel)]="form.category_id">
             <option [ngValue]="null" disabled>Selecciona subcategoría…</option>
             <option *ngFor="let sub of availableSubcategories" [ngValue]="sub.id">{{ sub.name }}</option>
           </select>
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['category_id']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['category_id'] }}
+          </div>
         </div>
       </div>
 
@@ -316,14 +336,27 @@
           <label class="form-label small fw-bold">Precio actual (Bs.) <span class="text-danger">*</span></label>
           <div class="input-group">
             <span class="input-group-text bg-light">Bs.</span>
-            <input type="number" min="0" step="0.50" class="form-control" [(ngModel)]="form.base_price">
+            <input type="number" min="0" step="0.50"
+                   class="form-control"
+                   [class.is-invalid]="validationErrors['base_price']"
+                   [(ngModel)]="form.base_price">
+          </div>
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['base_price']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['base_price'] }}
           </div>
         </div>
         <div class="col-6">
           <label class="form-label small fw-bold">Precio antes (Bs.) <span class="text-muted fw-normal">— oferta</span></label>
           <div class="input-group">
             <span class="input-group-text bg-light">Bs.</span>
-            <input type="number" min="0" step="0.50" class="form-control" placeholder="Opcional" [(ngModel)]="form.compare_at_price">
+            <input type="number" min="0" step="0.50"
+                   class="form-control"
+                   [class.is-invalid]="validationErrors['compare_at_price']"
+                   placeholder="Opcional"
+                   [(ngModel)]="form.compare_at_price">
+          </div>
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['compare_at_price']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['compare_at_price'] }}
           </div>
         </div>
       </div>
@@ -461,6 +494,9 @@
         </div>
         <div class="text-muted fst-italic small text-center py-2" *ngIf="form.variants.length === 0">
           Sin variantes configuradas. Haz clic en <strong>"Sugerir tallas automáticas"</strong> o <strong>"+ Fila"</strong> para crearlas.
+        </div>
+        <div class="alert alert-danger py-2 px-3 small rounded-2 mt-2 mb-0" *ngIf="validationErrors['variants']">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ validationErrors['variants'] }}
         </div>
       </div>
 

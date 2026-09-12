@@ -12,36 +12,113 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a routerLink="/admin/dashboard" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-grid-1x2"></i> Dashboard
-      </a>
-      <a routerLink="/admin/usuarios" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-people"></i> Usuarios y Roles
-      </a>
-      <a routerLink="/admin/branches" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-shop"></i> Sucursales
-      </a>
-      <a routerLink="/admin/products" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-tag"></i> Catálogo
-      </a>
-      <a routerLink="/admin/suppliers" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-truck"></i> Proveedores
-      </a>
-      <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-person-badge"></i> Empleados
-      </a>
-      <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-box-seam"></i> Mercadería
-      </a>
-      <a routerLink="/admin/valuation" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-cash-coin"></i> Valoración
-      </a>
-      <a routerLink="/admin/adjustments" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-clipboard-minus"></i> Ajustes
-      </a>
-      <a routerLink="/admin/audit" routerLinkActive="active" class="nav-item">
-        <i class="bi bi-shield-check"></i> Auditoría
-      </a>
+      <!-- ====== MODO CASA MATRIZ (CONSOLIDADO) ====== -->
+      <ng-container *ngIf="branchContext.isCentral()">
+        <a routerLink="/admin/dashboard" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-grid-1x2"></i> Dashboard Global
+        </a>
+        <a routerLink="/admin/branches" routerLinkActive="active" class="nav-item fw-bold text-primary" style="background-color: #EEF2FF;">
+          <i class="bi bi-shop text-primary"></i> Sucursales y Tiendas
+        </a>
+        <a routerLink="/admin/usuarios" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-people"></i> Usuarios y Roles
+        </a>
+        <a routerLink="/admin/products" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-tag"></i> Catálogo de Prendas
+        </a>
+        <a routerLink="/admin/promotions" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-percent"></i> Promociones y Cupones
+        </a>
+        <a routerLink="/admin/reviews" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-chat-square-quote"></i> Moderación Reseñas
+        </a>
+        <a routerLink="/admin/suppliers" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-truck"></i> Proveedores
+        </a>
+        <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-person-badge"></i> Empleados
+        </a>
+        <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-box-seam"></i> Mercadería
+        </a>
+        <a routerLink="/admin/transfers" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-arrow-left-right"></i> Transferencias
+        </a>
+        <a routerLink="/admin/alerts" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-bell"></i> Alertas de Stock
+        </a>
+        <a routerLink="/admin/valuation" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-cash-coin"></i> Valoración
+        </a>
+        <a routerLink="/admin/adjustments" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-clipboard-minus"></i> Ajustes
+        </a>
+        <a routerLink="/admin/quotations-returns" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-file-earmark-ruled"></i> Cotizaciones / Devolución
+        </a>
+        <a routerLink="/admin/audit" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-shield-check"></i> Auditoría
+        </a>
+      </ng-container>
+
+      <!-- ====== MODO AISLADO (OPERANDO DENTRO DE UNA SUCURSAL) ====== -->
+      <ng-container *ngIf="!branchContext.isCentral()">
+        <!-- Tarjeta indicadora de la sucursal actual -->
+        <div class="p-3 mx-1 mb-2 rounded-3 shadow-xs" style="background-color: #FEF3F2; border: 1px solid #FECDCA;">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="badge bg-danger text-white fw-bold" style="font-size: 0.62rem; letter-spacing: 0.5px;">SUCURSAL ACTIVA</span>
+            <button class="btn btn-sm btn-outline-danger py-0 px-2 rounded-pill fw-bold" style="font-size: 0.68rem;" (click)="openExitModal()" title="Salir de esta sucursal">
+              <i class="bi bi-box-arrow-left"></i> Salir
+            </button>
+          </div>
+          <div class="fw-bold text-dark text-truncate" style="font-size: 0.88rem;" [title]="(branchContext.activeBranch$ | async)?.name">
+            📍 {{ (branchContext.activeBranch$ | async)?.name }}
+          </div>
+          <small class="text-muted d-block text-truncate" *ngIf="(branchContext.activeBranch$ | async)?.city" style="font-size: 0.72rem;">
+            {{ (branchContext.activeBranch$ | async)?.city }}
+          </small>
+        </div>
+
+        <!-- Módulos operativos propios de la sucursal (SIN el módulo de sucursales) -->
+        <a routerLink="/admin/dashboard" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-grid-1x2"></i> Dashboard Sucursal
+        </a>
+        <a routerLink="/admin/pos" routerLinkActive="active" class="nav-item fw-bold text-success" style="background-color: #F0FDF4;">
+          <i class="bi bi-shop text-success"></i> Punto de Venta POS
+        </a>
+        <a routerLink="/admin/shifts" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-cash-stack"></i> Arqueo de Caja
+        </a>
+        <a routerLink="/admin/products" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-tag"></i> Catálogo / Stock
+        </a>
+        <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-person-badge"></i> Personal de Tienda
+        </a>
+        <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-box-seam"></i> Mercadería
+        </a>
+        <a routerLink="/admin/transfers" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-arrow-left-right"></i> Transferencias
+        </a>
+        <a routerLink="/admin/alerts" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-bell"></i> Alertas de Stock
+        </a>
+        <a routerLink="/admin/adjustments" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-clipboard-minus"></i> Ajustes de Stock
+        </a>
+        <a routerLink="/admin/quotations-returns" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-file-earmark-ruled"></i> Cotizaciones / Devolución
+        </a>
+
+        <!-- Botón permanente de salida hacia Casa Matriz -->
+        <div class="mt-3 pt-3 border-top px-1">
+          <button type="button" class="btn btn-outline-danger w-100 btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 shadow-xs" (click)="openExitModal()">
+            <i class="bi bi-box-arrow-left fs-6"></i>
+            <span>Salir a Casa Matriz</span>
+          </button>
+        </div>
+      </ng-container>
     </nav>
 
     <div class="sidebar-footer mt-auto p-3 border-top">
@@ -66,17 +143,54 @@
   <!-- CONTENIDO PRINCIPAL -->
   <main class="main-content">
     <!-- TOPBAR -->
-    <header class="topbar shadow-sm">
-      <div class="search-box">
-        <i class="bi bi-search"></i>
-        <input type="text" placeholder="Buscar...">
+    <header class="topbar shadow-sm d-flex align-items-center justify-content-between px-4">
+      <div class="d-flex align-items-center gap-3">
+        <!-- Ámbito Operativo / Indicador -->
+        <div class="branch-selector-box d-flex align-items-center gap-2 px-3 py-1 bg-white border rounded-3 shadow-xs">
+          <i class="bi" [ngClass]="(branchContext.activeBranch$ | async) ? 'bi-geo-alt-fill text-danger fs-5' : 'bi-building-fill text-primary fs-5'"></i>
+          <div class="d-flex flex-column" style="line-height: 1.1;">
+            <small class="text-muted fw-bold" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">
+              {{ (branchContext.activeBranch$ | async) ? 'Sucursal Activa' : 'Ámbito Operativo' }}
+            </small>
+            <span class="fw-bold" style="font-size: 0.88rem; color: #2C2C2C;">
+              {{ (branchContext.activeBranch$ | async)?.name ? '📍 ' + (branchContext.activeBranch$ | async)?.name : '🏢 Casa Matriz (Consolidado)' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Insignia de modo operativo -->
+        <span class="badge rounded-pill px-3 py-2"
+              [style.background-color]="(branchContext.activeBranch$ | async) ? '#FEE2E2' : '#FDF2E9'"
+              [style.color]="(branchContext.activeBranch$ | async) ? '#991B1B' : '#9A3412'"
+              style="font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px;">
+          <i class="bi me-1" [ngClass]="(branchContext.activeBranch$ | async) ? 'bi-shop' : 'bi-diagram-3-fill'"></i>
+          {{ (branchContext.activeBranch$ | async) ? 'Modo Aislado: ' + (branchContext.activeBranch$ | async)?.name : 'Modo Centralizado (Consolidado)' }}
+        </span>
+
+        <!-- Botón destacado de Salir de Sucursal (cuando se opera en una sucursal) -->
+        <button *ngIf="!branchContext.isCentral()"
+                class="btn btn-danger btn-sm fw-bold px-3 py-1 rounded-pill shadow-xs d-flex align-items-center gap-1"
+                (click)="openExitModal()"
+                title="Finalizar operación en esta sucursal y volver al panel de sucursales de Casa Matriz">
+          <i class="bi bi-box-arrow-left"></i>
+          <span>Salir de Sucursal</span>
+        </button>
+
+        <!-- Botón para ver/entrar a sucursales cuando se está en Casa Matriz -->
+        <a *ngIf="branchContext.isCentral() && authService.isCentralUser()"
+           routerLink="/admin/branches"
+           class="btn btn-outline-primary btn-sm fw-bold px-3 py-1 rounded-pill shadow-xs d-flex align-items-center gap-1">
+          <i class="bi bi-shop"></i>
+          <span>Gestionar / Entrar a Sucursal</span>
+        </a>
       </div>
-      <div class="topbar-actions">
-        <button class="btn btn-light rounded-circle btn-icon">
+
+      <div class="topbar-actions d-flex align-items-center gap-3">
+        <button class="btn btn-light rounded-circle btn-icon shadow-xs" title="Notificaciones">
           <i class="bi bi-bell"></i>
         </button>
-        <div class="country-selector border rounded px-3 py-1 bg-white d-flex align-items-center">
-          <span class="me-2">🇧🇴</span> <span style="font-size: 0.85rem; font-weight: 500;">Bolivia (BO)</span>
+        <div class="country-selector border rounded-3 px-3 py-1 bg-white d-flex align-items-center shadow-xs">
+          <span class="me-2">🇧🇴</span> <span style="font-size: 0.82rem; font-weight: 600;">Bolivia (BO)</span>
         </div>
       </div>
     </header>
@@ -86,6 +200,45 @@
       <router-outlet></router-outlet>
     </div>
   </main>
+
+  <!-- MODAL DE CONFIRMACIÓN PARA SALIR DE SUCURSAL -->
+  <div class="modal-backdrop fade show" *ngIf="showExitModal" style="z-index: 1050;"></div>
+  <div class="modal fade show d-block" *ngIf="showExitModal" tabindex="-1" role="dialog" style="z-index: 1055; background: rgba(0,0,0,0.45);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content rounded-4 border-0 shadow-lg p-3">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="p-2 rounded-circle bg-danger bg-opacity-10 text-danger">
+              <i class="bi bi-box-arrow-left fs-3"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">¿Salir de esta sucursal?</h5>
+              <small class="text-muted">Confirmación de regreso a Casa Matriz</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="cancelExitModal()" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body py-3">
+          <p class="text-secondary mb-2" style="font-size: 0.95rem;">
+            Actualmente estás operando dentro de la sucursal:
+            <strong class="text-dark">{{ (branchContext.activeBranch$ | async)?.name }}</strong>.
+          </p>
+          <div class="p-3 bg-light rounded-3 small text-muted border">
+            <i class="bi bi-info-circle text-primary me-1"></i>
+            Al confirmar, volverás al ámbito centralizado de <strong>Casa Matriz</strong> y el sistema te llevará directamente al <strong>Módulo de Sucursales</strong> para seleccionar otra sucursal o gestionar la red.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-light px-4 fw-semibold border" (click)="cancelExitModal()">
+            Permanecer aquí
+          </button>
+          <button type="button" class="btn btn-danger px-4 fw-bold shadow-sm" (click)="confirmExitBranch()">
+            <i class="bi bi-door-open me-1"></i> Sí, Salir a Casa Matriz
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Pantallas de autenticación y tienda del cliente (sin chrome de administración) -->

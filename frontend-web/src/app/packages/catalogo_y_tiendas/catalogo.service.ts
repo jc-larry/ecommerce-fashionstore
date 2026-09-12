@@ -18,6 +18,7 @@ export interface ProductVariant {
   color_id: number;
   size_id: number;
   sku: string;
+  price_override?: number | null;
   is_active: boolean;
   color: ColorRef;
   size: SizeRef;
@@ -56,11 +57,92 @@ export interface Review {
   is_mine: boolean;
   created_at: string;
 }
+export interface ReviewSummary { average: number; count: number; }
 export interface ProductReviews {
-  summary: { average: number; count: number };
+  summary: ReviewSummary;
   items: Review[];
 }
 export interface RatingSummaryItem { product_id: number; average: number; count: number; }
+
+export interface BranchOption {
+  id: number;
+  name: string;
+  code?: string | null;
+  city?: string | null;
+  is_active?: boolean;
+  is_temporarily_closed?: boolean;
+  closure_reason?: string | null;
+  opening_time?: string | null;
+  closing_time?: string | null;
+  days_open?: string | null;
+  has_fitting_room?: boolean;
+  pickup_enabled?: boolean;
+}
+
+export interface CatalogFilterOptions {
+  min_price: number;
+  max_price: number;
+  categories: Category[];
+  sizes: SizeRef[];
+  colors: ColorRef[];
+  seasons: any[];
+  branches: BranchOption[];
+}
+
+export interface ProductSearchParams {
+  q?: string;
+  category_id?: number;
+  season_id?: number;
+  min_price?: number;
+  max_price?: number;
+  size_id?: number;
+  color_id?: number;
+  branch_id?: number;
+  in_stock_only?: boolean;
+  sort_by?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductSearchResultItem extends Product {
+  branch_stock?: number | null;
+  total_stock: number;
+}
+
+export interface ProductSearchResponse {
+  items: ProductSearchResultItem[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface BranchStockDetail {
+  branch_id: number;
+  branch_name: string;
+  branch_code?: string | null;
+  city?: string | null;
+  stock: number;
+}
+
+export interface VariantBranchStock {
+  variant_id: number;
+  sku: string;
+  color_id: number;
+  color_name: string;
+  color_hex: string;
+  size_id: number;
+  size_name: string;
+  branches: BranchStockDetail[];
+  total_stock: number;
+}
+
+export interface ProductAvailabilityResponse {
+  product_id: number;
+  product_name: string;
+  variants: VariantBranchStock[];
+  total_stock: number;
+}
 
 /**
  * [CU06 / CU07 / CU09 / CU11 / CU14] Sucursales, catálogo de prendas, tienda del cliente,
@@ -87,6 +169,13 @@ export class CatalogoService {
 
   deactivateBranch(id: number): Observable<any> {
     return this.http.delete<any>(`${this.api}/branches/${id}`);
+  }
+
+  toggleBranchClosure(id: number, isTemporarilyClosed: boolean, reason?: string): Observable<any> {
+    return this.http.patch<any>(`${this.api}/branches/${id}/toggle-closure`, {
+      is_temporarily_closed: isTemporarilyClosed,
+      closure_reason: reason || null
+    });
   }
 
   // ---------- EMPLEADOS DE SUCURSAL (CU09) ----------
@@ -205,4 +294,189 @@ export class CatalogoService {
     const base = this.api.replace(/\/api\/v1\/?$/, '');
     return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
   }
+
+  // ---------- BÚSQUEDA Y DISPONIBILIDAD POR SUCURSAL (CU12) ----------
+  getFilterOptions(): Observable<CatalogFilterOptions> {
+    return this.http.get<CatalogFilterOptions>(`${this.api}/catalog/filter-options`);
+  }
+
+  searchProducts(params: ProductSearchParams): Observable<ProductSearchResponse> {
+    const qParts: string[] = [];
+    if (params.q) qParts.push(`q=${encodeURIComponent(params.q)}`);
+    if (params.category_id) qParts.push(`category_id=${params.category_id}`);
+    if (params.season_id) qParts.push(`season_id=${params.season_id}`);
+    if (params.min_price !== undefined && params.min_price !== null) qParts.push(`min_price=${params.min_price}`);
+    if (params.max_price !== undefined && params.max_price !== null) qParts.push(`max_price=${params.max_price}`);
+    if (params.size_id) qParts.push(`size_id=${params.size_id}`);
+    if (params.color_id) qParts.push(`color_id=${params.color_id}`);
+    if (params.branch_id) qParts.push(`branch_id=${params.branch_id}`);
+    if (params.in_stock_only) qParts.push(`in_stock_only=true`);
+    if (params.sort_by) qParts.push(`sort_by=${params.sort_by}`);
+    if (params.page) qParts.push(`page=${params.page}`);
+    if (params.limit) qParts.push(`limit=${params.limit}`);
+    const query = qParts.length > 0 ? '?' + qParts.join('&') : '';
+
+    return this.http.get<ProductSearchResponse>(`${this.api}/catalog/products/search${query}`);
+  }
+
+  getProductBranchAvailability(productId: number): Observable<ProductAvailabilityResponse> {
+    return this.http.get<ProductAvailabilityResponse>(
+      `${this.api}/catalog/products/${productId}/branch-availability`
+    );
+  }
+
+  // ---------- CUPONES Y PROMOCIONES (CU13) ----------
+  getCoupons(): Observable<Coupon[]> {
+    return this.http.get<Coupon[]>(`${this.api}/catalog/coupons`);
+  }
+
+  createCoupon(data: any): Observable<Coupon> {
+    return this.http.post<Coupon>(`${this.api}/catalog/coupons`, data);
+  }
+
+  updateCoupon(id: number, data: any): Observable<Coupon> {
+    return this.http.put<Coupon>(`${this.api}/catalog/coupons/${id}`, data);
+  }
+
+  deleteCoupon(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/catalog/coupons/${id}`);
+  }
+
+  validateCoupon(code: string, cartTotal: number): Observable<CouponValidateResponse> {
+    return this.http.post<CouponValidateResponse>(`${this.api}/catalog/coupons/validate`, {
+      code,
+      cart_total: cartTotal,
+    });
+  }
+
+  getPromotions(): Observable<SeasonalPromotion[]> {
+    return this.http.get<SeasonalPromotion[]>(`${this.api}/catalog/promotions`);
+  }
+
+  createPromotion(data: any): Observable<SeasonalPromotion> {
+    return this.http.post<SeasonalPromotion>(`${this.api}/catalog/promotions`, data);
+  }
+
+  updatePromotion(id: number, data: any): Observable<SeasonalPromotion> {
+    return this.http.put<SeasonalPromotion>(`${this.api}/catalog/promotions/${id}`, data);
+  }
+
+  deletePromotion(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/catalog/promotions/${id}`);
+  }
+
+  // ---------- CU14+ Moderación de Reseñas ----------
+  getAdminReviews(statusFilter?: string): Observable<ReviewModerationItem[]> {
+    const params: any = {};
+    if (statusFilter) params.status_filter = statusFilter;
+    return this.http.get<ReviewModerationItem[]>(`${this.api}/catalog/admin/reviews`, { params });
+  }
+
+  moderateReview(reviewId: number, status: 'APPROVED' | 'REJECTED'): Observable<ReviewModerationItem> {
+    return this.http.put<ReviewModerationItem>(`${this.api}/catalog/admin/reviews/${reviewId}/moderate`, { status });
+  }
+
+  // ---------- CU14+ Wishlists Múltiples y Compartibles ----------
+  getUserWishlists(): Observable<Wishlist[]> {
+    return this.http.get<Wishlist[]>(`${this.api}/catalog/wishlists`);
+  }
+
+  createWishlist(data: { name: string; is_public?: boolean }): Observable<Wishlist> {
+    return this.http.post<Wishlist>(`${this.api}/catalog/wishlists`, data);
+  }
+
+  updateWishlist(id: number, data: { name?: string; is_public?: boolean }): Observable<Wishlist> {
+    return this.http.put<Wishlist>(`${this.api}/catalog/wishlists/${id}`, data);
+  }
+
+  deleteWishlist(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/catalog/wishlists/${id}`);
+  }
+
+  getWishlistDetail(id: number): Observable<WishlistDetail> {
+    return this.http.get<WishlistDetail>(`${this.api}/catalog/wishlists/${id}`);
+  }
+
+  addItemToWishlist(wishlistId: number, productId: number): Observable<any> {
+    return this.http.post<any>(`${this.api}/catalog/wishlists/${wishlistId}/items/${productId}`, {});
+  }
+
+  removeItemFromWishlist(wishlistId: number, productId: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/catalog/wishlists/${wishlistId}/items/${productId}`);
+  }
+
+  getSharedWishlist(shareToken: string): Observable<WishlistDetail> {
+    return this.http.get<WishlistDetail>(`${this.api}/catalog/wishlists/shared/${shareToken}`);
+  }
+}
+
+// ---------- Interfaces de CU13 ----------
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_type: 'PORCENTAJE' | 'MONTO_FIJO';
+  discount_value: number;
+  min_purchase_amount: number;
+  valid_from: string;
+  valid_until: string;
+  max_uses: number;
+  used_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CouponValidateResponse {
+  valid: boolean;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  discount_amount: number;
+  new_total: number;
+  message: string;
+}
+
+export interface SeasonalPromotion {
+  id: number;
+  name: string;
+  description?: string | null;
+  discount_percent: number;
+  category_id?: number | null;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  created_at: string;
+  category?: Category;
+}
+
+// ---------- Interfaces de CU14+ ----------
+export interface ReviewModerationItem {
+  id: number;
+  product_id: number;
+  product_name: string;
+  user_id: number;
+  author_name: string;
+  author_email: string;
+  rating: number;
+  comment?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  created_at: string;
+}
+
+export interface Wishlist {
+  id: number;
+  name: string;
+  is_public: boolean;
+  share_token: string;
+  created_at: string;
+  items_count: number;
+}
+
+export interface WishlistDetail {
+  id: number;
+  name: string;
+  is_public: boolean;
+  share_token: string;
+  created_at: string;
+  owner_name?: string | null;
+  products: Product[];
 }

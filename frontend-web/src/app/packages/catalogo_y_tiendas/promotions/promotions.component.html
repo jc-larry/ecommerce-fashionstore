@@ -1,0 +1,260 @@
+<div class="admin-page">
+  <!-- Cabecera de Página -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">Promociones y Descuentos</h3>
+      <p class="text-muted small mb-0">Gestión de cupones para checkout y campañas de temporada calendarizadas (CU13).</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm"
+              *ngIf="activeTab === 'coupons'" (click)="openCouponModal()">
+        <i class="bi bi-ticket-perforated-fill"></i>
+        <span>Nuevo Cupón</span>
+      </button>
+      <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm"
+              *ngIf="activeTab === 'promotions'" (click)="openPromoModal()">
+        <i class="bi bi-calendar-event-fill"></i>
+        <span>Nueva Campaña</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas de estado -->
+  <div class="alert alert-success alert-dismissible fade show small py-2 rounded-3 shadow-sm" *ngIf="successMsg" role="alert">
+    <i class="bi bi-check-circle-fill me-1"></i> {{ successMsg }}
+  </div>
+
+  <!-- Pestañas de Navegación -->
+  <ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+      <button class="nav-link py-2 px-3 fw-semibold d-flex align-items-center gap-2"
+              [class.active]="activeTab === 'coupons'" (click)="activeTab = 'coupons'">
+        <i class="bi bi-ticket-perforated"></i> Cupones de Descuento
+        <span class="badge bg-light text-dark ms-1" *ngIf="coupons.length">{{ coupons.length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link py-2 px-3 fw-semibold d-flex align-items-center gap-2"
+              [class.active]="activeTab === 'promotions'" (click)="activeTab = 'promotions'">
+        <i class="bi bi-calendar-range"></i> Campañas de Temporada
+        <span class="badge bg-light text-dark ms-1" *ngIf="promotions.length">{{ promotions.length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- TAB 1: CUPONES DE DESCUENTO -->
+  <div *ngIf="activeTab === 'coupons'">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+      <div class="table-responsive">
+        <table class="table table-hover admin-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Código</th>
+              <th>Descuento</th>
+              <th>Compra Mínima</th>
+              <th>Vigencia</th>
+              <th>Usos / Límite</th>
+              <th>Estado</th>
+              <th class="text-end pe-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading && coupons.length === 0">
+              <td colspan="7" class="text-center py-4 text-muted">Cargando cupones…</td>
+            </tr>
+            <tr *ngIf="!loading && coupons.length === 0">
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="bi bi-ticket-perforated fs-1 d-block mb-2 text-black-50"></i>
+                No hay cupones registrados. Crea uno con el botón superior.
+              </td>
+            </tr>
+            <tr *ngFor="let c of coupons">
+              <td class="ps-4">
+                <span class="badge bg-white text-dark border px-2.5 py-1 font-monospace shadow-sm" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+                  <i class="bi bi-tag-fill text-primary me-1"></i>{{ c.code }}
+                </span>
+              </td>
+              <td>
+                <span class="fw-bold text-primary" style="font-size: 0.95rem;">
+                  {{ c.discount_type === 'PORCENTAJE' ? (c.discount_value + '% OFF') : ('Bs. ' + c.discount_value) }}
+                </span>
+              </td>
+              <td>
+                <span class="text-muted small">
+                  {{ c.min_purchase_amount > 0 ? ('Bs. ' + c.min_purchase_amount) : 'Sin mínimo' }}
+                </span>
+              </td>
+              <td class="small">
+                <div>Desde: {{ c.valid_from | date: 'dd/MM/yyyy HH:mm' }}</div>
+                <div [class.text-danger]="isExpired(c.valid_until)">
+                  Hasta: {{ c.valid_until | date: 'dd/MM/yyyy HH:mm' }}
+                  <span class="badge bg-danger bg-opacity-10 text-danger ms-1" *ngIf="isExpired(c.valid_until)">Expirado</span>
+                </div>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height: 6px; width: 60px;">
+                    <div class="progress-bar bg-primary" [style.width.%]="(c.used_count / c.max_uses) * 100"></div>
+                  </div>
+                  <span class="small text-muted">{{ c.used_count }}/{{ c.max_uses }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" [checked]="c.is_active"
+                         (change)="toggleCouponActive(c)">
+                  <label class="form-check-label small" [class.text-success]="c.is_active" [class.text-muted]="!c.is_active">
+                    {{ c.is_active ? 'Activo' : 'Inactivo' }}
+                  </label>
+                </div>
+              </td>
+              <td class="text-end pe-4">
+                <button class="btn-action btn-action-danger" (click)="deleteCoupon(c.id)" title="Eliminar cupón">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: CAMPAÑAS DE TEMPORADA -->
+  <div *ngIf="activeTab === 'promotions'">
+    <div class="row g-3">
+      <div class="col-12 col-md-6 col-lg-4" *ngFor="let p of promotions">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6">
+              -{{ p.discount_percent }}% OFF
+            </span>
+            <button class="btn btn-sm btn-outline-danger border-0 p-0" (click)="deletePromotion(p.id)" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+          <h5 class="fw-bold text-dark mb-1">{{ p.name }}</h5>
+          <p class="text-muted small mb-2" *ngIf="p.description">{{ p.description }}</p>
+          <div class="small text-muted mt-auto pt-2 border-top">
+            <div *ngIf="p.category">
+              <i class="bi bi-tag text-primary me-1"></i> Categoría: <strong>{{ p.category.name }}</strong>
+            </div>
+            <div>
+              <i class="bi bi-calendar3 me-1"></i> Vigencia: {{ p.start_date | date: 'dd/MM/yyyy' }} al {{ p.end_date | date: 'dd/MM/yyyy' }}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 text-center py-5 text-muted" *ngIf="!loading && promotions.length === 0">
+        <i class="bi bi-calendar-x fs-1 d-block mb-2 text-black-50"></i>
+        No hay campañas de temporada configuradas.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR CUPÓN -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showCouponModal" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">Nuevo Cupón de Descuento</h5>
+        <button type="button" class="btn-close" (click)="showCouponModal = false"></button>
+      </div>
+      <div class="modal-body py-3">
+        <div class="alert alert-danger small py-2" *ngIf="errorMsg">{{ errorMsg }}</div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Código del Cupón (Ej: FASHION20)</label>
+          <input type="text" class="form-control text-uppercase font-monospace" [(ngModel)]="newCoupon.code" placeholder="CODIGO">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Tipo de Descuento</label>
+            <select class="form-select" [(ngModel)]="newCoupon.discount_type">
+              <option value="PORCENTAJE">Porcentaje (%)</option>
+              <option value="MONTO_FIJO">Monto Fijo (Bs.)</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Valor</label>
+            <input type="number" class="form-control" [(ngModel)]="newCoupon.discount_value">
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Compra Mínima (Bs.)</label>
+            <input type="number" class="form-control" [(ngModel)]="newCoupon.min_purchase_amount">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Límite de Usos</label>
+            <input type="number" class="form-control" [(ngModel)]="newCoupon.max_uses">
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Válido Desde</label>
+            <input type="datetime-local" class="form-control form-control-sm" [(ngModel)]="newCoupon.valid_from">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Válido Hasta</label>
+            <input type="datetime-local" class="form-control form-control-sm" [(ngModel)]="newCoupon.valid_until">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light" (click)="showCouponModal = false">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="saveCoupon()" [disabled]="loading">Guardar Cupón</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR CAMPAÑA -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoModal" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">Nueva Campaña de Temporada</h5>
+        <button type="button" class="btn-close" (click)="showPromoModal = false"></button>
+      </div>
+      <div class="modal-body py-3">
+        <div class="alert alert-danger small py-2" *ngIf="errorMsg">{{ errorMsg }}</div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Nombre de la Campaña (Ej: Primavera 2026)</label>
+          <input type="text" class="form-control" [(ngModel)]="newPromo.name" placeholder="Nombre">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Descuento (%)</label>
+            <input type="number" class="form-control" [(ngModel)]="newPromo.discount_percent">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Categoría Asociada</label>
+            <select class="form-select" [(ngModel)]="newPromo.category_id">
+              <option [ngValue]="null">Todas las categorías</option>
+              <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Fecha Inicio</label>
+            <input type="date" class="form-control" [(ngModel)]="newPromo.start_date">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Fecha Fin</label>
+            <input type="date" class="form-control" [(ngModel)]="newPromo.end_date">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Descripción (Opcional)</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="newPromo.description" placeholder="Detalle de la promoción..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light" (click)="showPromoModal = false">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="savePromotion()" [disabled]="loading">Crear Campaña</button>
+      </div>
+    </div>
+  </div>
+</div>

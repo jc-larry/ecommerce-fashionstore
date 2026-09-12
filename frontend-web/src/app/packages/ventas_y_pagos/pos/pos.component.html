@@ -1,0 +1,422 @@
+<div class="admin-page pos-container">
+
+  <!-- Header POS y Estado del Turno de Caja -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 d-flex align-items-center gap-2 text-dark">
+        <i class="bi bi-shop text-primary"></i> Punto de Venta en Caja (POS)
+      </h3>
+      <p class="text-muted mb-0 small">
+        Terminal de venta física, arqueo de turno y facturación con existencias reales por sucursal.
+      </p>
+    </div>
+
+    <!-- Badge Estado Turno y Sucursal -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="badge px-3 py-2 rounded-pill fw-bold border"
+            [ngClass]="isCentral ? 'bg-warning-subtle text-warning border-warning' : 'bg-primary-subtle text-primary border-primary'">
+        <i class="bi" [ngClass]="isCentral ? 'bi-building' : 'bi-geo-alt-fill'"></i>
+        {{ isCentral ? 'Modo Central (Consolidado)' : 'Sucursal: ' + selectedBranchName }}
+      </span>
+
+      <div *ngIf="!isCentral && currentShift" class="shift-badge-active p-2 px-3 rounded-pill bg-success-subtle text-success border border-success d-flex align-items-center gap-2">
+        <span class="pulse-indicator"></span>
+        <div class="small">
+          <strong>Caja Abierta</strong> &bull; Turno #{{ currentShift.id }} &bull; Ventas: Bs. {{ currentShift.total_cash_sales | number:'1.2-2' }}
+        </div>
+      </div>
+
+      <div *ngIf="!isCentral && !currentShift" class="shift-badge-closed p-2 px-3 rounded-pill bg-danger-subtle text-danger border border-danger d-flex align-items-center gap-2">
+        <i class="bi bi-lock-fill"></i>
+        <span class="small fw-bold">Caja Cerrada</span>
+      </div>
+
+      <a routerLink="/admin/shifts" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+        <i class="bi bi-cash-stack"></i> Arqueo de Cajas
+      </a>
+    </div>
+  </div>
+
+  <!-- PANTALLA EN MODO CASA MATRIZ: Requiere seleccionar sucursal física -->
+  <div *ngIf="isCentral" class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white mb-4">
+    <div class="p-3 mx-auto" style="max-width: 680px;">
+      <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mb-3">
+        <i class="bi bi-shop-window display-5"></i>
+      </div>
+      <h4 class="fw-bold text-dark mb-2">Selecciona una Sucursal para Operar el POS</h4>
+      <p class="text-muted mb-4 small">
+        Toda venta física requiere una terminal y gaveta de caja asociada a una sucursal física con inventario propio. Elige la sucursal en la que deseas facturar:
+      </p>
+
+      <div class="row g-3 justify-content-center text-start">
+        <div *ngFor="let b of branches" class="col-md-6">
+          <div class="card h-100 border p-3 rounded-3 shadow-xs"
+               style="transition: transform 0.15s ease, border-color 0.15s ease; cursor: pointer;"
+               (click)="selectBranch(b)">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="fw-bold mb-0 text-dark">📍 {{ b.name }}</h6>
+              <span class="badge bg-light text-primary border">{{ b.code || 'SUC' }}</span>
+            </div>
+            <p class="text-muted small mb-3">{{ b.address || 'Sin dirección registrada' }} &bull; {{ b.city || 'Bolivia' }}</p>
+            <button class="btn btn-primary btn-sm w-100 fw-bold">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Operar en esta Sucursal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVISO / APERTURA RÁPIDA SI NO HAY TURNO ABIERTO EN LA SUCURSAL SELECCIONADA -->
+  <div *ngIf="!isCentral && !currentShift" class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white shift-prompt-card">
+    <div class="row align-items-center">
+      <div class="col-md-7">
+        <h4 class="fw-bold text-dark mb-2">Apertura Obligatoria de Caja — {{ selectedBranchName }}</h4>
+        <p class="text-muted mb-3 small">
+          Para facturar en <strong>{{ selectedBranchName }}</strong> y mantener el control contable, debes abrir la caja registradora asignando el fondo inicial de cambio.
+        </p>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label small fw-bold">Fondo Inicial en Efectivo (Bs.)</label>
+            <input type="number" class="form-control" [(ngModel)]="openingAmount" min="0" step="10">
+          </div>
+        </div>
+        <div *ngIf="shiftError" class="validation-card validation-card-error mt-3 mb-0">
+          <i class="bi bi-exclamation-octagon-fill val-icon"></i>
+          <div class="val-content">
+            <div class="val-title">No se pudo abrir el turno de caja</div>
+            <p class="val-desc">{{ shiftError }}</p>
+          </div>
+        </div>
+        <button class="btn btn-primary mt-3 px-4 fw-bold" (click)="openShift()" [disabled]="loading">
+          <i class="bi bi-door-open-fill me-1"></i> Abrir Caja en {{ selectedBranchName }}
+        </button>
+      </div>
+      <div class="col-md-5 text-center d-none d-md-block">
+        <i class="bi bi-cash-coin display-1 text-primary opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUERPO PRINCIPAL DEL POS (ACTIVO CUANDO HAY SUCURSAL Y TURNO ABIERTO) -->
+  <div *ngIf="!isCentral && currentShift" class="row g-4">
+
+    <!-- COLUMNA IZQUIERDA: Búsqueda y Productos de la Sucursal -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+
+        <!-- Barra de búsqueda rápida por nombre o SKU en el inventario real -->
+        <div class="pos-search-wrapper mb-3 position-relative">
+          <div class="input-group input-group-lg">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-upc-scan text-primary"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0"
+                   placeholder="Buscar o escanear prenda disponible en {{ selectedBranchName }}..."
+                   [(ngModel)]="searchQuery"
+                   (ngModelChange)="onSearchChange()">
+            <button class="btn btn-outline-secondary" *ngIf="searchQuery" (click)="searchQuery = ''; searchResults = []">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+
+          <!-- Desplegable con resultados inmediatos del inventario de la sucursal -->
+          <div *ngIf="searchResults.length > 0" class="search-dropdown shadow-lg rounded-3 border bg-white position-absolute w-100 mt-1 z-3">
+            <div *ngFor="let res of searchResults"
+                 class="search-result-row p-2 px-3 d-flex justify-content-between align-items-center border-bottom"
+                 style="cursor: pointer;"
+                 (click)="addItemToTicket(res)">
+              <div>
+                <strong class="d-block text-dark">{{ res.product_name }}</strong>
+                <span class="badge bg-light text-dark me-1 font-monospace">{{ res.sku }}</span>
+                <small class="text-muted">Talla: {{ res.size_name }} &bull; Color: {{ res.color_name }}</small>
+                <span class="badge bg-success-subtle text-success ms-2">Stock: {{ res.stock_actual }} un.</span>
+              </div>
+              <div class="text-end">
+                <span class="fw-bold text-primary fs-5">Bs. {{ res.sale_price | number:'1.2-2' }}</span>
+                <span class="badge bg-primary-subtle text-primary d-block mt-1">+ Agregar al ticket</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Catálogo Rápido con Existencias Físicas en esta Sucursal -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold small text-muted text-uppercase">
+            <i class="bi bi-boxes me-1"></i> Stock en Tienda ({{ selectedBranchName }})
+          </span>
+          <span class="badge bg-light text-muted border">{{ branchInventory.length }} variantes disponibles</span>
+        </div>
+
+        <!-- Mensaje si la sucursal no tiene stock -->
+        <div *ngIf="branchInventory.length === 0 && !loadingInventory" class="text-center py-5 text-muted border rounded-3 bg-light">
+          <i class="bi bi-box-seam display-4 d-block opacity-25 mb-2"></i>
+          <p class="mb-1 fw-bold">Sin existencias registradas en {{ selectedBranchName }}</p>
+          <small>Registra ingresos de mercadería o traslada prendas desde otra sucursal para vender aquí.</small>
+        </div>
+
+        <div *ngIf="branchInventory.length > 0" class="pos-catalog-grid overflow-auto pe-1" style="max-height: 520px;">
+          <div class="row g-2">
+            <div *ngFor="let it of branchInventory" class="col-6 col-md-4 col-xl-3">
+              <div class="product-tile p-2 border rounded-3 text-center bg-light h-100 d-flex flex-column justify-content-between"
+                   style="cursor: pointer; transition: border-color 0.15s ease;"
+                   (click)="addItemToTicket(it)">
+                <div class="tile-img mb-2 position-relative">
+                  <img [src]="it.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=200'"
+                       class="img-fluid rounded" style="height: 80px; width: 100%; object-fit: cover;">
+                  <span class="position-absolute bottom-0 end-0 badge bg-dark opacity-75 m-1 font-monospace" style="font-size: 0.65rem;">
+                    {{ it.stock_actual }} un.
+                  </span>
+                </div>
+                <div class="fw-bold small text-truncate mb-1" [title]="it.product_name">{{ it.product_name }}</div>
+                <small class="text-muted d-block" style="font-size: 0.7rem;">{{ it.color_name }} &bull; {{ it.size_name }}</small>
+                <div class="text-primary fw-bold mt-1">Bs. {{ it.sale_price | number:'1.2-2' }}</div>
+                <small class="text-muted font-monospace" style="font-size: 0.65rem;">{{ it.sku }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: Ticket de Venta, Cobro Polimórfico y Facturación -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white ticket-card">
+
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+          <h5 class="fw-bold mb-0">Ticket de Venta</h5>
+          <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none" (click)="clearTicket()" *ngIf="ticketItems.length > 0">
+            <i class="bi bi-trash"></i> Vaciar
+          </button>
+        </div>
+
+        <!-- Tabla de ítems agregados -->
+        <div class="ticket-items-list overflow-auto mb-3" style="max-height: 240px;">
+          <div *ngIf="ticketItems.length === 0" class="text-center py-5 text-muted">
+            <i class="bi bi-bag display-4 opacity-25 d-block mb-2"></i>
+            Ticket vacío. Escanea o selecciona prendas.
+          </div>
+
+          <div *ngFor="let it of ticketItems" class="ticket-row p-2 border-bottom d-flex justify-content-between align-items-center">
+            <div style="max-width: 55%;">
+              <strong class="d-block small text-truncate">{{ it.product_name }}</strong>
+              <small class="text-muted d-block" style="font-size: 0.72rem;">{{ it.size }} / {{ it.color }} &bull; {{ it.sku }}</small>
+              <span class="text-muted small">Bs. {{ it.unit_price | number:'1.2-2' }}</span>
+            </div>
+
+            <!-- Cantidad con botones +/- -->
+            <div class="d-flex align-items-center gap-1">
+              <button class="btn btn-sm btn-light border p-0 px-2" (click)="updateQuantity(it, -1)">-</button>
+              <span class="fw-bold px-1">{{ it.quantity }}</span>
+              <button class="btn btn-sm btn-light border p-0 px-2" (click)="updateQuantity(it, 1)">+</button>
+            </div>
+
+            <div class="text-end">
+              <div class="fw-bold text-dark">Bs. {{ it.subtotal | number:'1.2-2' }}</div>
+              <button class="btn btn-sm btn-link text-danger p-0" (click)="removeItem(it)" style="font-size: 0.75rem;">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cupón de Descuento (CU13) -->
+        <div class="input-group input-group-sm mb-3">
+          <span class="input-group-text bg-light"><i class="bi bi-percent"></i></span>
+          <input type="text" class="form-control" placeholder="Cupón de descuento (opcional)" [(ngModel)]="couponCode">
+        </div>
+
+        <!-- Sección de Datos del Cliente y Facturación IVA 13% (CU20) -->
+        <div class="bg-light p-2 rounded-3 mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-bold small text-uppercase">Comprobante Fiscal</span>
+            <div class="btn-group btn-group-sm">
+              <button class="btn" [class.btn-primary]="docType === 'FACTURA'" [class.btn-light]="docType !== 'FACTURA'" (click)="docType = 'FACTURA'">Factura (13%)</button>
+              <button class="btn" [class.btn-primary]="docType === 'NOTA_ENTREGA'" [class.btn-light]="docType !== 'NOTA_ENTREGA'" (click)="docType = 'NOTA_ENTREGA'">Nota Entrega</button>
+            </div>
+          </div>
+
+          <div class="row g-2 mt-1">
+            <div class="col-5">
+              <input type="text" class="form-control form-control-sm" placeholder="NIT / CI" [(ngModel)]="customerNit">
+            </div>
+            <div class="col-7">
+              <input type="text" class="form-control form-control-sm" placeholder="Razón Social / Nombre" [(ngModel)]="customerName">
+            </div>
+          </div>
+        </div>
+
+        <!-- Selección de Método de Pago Polimórfico (CU18) -->
+        <div class="payment-tabs mb-3">
+          <label class="form-label small fw-bold text-uppercase d-block mb-1">Método de Pago</label>
+          <div class="row g-1">
+            <div class="col-3">
+              <button class="btn btn-sm w-100 border text-truncate"
+                      [class.btn-primary]="paymentType === 'EFECTIVO'"
+                      [class.btn-light]="paymentType !== 'EFECTIVO'"
+                      (click)="paymentType = 'EFECTIVO'; recalculateCash()">
+                <i class="bi bi-cash d-block fs-5"></i> Efectivo
+              </button>
+            </div>
+            <div class="col-3">
+              <button class="btn btn-sm w-100 border text-truncate"
+                      [class.btn-primary]="paymentType === 'TARJETA'"
+                      [class.btn-light]="paymentType !== 'TARJETA'"
+                      (click)="paymentType = 'TARJETA'">
+                <i class="bi bi-credit-card d-block fs-5"></i> Tarjeta
+              </button>
+            </div>
+            <div class="col-3">
+              <button class="btn btn-sm w-100 border text-truncate"
+                      [class.btn-primary]="paymentType === 'QR'"
+                      [class.btn-light]="paymentType !== 'QR'"
+                      (click)="paymentType = 'QR'">
+                <i class="bi bi-qr-code d-block fs-5"></i> QR
+              </button>
+            </div>
+            <div class="col-3">
+              <button class="btn btn-sm w-100 border text-truncate"
+                      [class.btn-primary]="paymentType === 'CREDITO'"
+                      [class.btn-light]="paymentType !== 'CREDITO'"
+                      (click)="paymentType = 'CREDITO'">
+                <i class="bi bi-calendar-check d-block fs-5"></i> Crédito
+              </button>
+            </div>
+          </div>
+
+          <!-- Campos condicionales según pago -->
+          <div *ngIf="paymentType === 'EFECTIVO'" class="mt-2 p-2 bg-success-subtle rounded-3 border border-success-subtle">
+            <div class="row g-2 align-items-center">
+              <div class="col-6">
+                <label class="small text-muted fw-bold">Efectivo Recibido (Bs.)</label>
+                <input type="number" class="form-control form-control-sm" [(ngModel)]="cashReceived" step="1">
+              </div>
+              <div class="col-6 text-end">
+                <span class="small text-muted d-block">Cambio a entregar:</span>
+                <span class="fs-5 fw-bold text-success">Bs. {{ cashChange | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="paymentType === 'TARJETA'" class="mt-2 p-2 bg-light rounded-3">
+            <div class="row g-2">
+              <div class="col-6">
+                <select class="form-select form-select-sm" [(ngModel)]="cardBrand">
+                  <option value="VISA">VISA</option>
+                  <option value="MASTERCARD">MasterCard</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <input type="text" class="form-control form-control-sm" placeholder="Últimos 4 dígitos" maxlength="4" [(ngModel)]="cardLast4">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="paymentType === 'QR'" class="mt-2 p-2 bg-info-subtle rounded-3 text-center small text-info-emphasis">
+            <i class="bi bi-qr-code-scan fs-4 d-block mb-1"></i>
+            Escanee el QR en la terminal POS para confirmar el cobro inmediato.
+          </div>
+        </div>
+
+        <!-- Resumen de Totales e Impuestos -->
+        <div class="ticket-summary p-3 bg-light rounded-4 mb-3">
+          <div class="d-flex justify-content-between mb-1 small text-muted">
+            <span>Subtotal</span>
+            <span>Bs. {{ ticketSubtotal | number:'1.2-2' }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1 small text-success" *ngIf="discountAmount > 0">
+            <span>Descuento Cupón</span>
+            <span>- Bs. {{ discountAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2 small text-muted" *ngIf="docType === 'FACTURA'">
+            <span>IVA Débito Fiscal (13%)</span>
+            <span>Bs. {{ (ticketTotal * 0.13) | number:'1.2-2' }}</span>
+          </div>
+          <hr class="my-1">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold fs-5">Total a Cobrar</span>
+            <span class="fw-bold fs-3 text-primary">Bs. {{ ticketTotal | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Alertas de error con tarjeta de validación de alta visibilidad -->
+        <div *ngIf="errorMessage" class="validation-card validation-card-error mb-3">
+          <i class="bi bi-exclamation-triangle-fill val-icon"></i>
+          <div class="val-content">
+            <div class="val-title">Revisa los datos de la venta</div>
+            <p class="val-desc">{{ errorMessage }}</p>
+          </div>
+          <button type="button" class="val-close" (click)="errorMessage = null" title="Cerrar">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <!-- Botón Cobrar -->
+        <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2"
+                [disabled]="ticketItems.length === 0 || loading"
+                (click)="processSale()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm"></span>
+          <i *ngIf="!loading" class="bi bi-check-circle-fill"></i>
+          <span>Confirmar Venta y Cobro</span>
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL DE RECIBO / FACTURA EMITIDA TRAS VENTA EXITOSA -->
+  <div *ngIf="lastOrderSuccess" class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
+    <div class="card border-0 shadow-lg rounded-4 p-4 bg-white modal-receipt-box animate__animated animate__zoomIn">
+      <div class="text-center mb-3">
+        <div class="avatar bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 54px; height: 54px;">
+          <i class="bi bi-check-lg fs-2"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-0">¡Venta Registrada Exitosamente!</h4>
+        <span class="badge bg-light text-muted border font-monospace mt-1">{{ lastOrderSuccess.order_number }}</span>
+      </div>
+
+      <!-- Recibo imprimible -->
+      <div class="receipt-print-area border rounded-3 p-3 bg-light mb-3 font-monospace small" id="printArea">
+        <div class="text-center pb-2 border-bottom mb-2">
+          <strong class="d-block fs-6">FASHIONSTORE S.R.L.</strong>
+          <span>Casa Matriz - Santa Cruz de la Sierra</span><br>
+          <span *ngIf="lastOrderSuccess.invoice">NIT: 4892019012 | AUT: 18273645</span>
+        </div>
+
+        <div class="mb-2">
+          <strong>Doc: </strong> {{ lastOrderSuccess.invoice ? lastOrderSuccess.invoice.doc_type : 'RECIBO' }}<br>
+          <strong>Cliente: </strong> {{ lastOrderSuccess.invoice?.customer_name || 'Consumidor Final' }}<br>
+          <strong>NIT/CI: </strong> {{ lastOrderSuccess.invoice?.customer_nit || '0' }}<br>
+          <strong>Fecha: </strong> {{ lastOrderSuccess.created_at | date:'dd/MM/yyyy HH:mm' }}
+        </div>
+
+        <table class="w-100 mb-2 border-top border-bottom">
+          <tr *ngFor="let it of lastOrderSuccess.items">
+            <td class="py-1">{{ it.quantity }}x {{ it.product_name }} ({{ it.size }})</td>
+            <td class="text-end py-1">Bs. {{ it.subtotal | number:'1.2-2' }}</td>
+          </tr>
+        </table>
+
+        <div class="d-flex justify-content-between fw-bold fs-6">
+          <span>TOTAL:</span>
+          <span>Bs. {{ lastOrderSuccess.total_amount | number:'1.2-2' }}</span>
+        </div>
+
+        <div *ngIf="lastOrderSuccess.invoice?.control_code" class="mt-2 pt-2 border-top text-center">
+          <small class="d-block">CÓDIGO DE CONTROL: {{ lastOrderSuccess.invoice?.control_code }}</small>
+          <small class="text-muted" style="font-size: 0.65rem;">"ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS"</small>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary w-50 fw-bold" (click)="printReceipt()">
+          <i class="bi bi-printer me-1"></i> Imprimir Recibo
+        </button>
+        <button class="btn btn-primary w-50 fw-bold" (click)="lastOrderSuccess = null">
+          Nueva Venta
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

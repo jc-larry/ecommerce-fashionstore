@@ -73,6 +73,117 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  void _showServerConfigDialog() {
+    final controller = TextEditingController(text: AuthService.apiBaseUrl);
+    bool testing = false;
+    String? testStatus;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.dns, color: Color(0xFFC66F5C)),
+              SizedBox(width: 8),
+              Text('Servidor Backend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingresa la IP o URL de tu PC donde corre el backend FastAPI (sin cables):',
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: 'URL de la API',
+                  hintText: 'http://10.10.151.229:8000/api/v1',
+                  prefixIcon: const Icon(Icons.link),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: testing
+                        ? null
+                        : () async {
+                            setDialogState(() {
+                              testing = true;
+                              testStatus = null;
+                            });
+                            final ok = await AuthService.testConnection(controller.text);
+                            setDialogState(() {
+                              testing = false;
+                              testStatus = ok ? 'Conectado exitosamente ✅' : 'No responde el backend ❌';
+                            });
+                          },
+                    icon: testing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bolt, size: 16),
+                    label: const Text('Probar Conexión', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (testStatus != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  testStatus!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: testStatus!.contains('✅') ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFC66F5C),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(ctx);
+                await AuthService.setCustomBaseUrl(controller.text);
+                if (mounted) {
+                  setState(() {});
+                  nav.pop();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Servidor configurado: ${AuthService.apiBaseUrl}'),
+                      backgroundColor: const Color(0xFF4CAF50),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,6 +241,21 @@ class _LoginViewState extends State<LoginView> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Positioned(
+                  top: 40,
+                  right: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.wifi, color: Colors.white, size: 20),
+                      tooltip: 'Configuración de Servidor / IP',
+                      onPressed: _showServerConfigDialog,
+                    ),
                   ),
                 ),
               ],
@@ -339,6 +465,24 @@ class _LoginViewState extends State<LoginView> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Botón para entrar al catálogo libremente
+                  Center(
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.storefront_outlined, color: Color(0xFF706361), size: 18),
+                      label: const Text(
+                        'Explorar catálogo sin iniciar sesión',
+                        style: TextStyle(color: Color(0xFF706361), fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const StoreShell()),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),

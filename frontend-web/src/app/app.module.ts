@@ -21,6 +21,15 @@ import { AuditComponent } from './packages/seguridad_y_usuarios/audit/audit.comp
 import { StoreHomeComponent } from './packages/catalogo_y_tiendas/store/store-home.component';
 import { ProductDetailComponent } from './packages/catalogo_y_tiendas/store/product-detail.component';
 import { WishlistComponent } from './packages/catalogo_y_tiendas/store/wishlist.component';
+import { PromotionsComponent } from './packages/catalogo_y_tiendas/promotions/promotions.component';
+import { ReviewsModerationComponent } from './packages/catalogo_y_tiendas/reviews-moderation/reviews-moderation.component';
+import { TransfersComponent } from './packages/inventario_y_proveedores/transfers/transfers.component';
+import { StockAlertsComponent } from './packages/inventario_y_proveedores/stock-alerts/stock-alerts.component';
+import { PosComponent } from './packages/ventas_y_pagos/pos/pos.component';
+import { CashShiftComponent } from './packages/ventas_y_pagos/cash-shift/cash-shift.component';
+import { QuotationsReturnsComponent } from './packages/ventas_y_pagos/quotations-returns/quotations-returns.component';
+import { CustomerOrdersComponent } from './packages/ventas_y_pagos/orders/customer-orders.component';
+import { CartModalComponent } from './packages/ventas_y_pagos/cart/cart-modal.component';
 import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.interceptor';
 
 @NgModule({
@@ -41,7 +50,16 @@ import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.intercepto
     AuditComponent,
     StoreHomeComponent,
     ProductDetailComponent,
-    WishlistComponent
+    WishlistComponent,
+    PromotionsComponent,
+    ReviewsModerationComponent,
+    TransfersComponent,
+    StockAlertsComponent,
+    PosComponent,
+    CashShiftComponent,
+    QuotationsReturnsComponent,
+    CustomerOrdersComponent,
+    CartModalComponent
   ],
   imports: [
     BrowserModule,

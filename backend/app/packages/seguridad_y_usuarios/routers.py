@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -68,6 +69,46 @@ class RoleChecker:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos suficientes para realizar esta acción."
         )
+
+# --- SEPARACIÓN POR SUCURSAL ---
+@dataclass
+class BranchScope:
+    """Resultado de resolver a qué sucursal está atado el usuario autenticado."""
+    is_central: bool
+    branch_id: Optional[int]
+
+
+def _resolve_branch_id(current_user: User, db: Session) -> Optional[int]:
+    """Busca la sucursal asignada al usuario en branch_employees (1 sucursal por usuario).
+
+    Import local para evitar un ciclo de imports: catalogo_y_tiendas.branches.models
+    importa User desde este paquete.
+    """
+    from app.packages.catalogo_y_tiendas.branches.models import branch_employees
+    row = db.execute(
+        branch_employees.select().where(branch_employees.c.user_id == current_user.id)
+    ).first()
+    return row.branch_id if row else None
+
+
+def get_branch_scope(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BranchScope:
+    """[Separación por sucursal] SUPERADMIN = central (ve todo); ENCARGADO/CAJERO quedan
+    fijos a la sucursal que tengan asignada en branch_employees. Se resuelve en cada
+    request (no en el JWT) para no invalidar sesiones ya activas."""
+    user_roles = [r.name for r in current_user.roles]
+    if "SUPERADMIN" in user_roles:
+        return BranchScope(is_central=True, branch_id=None)
+
+    branch_id = _resolve_branch_id(current_user, db)
+    if branch_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu usuario no tiene una sucursal asignada. Contacta a un administrador.",
+        )
+    return BranchScope(is_central=False, branch_id=branch_id)
 
 # --- BITÁCORA AUDITORA ---
 def log_event(db: Session, user_id: int, action: str, table: str, row_id: int, details: dict, ip: str = None):
@@ -199,25 +240,32 @@ def recover_credentials(data: UserRecover, request: Request, db: Session = Depen
     # [CU03 - Paso 5] / [DSC003 - Paso 5] +generar_y_enviar_token()
     token = secrets.token_urlsafe(32)
     user.reset_token = token
+    # Vencimiento oficial del sistema según CU03: estrictamente 5 minutos
     user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=5)
     db.commit()
 
-    # Enviar el correo con el enlace de restablecimiento (válido 5 minutos).
-    reset_link = f"{settings.FRONTEND_URL}/recover?token={token}"
-    sent = send_password_recovery_email(user.email, reset_link)
-    print(f"[DEBUG] Enlace de recuperación para {user.email}: {reset_link}")
+    # Detectar URL base dinámica desde headers de la petición (Origin / Referer)
+    # para que el enlace del correo siempre dirija al frontend correcto donde está navegando el usuario
+    origin = request.headers.get("origin")
+    if not origin:
+        referer = request.headers.get("referer")
+        if referer:
+            origin = referer.split("/recover")[0].rstrip("/")
+    base_url = origin if origin else settings.FRONTEND_URL
+    reset_link = f"{base_url}/recover?token={token}"
 
-    log_event(db, user.id, "RECOVER", "users", user.id, {"email": user.email}, request.client.host)
+    sent = send_password_recovery_email(user.email, reset_link)
+    print(f"[RECOVER] Enlace de recuperación para {user.email}: {reset_link} (Enviado por SMTP: {sent})")
+
+    log_event(db, user.id, "RECOVER", "users", user.id, {"email": user.email, "sent": sent}, request.client.host)
     # [CU03 - Paso 6] / [DSC003 - Paso 6] +Mensaje de éxito
-    response = {"message": "Si el correo está registrado, se enviará un enlace de recuperación."}
-    # Ayuda de desarrollo: si SMTP no está configurado, devolvemos el enlace para poder
-    # probar el flujo completo sin correo real. En producción (SMTP activo) NUNCA se expone.
+    response = {
+        "message": "Si el correo está registrado, se enviará un enlace de recuperación.",
+        "email_sent": sent,
+    }
+    # Solo en modo desarrollo local sin SMTP se expone dev_reset_link para pruebas
     if not settings.smtp_enabled:
         response["dev_reset_link"] = reset_link
-        response["message"] = (
-            "SMTP no configurado (modo desarrollo): usa el enlace de 'dev_reset_link' "
-            "o revísalo en la consola del servidor. Vence en 5 minutos."
-        )
     return response
 
 @router.post("/auth/reset-password")
@@ -227,10 +275,10 @@ def reset_password(data: PasswordReset, request: Request, db: Session = Depends(
     user = db.query(User).filter(User.reset_token == data.token).first()
     
     if not user:
-        raise HTTPException(status_code=400, detail="Token inválido o expirado.")
+        raise HTTPException(status_code=400, detail="El enlace es inválido o expiró (5 minutos).")
     
     if not user.reset_token_expires or datetime.now(timezone.utc) > user.reset_token_expires:
-        raise HTTPException(status_code=400, detail="El token de recuperación ha expirado (límite 5 minutos).")
+        raise HTTPException(status_code=400, detail="El enlace es inválido o expiró (5 minutos).")
 
     # [CU03 - Paso 9] / [DSC003 - Paso 9] +update_password(hash)
     user.password_hash = get_password_hash(data.new_password)
@@ -242,6 +290,29 @@ def reset_password(data: PasswordReset, request: Request, db: Session = Depends(
     log_event(db, user.id, "RESET_PASSWORD", "users", user.id, {"email": user.email}, request.client.host)
     # [CU03 - Paso 11] / [DSC003 - Paso 11] +Redirigir a Login (en frontend)
     return {"message": "Contraseña restablecida con éxito."}
+
+@router.get("/auth/me", response_model=UserDetailResponse)
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """[Separación por sucursal] Perfil del usuario autenticado, enriquecido con su
+    sucursal (si aplica) e is_central. No lanza error si un ENCARGADO/CAJERO aún no
+    tiene sucursal asignada: simplemente devuelve branch_id=None para que la UI pueda
+    mostrar un mensaje claro en vez de romper el login."""
+    user_roles = [r.name for r in current_user.roles]
+    is_central = "SUPERADMIN" in user_roles
+    branch_id = None
+    branch_name = None
+    if not is_central:
+        branch_id = _resolve_branch_id(current_user, db)
+        if branch_id is not None:
+            from app.packages.catalogo_y_tiendas.branches.models import Branch
+            branch = db.query(Branch).filter(Branch.id == branch_id).first()
+            branch_name = branch.name if branch else None
+
+    response = UserDetailResponse.model_validate(current_user)
+    response.is_central = is_central
+    response.branch_id = branch_id
+    response.branch_name = branch_name
+    return response
 
 # --- ENDPOINTS: USUARIOS ---
 admin_check = RoleChecker(allowed_roles=["SUPERADMIN"])

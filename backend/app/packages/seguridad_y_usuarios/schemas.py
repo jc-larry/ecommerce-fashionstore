@@ -41,6 +41,9 @@ class UserResponse(BaseModel):
     last_name: str
     phone: Optional[str]
     is_active: bool
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = None
+    is_central: bool = False
 
     class Config:
         from_attributes = True
@@ -105,6 +108,9 @@ class UserDetailResponse(BaseModel):
     phone: Optional[str]
     is_active: bool
     roles: List[RoleResponse]
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = None
+    is_central: bool = False
 
     class Config:
         from_attributes = True

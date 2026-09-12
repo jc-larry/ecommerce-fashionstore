@@ -1,0 +1,265 @@
+<div *ngIf="isOpen" class="cart-backdrop d-flex justify-content-end" (click)="closeModal()">
+  <div class="cart-drawer bg-white shadow-lg d-flex flex-column h-100 animate__animated animate__slideInRight" (click)="$event.stopPropagation()">
+
+    <!-- Header Drawer -->
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-bag-check-fill text-primary fs-4"></i>
+        <h5 class="fw-bold mb-0">
+          <span *ngIf="currentStep === 'CART'">Mi Carrito de Compras</span>
+          <span *ngIf="currentStep === 'CHECKOUT'">Finalizar Compra & Facturación</span>
+          <span *ngIf="currentStep === 'SUCCESS'">¡Compra Confirmada!</span>
+        </h5>
+      </div>
+      <button class="btn btn-sm btn-light rounded-circle" (click)="closeModal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- PASO 1: VISTA DE CARRITO -->
+    <div *ngIf="currentStep === 'CART'" class="flex-grow-1 overflow-auto p-3">
+      <!-- Tarjeta de Validación -->
+      <div class="validation-card validation-card-error mb-3" *ngIf="errorMessage">
+        <div class="val-icon">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+        </div>
+        <div class="val-content">
+          <div class="val-title">Atención</div>
+          <div class="val-desc">{{ errorMessage }}</div>
+        </div>
+        <button class="val-close" (click)="errorMessage = ''" title="Cerrar">&times;</button>
+      </div>
+
+      <!-- Estado para usuario invitado / no autenticado -->
+      <div *ngIf="!auth.isLoggedIn()" class="text-center py-4 px-2">
+        <div class="brand-badge mx-auto mb-3 shadow-sm" style="width: 60px; height: 60px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; background: #e0e7ff; color: #4338ca; border-radius: 50%;">
+          <i class="bi bi-bag-check-fill"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2">Inicia sesión para comprar</h5>
+        <p class="text-muted small mb-4">
+          Como en las mejores tiendas de moda, puedes ver todo nuestro catálogo libremente. Para procesar tu compra, reservar stock y coordinar entrega o retiro en sucursal, identifícate con tu cuenta.
+        </p>
+
+        <div class="d-grid gap-2 mb-3">
+          <button class="btn btn-primary py-2 fw-bold rounded-pill shadow-sm" (click)="goToLogin()">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión
+          </button>
+          <button class="btn btn-outline-primary py-2 fw-bold rounded-pill" (click)="goToRegister()">
+            <i class="bi bi-person-plus me-1"></i> Crear Cuenta de Cliente
+          </button>
+        </div>
+        <span class="text-muted" style="font-size: 0.75rem;">
+          <i class="bi bi-shield-check text-success me-1"></i> Tus datos y pedidos están protegidos.
+        </span>
+      </div>
+
+      <!-- Estado para usuario autenticado: carrito vacío -->
+      <div *ngIf="auth.isLoggedIn() && (!cart || cart.items.length === 0)" class="text-center py-5 text-muted">
+        <i class="bi bi-cart-x display-3 opacity-25 d-block mb-3"></i>
+        <h5 class="fw-bold text-dark">Tu carrito está vacío</h5>
+        <p class="small text-muted">Explora las colecciones y agrega tus prendas favoritas.</p>
+      </div>
+
+      <!-- Estado para usuario autenticado: productos en carrito -->
+      <div *ngIf="auth.isLoggedIn() && cart && cart.items.length > 0">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small text-muted">{{ cart.items_count }} prendas agregadas</span>
+          <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none" (click)="clearAll()">
+            Vaciar
+          </button>
+        </div>
+
+        <div class="d-flex flex-column gap-3 mb-3">
+          <div *ngFor="let item of cart.items" class="p-2 border rounded-3 bg-light d-flex gap-3 align-items-center">
+            <img [src]="item.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=100'"
+                 class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+            <div class="flex-grow-1">
+              <strong class="d-block small text-truncate" style="max-width: 180px;">{{ item.product_name }}</strong>
+              <small class="text-muted d-block" style="font-size: 0.72rem;">{{ item.size }} &bull; {{ item.color }}</small>
+              <span class="text-primary fw-bold small">Bs. {{ item.unit_price | number:'1.2-2' }}</span>
+            </div>
+
+            <!-- Cantidades +/- con control de stock -->
+            <div class="d-flex align-items-center gap-1">
+              <button class="btn btn-sm btn-white border px-2 py-0" (click)="updateQuantity(item, -1)">-</button>
+              <span class="small fw-bold px-1">{{ item.quantity }}</span>
+              <button class="btn btn-sm btn-white border px-2 py-0" (click)="updateQuantity(item, 1)" [disabled]="item.quantity >= item.stock_available">+</button>
+            </div>
+
+            <div class="text-end">
+              <div class="fw-bold text-dark small">Bs. {{ item.subtotal | number:'1.2-2' }}</div>
+              <button class="btn btn-sm btn-link text-danger p-0" (click)="removeItem(item)" style="font-size: 0.75rem;">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2: CHECKOUT Y FACTURACIÓN -->
+    <div *ngIf="currentStep === 'CHECKOUT'" class="flex-grow-1 overflow-auto p-3">
+      <!-- Tarjeta de Validación -->
+      <div class="validation-card validation-card-error mb-3" *ngIf="errorMessage">
+        <div class="val-icon">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+        </div>
+        <div class="val-content">
+          <div class="val-title">Atención</div>
+          <div class="val-desc">{{ errorMessage }}</div>
+        </div>
+        <button class="val-close" (click)="errorMessage = ''" title="Cerrar">&times;</button>
+      </div>
+
+      <!-- Sucursal de retiro / despacho -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Sucursal de Despacho *</label>
+        <select class="form-select form-select-sm" [(ngModel)]="selectedBranchId">
+          <option *ngFor="let b of branches" [value]="b.id">{{ b.name }} ({{ b.city || 'Santa Cruz' }})</option>
+        </select>
+      </div>
+
+      <!-- Cupón de descuento -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Cupón de Descuento (opcional)</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light"><i class="bi bi-percent"></i></span>
+          <input type="text" class="form-control" placeholder="Ej: BIENVENIDA10" [(ngModel)]="couponCode">
+        </div>
+      </div>
+
+      <!-- Facturación Fiscal -->
+      <div class="bg-light p-3 rounded-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label small fw-bold text-uppercase mb-0">Datos de Facturación</label>
+          <div class="btn-group btn-group-sm">
+            <button class="btn" [class.btn-primary]="docType === 'FACTURA'" [class.btn-light]="docType !== 'FACTURA'" (click)="docType = 'FACTURA'">Factura</button>
+            <button class="btn" [class.btn-primary]="docType === 'NOTA_ENTREGA'" [class.btn-light]="docType !== 'NOTA_ENTREGA'" (click)="docType = 'NOTA_ENTREGA'">Nota Entrega</button>
+          </div>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-5">
+            <input type="text" class="form-control form-control-sm" placeholder="NIT / CI" [(ngModel)]="customerNit">
+          </div>
+          <div class="col-7">
+            <input type="text" class="form-control form-control-sm" placeholder="Razón Social / Nombre" [(ngModel)]="customerName">
+          </div>
+        </div>
+      </div>
+
+      <!-- Medio de Pago Polimórfico (CU18) -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-uppercase d-block mb-1">Método de Pago</label>
+        <div class="row g-1 mb-2">
+          <div class="col-6">
+            <button class="btn btn-sm w-100 border text-truncate"
+                    [class.btn-primary]="paymentType === 'TARJETA'"
+                    [class.btn-light]="paymentType !== 'TARJETA'"
+                    (click)="paymentType = 'TARJETA'">
+              <i class="bi bi-credit-card me-1"></i> Tarjeta Online
+            </button>
+          </div>
+          <div class="col-6">
+            <button class="btn btn-sm w-100 border text-truncate"
+                    [class.btn-primary]="paymentType === 'QR'"
+                    [class.btn-light]="paymentType !== 'QR'"
+                    (click)="paymentType = 'QR'">
+              <i class="bi bi-qr-code me-1"></i> Pago QR
+            </button>
+          </div>
+        </div>
+
+        <!-- Campos de Tarjeta -->
+        <div *ngIf="paymentType === 'TARJETA'" class="p-2 border rounded-3 bg-light">
+          <div class="row g-2">
+            <div class="col-6">
+              <select class="form-select form-select-sm" [(ngModel)]="cardBrand">
+                <option value="VISA">VISA</option>
+                <option value="MASTERCARD">MasterCard</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <input type="text" class="form-control form-control-sm" placeholder="Últimos 4 dígitos" maxlength="4" [(ngModel)]="cardLast4">
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="paymentType === 'QR'" class="p-3 bg-info-subtle rounded-3 text-center small text-info-emphasis">
+          <i class="bi bi-qr-code-scan fs-3 d-block mb-1"></i>
+          Se generará el QR interoperable de la red bancaria boliviana tras confirmar la compra.
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 3: ÉXITO Y RECIBO DIGITAL -->
+    <div *ngIf="currentStep === 'SUCCESS' && completedOrder" class="flex-grow-1 overflow-auto p-4 text-center">
+      <div class="avatar bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+        <i class="bi bi-check-lg fs-1"></i>
+      </div>
+      <h4 class="fw-bold mb-1">¡Gracias por tu compra!</h4>
+      <p class="text-muted small mb-3">Tu pedido ha sido procesado con éxito.</p>
+
+      <div class="card border rounded-3 p-3 bg-light text-start mb-3 font-monospace small">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Orden:</span>
+          <strong>{{ completedOrder.order_number }}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.invoice">
+          <span class="text-muted">Factura Fiscal:</span>
+          <span>{{ completedOrder.invoice.doc_type }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.invoice?.control_code">
+          <span class="text-muted">Código Control:</span>
+          <span>{{ completedOrder.invoice?.control_code }}</span>
+        </div>
+        <hr class="my-2">
+        <div class="d-flex justify-content-between fw-bold fs-6">
+          <span>TOTAL:</span>
+          <span class="text-primary">Bs. {{ completedOrder.total_amount | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a routerLink="/tienda/pedidos" class="btn btn-outline-primary w-50 rounded-pill" (click)="closeModal()">
+          Ver Pedidos
+        </a>
+        <button class="btn btn-primary w-50 rounded-pill fw-bold" (click)="closeModal()">
+          Seguir en Tienda
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer con Totales y Botones -->
+    <div *ngIf="currentStep !== 'SUCCESS'" class="p-3 border-top bg-light">
+      <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="auth.isLoggedIn() && cart">
+        <span class="fw-bold">Total a Pagar</span>
+        <span class="fw-bold fs-4 text-primary">Bs. {{ cart.subtotal | number:'1.2-2' }}</span>
+      </div>
+
+      <div *ngIf="currentStep === 'CART'">
+        <button *ngIf="auth.isLoggedIn()" class="btn btn-primary btn-lg w-100 rounded-pill fw-bold"
+                [disabled]="!cart || cart.items.length === 0"
+                (click)="proceedToCheckout()">
+          Proceder al Pago <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+
+        <button *ngIf="!auth.isLoggedIn()" class="btn btn-outline-secondary w-100 rounded-pill fw-semibold"
+                (click)="closeModal()">
+          Explorar Catálogo de Ropa
+        </button>
+      </div>
+
+      <div *ngIf="currentStep === 'CHECKOUT'" class="d-flex gap-2">
+        <button class="btn btn-outline-secondary rounded-pill w-40" (click)="backToCart()">
+          <i class="bi bi-arrow-left me-1"></i> Carrito
+        </button>
+        <button class="btn btn-primary rounded-pill w-60 fw-bold" [disabled]="loading" (click)="submitOrder()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+          <i *ngIf="!loading" class="bi bi-lock-fill me-1"></i> Pagar y Facturar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

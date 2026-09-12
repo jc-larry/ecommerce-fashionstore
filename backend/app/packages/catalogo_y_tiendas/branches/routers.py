@@ -15,10 +15,9 @@ admin_check = RoleChecker(allowed_roles=["SUPERADMIN"])
 
 @router.get("", response_model=List[BranchResponse])
 def list_branches(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(admin_check)
+    db: Session = Depends(get_db)
 ):
-    """[CU06] Lista todas las sucursales de la cadena"""
+    """[CU06] Lista todas las sucursales de la cadena (público para selección de retiro/pickup en ventas)"""
     return db.query(Branch).all()
 
 @router.post("", response_model=BranchResponse, status_code=status.HTTP_201_CREATED)
@@ -87,6 +86,36 @@ def deactivate_branch(
 
     # Auditar desactivación (CU36)
     log_event(db, current_user.id, "UPDATE", "branches", branch.id, {"deactivated": True, "name": branch.name}, request.client.host)
+    return branch
+
+@router.patch("/{branch_id}/toggle-closure", response_model=BranchResponse)
+def toggle_branch_closure(
+    branch_id: int,
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_check)
+):
+    """[CU06] Abre o cierra temporalmente una sucursal por refacciones/arreglos/mantenimiento"""
+    branch = db.query(Branch).filter(Branch.id == branch_id).first()
+    if not branch:
+        raise HTTPException(status_code=404, detail="Sucursal no encontrada.")
+
+    branch.is_temporarily_closed = payload.get("is_temporarily_closed", not branch.is_temporarily_closed)
+    if "closure_reason" in payload:
+        branch.closure_reason = payload.get("closure_reason")
+
+    db.commit()
+    db.refresh(branch)
+
+    status_str = "Cerrada temporalmente" if branch.is_temporarily_closed else "Abierta al público"
+    log_event(db, current_user.id, "UPDATE", "branches", branch.id, {
+        "action": "TOGGLE_CLOSURE",
+        "is_temporarily_closed": branch.is_temporarily_closed,
+        "closure_reason": branch.closure_reason,
+        "name": branch.name
+    }, request.client.host)
+
     return branch
 
 @router.post("/{branch_id}/employees", response_model=BranchResponse)

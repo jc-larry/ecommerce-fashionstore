@@ -1,47 +1,122 @@
 <div class="admin-page">
   <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0">Gestión de Proveedores</h3>
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">Gestión de Proveedores de Confección</h3>
+      <p class="text-muted small mb-0">Directorio oficial de proveedores textiles, avíos y maquila con trazabilidad tributaria (NIT) y kárdex.</p>
+    </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="input-group input-group-sm" style="width: 240px;">
+      <!-- Filtro por categoría textil -->
+      <select class="form-select form-select-sm" style="width: 210px;" [(ngModel)]="categoryFilter">
+        <option value="">Todas las categorías</option>
+        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+
+      <div class="input-group input-group-sm" style="width: 220px;">
         <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" class="form-control" placeholder="Buscar proveedor…" [(ngModel)]="search">
+        <input type="text" class="form-control" placeholder="Buscar por NIT o nombre…" [(ngModel)]="search">
       </div>
-      <button class="btn btn-primary btn-sm fw-bold" (click)="openNew()">
+
+      <button class="btn btn-primary btn-sm fw-bold shadow-sm" (click)="openNew()">
         <i class="bi bi-plus-lg me-1"></i> Nuevo Proveedor
       </button>
     </div>
   </div>
 
-  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+  <!-- Alertas de estado con tarjeta de validación -->
+  <div class="validation-card validation-card-error mb-3" *ngIf="error">
+    <i class="bi bi-exclamation-triangle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Atención con el proveedor</div>
+      <p class="val-desc">{{ error }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="error = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
 
+  <div class="validation-card validation-card-success mb-3" *ngIf="success">
+    <i class="bi bi-check-circle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Operación exitosa</div>
+      <p class="val-desc">{{ success }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="success = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- Tabla de Proveedores con Trazabilidad -->
   <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover admin-table">
+        <table class="table table-hover align-middle admin-table mb-0">
           <thead>
             <tr>
-              <th>NIT</th>
-              <th>Nombre</th>
-              <th>Teléfono</th>
-              <th>Email</th>
-              <th>Dirección</th>
+              <th>NIT / RUC</th>
+              <th>Proveedor / Razón Social</th>
+              <th>Rubro / Categoría</th>
+              <th>Contacto</th>
+              <th>Dirección / Planta</th>
+              <th>Estado</th>
               <th class="text-end">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngIf="loading"><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="loading">
+              <td colspan="7" class="text-center text-muted py-4">
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                Cargando directorio de proveedores…
+              </td>
+            </tr>
             <tr *ngIf="!loading && filtered.length === 0">
-              <td colspan="6" class="text-center text-muted py-4">Sin proveedores registrados.</td>
+              <td colspan="7" class="text-center text-muted py-4">
+                No se encontraron proveedores coincidentes con los filtros aplicados.
+              </td>
             </tr>
             <tr *ngFor="let s of filtered">
-              <td class="fw-bold small text-muted">{{ s.nit }}</td>
-              <td class="fw-bold">{{ s.name }}</td>
-              <td class="text-muted small">{{ s.phone || '—' }}</td>
-              <td class="text-muted small">{{ s.email || '—' }}</td>
-              <td class="text-muted small">{{ s.address || '—' }}</td>
+              <td>
+                <span class="font-monospace fw-bold text-dark small">{{ s.nit }}</span>
+              </td>
+              <td>
+                <strong class="d-block text-dark">{{ s.name }}</strong>
+                <small class="text-muted" *ngIf="s.contact_name">
+                  <i class="bi bi-person me-1"></i>{{ s.contact_name }}
+                </small>
+              </td>
+              <td>
+                <span class="badge-category">
+                  {{ s.category || 'Telas y Textiles' }}
+                </span>
+              </td>
+              <td>
+                <div class="small text-dark" *ngIf="s.phone">
+                  <i class="bi bi-telephone text-muted me-1"></i>{{ s.phone }}
+                </div>
+                <div class="extra-small text-muted" *ngIf="s.email">
+                  <i class="bi bi-envelope me-1"></i>{{ s.email }}
+                </div>
+                <span class="text-muted extra-small" *ngIf="!s.phone && !s.email">—</span>
+              </td>
+              <td>
+                <span class="text-muted small">{{ s.address || 'Sin especificar' }}</span>
+              </td>
+              <td>
+                <span class="pill" [ngClass]="s.is_active !== false ? 'pill-ok' : 'pill-off'">
+                  <span class="pill-dot"></span>
+                  {{ s.is_active !== false ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-light border fw-bold me-2" (click)="openEdit(s)">Editar</button>
-                <button class="btn btn-sm btn-light border text-danger fw-bold" (click)="remove(s)">Eliminar</button>
+                <button class="btn-action me-1" (click)="openEdit(s)" title="Editar datos">
+                  <i class="bi bi-pencil-square"></i> Editar
+                </button>
+                <button class="btn-action"
+                        [ngClass]="s.is_active !== false ? 'btn-action-danger' : 'text-success'"
+                        (click)="toggleStatus(s)"
+                        [title]="s.is_active !== false ? 'Desactivar para nuevas compras' : 'Reactivar proveedor'">
+                  <i class="bi" [ngClass]="s.is_active !== false ? 'bi-shield-slash' : 'bi-shield-check'"></i>
+                  {{ s.is_active !== false ? 'Desactivar' : 'Activar' }}
+                </button>
               </td>
             </tr>
           </tbody>
@@ -51,38 +126,134 @@
   </div>
 </div>
 
+<!-- Drawer / Slide-Over Form para Proveedor con Validaciones Guiadas -->
 <ng-container *ngIf="showForm">
   <div class="slide-overlay" (click)="closeForm()"></div>
   <div class="slide-panel">
     <div class="slide-panel-header d-flex justify-content-between align-items-center">
-      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar proveedor' : 'Nuevo proveedor' }}</h5>
+      <div>
+        <h5 class="fw-bold mb-0 text-dark">{{ editingId ? 'Editar Proveedor' : 'Registrar Nuevo Proveedor' }}</h5>
+        <small class="text-muted">Registro auditado con integridad de datos fiscales</small>
+      </div>
       <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
     </div>
+
     <div class="slide-panel-body">
-      <div class="mb-3">
-        <label class="form-label small fw-bold">NIT</label>
-        <input class="form-control" [(ngModel)]="form.nit">
+      <!-- Nota de integridad contable -->
+      <div class="alert alert-light border small rounded-3 mb-3 p-2.5 d-flex gap-2">
+        <i class="bi bi-info-circle-fill text-primary flex-shrink-0 mt-0.5"></i>
+        <span class="text-muted">
+          Los datos fiscales ingresados serán verificados en el prorrateo de costos y facturación de Kárdex.
+        </span>
       </div>
+
+      <!-- NIT / RUC -->
       <div class="mb-3">
-        <label class="form-label small fw-bold">Nombre / Razón social</label>
-        <input class="form-control" [(ngModel)]="form.name">
+        <label class="form-label small fw-bold text-dark">
+          NIT / RUC de la Empresa <span class="text-danger">*</span>
+        </label>
+        <input class="form-control"
+               [class.is-invalid]="validationErrors['nit']"
+               [(ngModel)]="form.nit"
+               placeholder="Ej. 1028475019"
+               maxlength="20">
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['nit']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['nit'] }}
+        </div>
+        <small class="text-muted extra-small" *ngIf="!validationErrors['nit']">
+          Identificador tributario único (mínimo 5 dígitos).
+        </small>
       </div>
+
+      <!-- Razón Social -->
       <div class="mb-3">
-        <label class="form-label small fw-bold">Email</label>
-        <input type="email" class="form-control" [(ngModel)]="form.email">
+        <label class="form-label small fw-bold text-dark">
+          Razón Social / Nombre Comercial <span class="text-danger">*</span>
+        </label>
+        <input class="form-control"
+               [class.is-invalid]="validationErrors['name']"
+               [(ngModel)]="form.name"
+               placeholder="Ej. Textiles Santa Cruz S.R.L.">
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['name']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['name'] }}
+        </div>
       </div>
+
+      <!-- Rubro / Categoría de Suministro -->
       <div class="mb-3">
-        <label class="form-label small fw-bold">Teléfono</label>
-        <input class="form-control" [(ngModel)]="form.phone">
+        <label class="form-label small fw-bold text-dark">
+          Rubro / Categoría de Suministro <span class="text-danger">*</span>
+        </label>
+        <select class="form-select"
+                [class.is-invalid]="validationErrors['category']"
+                [(ngModel)]="form.category">
+          <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+        </select>
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['category']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['category'] }}
+        </div>
       </div>
+
+      <!-- Persona de Contacto -->
       <div class="mb-3">
-        <label class="form-label small fw-bold">Dirección</label>
-        <input class="form-control" [(ngModel)]="form.address">
+        <label class="form-label small fw-bold text-dark">
+          Asesor Comercial / Persona de Contacto
+        </label>
+        <input class="form-control"
+               [(ngModel)]="form.contact_name"
+               placeholder="Ej. Lic. Carlos Mendoza (Gerente de Ventas)">
+      </div>
+
+      <!-- Email Corporativo -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">
+          Email Corporativo de Facturación
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-envelope text-muted"></i></span>
+          <input type="email"
+                 class="form-control"
+                 [class.is-invalid]="validationErrors['email']"
+                 [(ngModel)]="form.email"
+                 placeholder="contacto@empresa.com">
+        </div>
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['email']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['email'] }}
+        </div>
+      </div>
+
+      <!-- Teléfono -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">
+          Teléfono / Celular de Pedidos
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-telephone text-muted"></i></span>
+          <input class="form-control"
+                 [class.is-invalid]="validationErrors['phone']"
+                 [(ngModel)]="form.phone"
+                 placeholder="Ej. +591 3 3421100">
+        </div>
+        <div class="invalid-feedback d-block" *ngIf="validationErrors['phone']">
+          <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['phone'] }}
+        </div>
+      </div>
+
+      <!-- Dirección -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Dirección de Planta / Almacén Central</label>
+        <input class="form-control"
+               [(ngModel)]="form.address"
+               placeholder="Ej. Parque Industrial Mza 12, Santa Cruz">
       </div>
     </div>
+
     <div class="slide-panel-footer d-flex gap-2 justify-content-end">
       <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
-      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+      <button class="btn btn-primary fw-bold shadow-sm" (click)="save()">
+        <i class="bi bi-check-circle-fill me-1"></i>
+        {{ editingId ? 'Guardar Cambios' : 'Registrar Proveedor' }}
+      </button>
     </div>
   </div>
 </ng-container>

@@ -2,6 +2,7 @@ import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from './packages/seguridad_y_usuarios/auth.service';
+import { BranchContextService } from './packages/catalogo_y_tiendas/branches/branch-context.service';
 
 @Component({
   selector: 'app-root',
@@ -26,9 +27,48 @@ export class AppComponent implements OnInit, OnDestroy {
     '/admin/audit': 'Bitácora de Auditoría',
   };
 
-  constructor(public authService: AuthService, private router: Router) {}
+  activeBranchKey: string = 'central';
+
+  constructor(
+    public authService: AuthService,
+    public branchContext: BranchContextService,
+    private router: Router
+  ) {}
+
+  onBranchKeyChange(val: string): void {
+    this.activeBranchKey = val;
+    if (val === 'central') {
+      this.branchContext.setActiveBranchById(null);
+    } else {
+      this.branchContext.setActiveBranchById(Number(val));
+    }
+  }
+
+  onBranchChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.onBranchKeyChange(select.value);
+  }
+
+  showExitModal: boolean = false;
+
+  openExitModal(): void {
+    this.showExitModal = true;
+  }
+
+  cancelExitModal(): void {
+    this.showExitModal = false;
+  }
+
+  confirmExitBranch(): void {
+    this.showExitModal = false;
+    this.branchContext.setActiveBranchById(null);
+    this.router.navigate(['/admin/branches']);
+  }
 
   ngOnInit() {
+    this.branchContext.activeBranch$.subscribe((b) => {
+      this.activeBranchKey = b ? b.id.toString() : 'central';
+    });
     this.resetTimer();
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))

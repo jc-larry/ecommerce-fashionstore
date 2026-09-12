@@ -99,4 +99,88 @@ class CatalogApi {
         : await http.delete(uri, headers: h).timeout(_timeout);
     return r.statusCode == 200;
   }
+
+  // ---------- BÚSQUEDA Y DISPONIBILIDAD POR SUCURSAL (CU12) ----------
+  static Future<Map<String, dynamic>?> fetchFilterOptions() async {
+    final r = await http
+        .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/filter-options'), headers: await _headers())
+        .timeout(_timeout);
+    return r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic> : null;
+  }
+
+  static Future<Map<String, dynamic>> searchProducts({
+    String? q,
+    int? categoryId,
+    int? branchId,
+    int? sizeId,
+    int? colorId,
+    double? minPrice,
+    double? maxPrice,
+    bool inStockOnly = false,
+    String sortBy = 'newest',
+    int page = 1,
+    int limit = 30,
+  }) async {
+    final params = <String, String>{
+      if (q != null && q.isNotEmpty) 'q': q,
+      if (categoryId != null) 'category_id': categoryId.toString(),
+      if (branchId != null) 'branch_id': branchId.toString(),
+      if (sizeId != null) 'size_id': sizeId.toString(),
+      if (colorId != null) 'color_id': colorId.toString(),
+      if (minPrice != null) 'min_price': minPrice.toString(),
+      if (maxPrice != null) 'max_price': maxPrice.toString(),
+      if (inStockOnly) 'in_stock_only': 'true',
+      'sort_by': sortBy,
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+
+    final uri = Uri.parse('${AuthService.apiBaseUrl}/catalog/products/search').replace(queryParameters: params);
+    final r = await http.get(uri, headers: await _headers()).timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    return {'items': [], 'total': 0, 'page': 1, 'limit': limit, 'total_pages': 1};
+  }
+
+  static Future<Map<String, dynamic>?> fetchProductBranchAvailability(int productId) async {
+    final r = await http
+        .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/products/$productId/branch-availability'), headers: await _headers())
+        .timeout(_timeout);
+    return r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic> : null;
+  }
+
+  // ---------- PROMOCIONES Y CUPONES (CU13) ----------
+  static Future<Map<String, dynamic>> validateCoupon(String code, double cartTotal) async {
+    final uri = Uri.parse('${AuthService.apiBaseUrl}/catalog/coupons/validate');
+    final r = await http.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'code': code, 'cart_total': cartTotal}),
+    ).timeout(_timeout);
+    return jsonDecode(r.body) as Map<String, dynamic>;
+  }
+
+  // ---------- WISHLISTS MÚLTIPLES Y COMPARTIBLES (CU14+) ----------
+  static Future<List<dynamic>> fetchUserWishlists() async {
+    final r = await http
+        .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/wishlists'), headers: await _headers())
+        .timeout(_timeout);
+    return r.statusCode == 200 ? jsonDecode(r.body) as List : [];
+  }
+
+  static Future<Map<String, dynamic>?> createWishlist(String name, {bool isPublic = false}) async {
+    final r = await http.post(
+      Uri.parse('${AuthService.apiBaseUrl}/catalog/wishlists'),
+      headers: await _headers(),
+      body: jsonEncode({'name': name, 'is_public': isPublic}),
+    ).timeout(_timeout);
+    return r.statusCode == 201 ? jsonDecode(r.body) as Map<String, dynamic> : null;
+  }
+
+  static Future<Map<String, dynamic>?> fetchSharedWishlist(String shareToken) async {
+    final r = await http
+        .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/wishlists/shared/$shareToken'))
+        .timeout(_timeout);
+    return r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic> : null;
+  }
 }
+

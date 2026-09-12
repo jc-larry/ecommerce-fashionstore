@@ -21,6 +21,8 @@ class BranchBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     is_active: Optional[bool] = True
+    is_temporarily_closed: Optional[bool] = False
+    closure_reason: Optional[str] = None
 
 class BranchCreate(BranchBase):
     pass
@@ -43,6 +45,8 @@ class BranchUpdate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     is_active: Optional[bool] = None
+    is_temporarily_closed: Optional[bool] = None
+    closure_reason: Optional[str] = None
 
 class BranchResponse(BranchBase):
     id: int

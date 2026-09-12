@@ -1,53 +1,101 @@
 <div class="admin-page">
-  <h3 class="fw-bold mb-4">Dashboard</h3>
-
-  <div class="card border-0 rounded-4 text-white mb-4" style="background-color: #D2624C;">
-    <div class="card-body px-4 py-3">
-      <h5 class="fw-bold mb-1">¡Bienvenid@ de vuelta, {{ userName }}!</h5>
-      <p class="mb-0 text-white-50 small">
-        Resumen de las operaciones clave de FashionStore en todo el territorio boliviano.
-      </p>
+  <!-- Encabezado de bienvenida con gradiente sutil de marca -->
+  <div class="card border-0 text-white mb-4 shadow-sm" style="background: linear-gradient(135deg, #C66F5C 0%, #A95848 100%);">
+    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-white bg-opacity-25 text-white fw-bold px-2 py-1" style="font-size: 0.72rem;">PANEL OPERATIVO</span>
+          <span class="badge rounded-pill fw-bold"
+                [ngClass]="isCentral ? 'bg-dark bg-opacity-25 text-white' : 'bg-white text-dark shadow-sm'"
+                style="font-size: 0.75rem;">
+            <i class="bi" [ngClass]="isCentral ? 'bi-building' : 'bi-geo-alt-fill text-danger'"></i>
+            {{ isCentral ? 'Modo Casa Matriz (Consolidado)' : 'Sucursal: ' + activeBranchName + ' (' + activeBranchCity + ')' }}
+          </span>
+        </div>
+        <h4 class="fw-bold mb-1 text-white">¡Bienvenid&#64;, {{ userName }}!</h4>
+        <p class="mb-0 text-white-50 small" style="max-width: 600px;">
+          {{ isCentral ? 'Supervisión consolidada de toda la cadena: sucursales, inventario global y métricas centrales.' : 'Operando exclusivamente con los datos, inventario y turno de caja de ' + activeBranchName + '.' }}
+        </p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a routerLink="/admin/products" class="btn btn-sm btn-light text-primary fw-bold px-3 shadow-sm">
+          <i class="bi bi-tag-fill me-1"></i> Catálogo
+        </a>
+        <a routerLink="/admin/pos" class="btn btn-sm btn-outline-light fw-bold px-3">
+          <i class="bi bi-shop me-1"></i> Punto de Venta
+        </a>
+        <button *ngIf="!isCentral" class="btn btn-sm btn-light text-danger fw-bold px-3 shadow-sm d-flex align-items-center gap-1"
+                (click)="exitBranch()" title="Salir de esta sucursal y volver a Casa Matriz">
+          <i class="bi bi-box-arrow-left"></i> Salir a Casa Matriz
+        </button>
+      </div>
     </div>
   </div>
 
+  <!-- Métricas Clave (KPIs) con diseño armónico -->
   <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3" *ngFor="let s of stats">
       <div class="card stat-card h-100">
         <div class="card-body p-4">
           <div class="d-flex justify-content-between align-items-start mb-3">
-            <span class="stat-label">{{ s.label }}</span>
-            <div class="stat-icon"><i class="bi {{ s.icon }}"></i></div>
+            <span class="stat-label text-muted">{{ s.label }}</span>
+            <div class="stat-icon">
+              <i class="bi {{ s.icon }}"></i>
+            </div>
           </div>
-          <div class="stat-value">{{ loading ? '—' : s.value }}</div>
+          <div class="d-flex flex-column">
+            <div class="stat-value">{{ loading ? '—' : s.value }}</div>
+            <small class="text-muted mt-1" style="font-size: 0.75rem;">{{ s.subtitle || 'registros' }}</small>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm rounded-4">
+  <!-- Actividad Reciente con Línea de Tiempo legible -->
+  <div class="card shadow-sm border-0">
     <div class="card-body p-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold mb-0">Actividad Reciente en la Plataforma</h5>
-        <a routerLink="/admin/audit" class="btn btn-sm btn-light border fw-bold">Ver Auditoría Completa</a>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-2 border-bottom">
+        <div>
+          <h5 class="fw-bold mb-1 text-dark">Actividad Reciente en la Plataforma</h5>
+          <small class="text-muted">Registro en vivo de eventos de seguridad y transacciones comerciales</small>
+        </div>
+        <a routerLink="/admin/audit" class="btn-action">
+          <i class="bi bi-shield-check text-primary"></i> Ver Auditoría Completa
+        </a>
       </div>
 
-      <p class="text-muted small mb-0" *ngIf="!loading && recentLogs.length === 0">
-        Todavía no hay actividad registrada.
+      <div *ngIf="loading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <span class="ms-2 text-muted small">Cargando bitácora…</span>
+      </div>
+
+      <p class="text-muted small mb-0 py-3 text-center" *ngIf="!loading && recentLogs.length === 0">
+        <i class="bi bi-info-circle me-1"></i> Todavía no hay actividad registrada en la plataforma.
       </p>
 
-      <ul class="list-unstyled mb-0">
-        <li class="d-flex justify-content-between py-3 border-bottom align-items-center"
-            *ngFor="let l of recentLogs">
+      <div class="d-flex flex-column gap-3" *ngIf="!loading && recentLogs.length > 0">
+        <div class="d-flex align-items-center justify-content-between p-3 rounded-3 bg-light bg-opacity-50 border border-light"
+             *ngFor="let l of recentLogs">
           <div class="d-flex align-items-center gap-3">
-            <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #C66F5C;"></span>
+            <div class="stat-icon" style="width: 38px; height: 38px; border-radius: 10px;">
+              <i class="bi {{ getLogMeta(l).icon }}"></i>
+            </div>
             <div>
-              <span class="fw-bold text-dark">{{ l.action }}</span>
-              <span class="text-muted ms-2">en {{ l.table_name }} #{{ l.row_id }}</span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ getLogMeta(l).title }}</span>
+                <span class="pill" [ngClass]="getLogMeta(l).badgeClass">{{ getLogMeta(l).badge }}</span>
+              </div>
+              <small class="text-muted d-block">{{ getLogMeta(l).subtitle }}</small>
             </div>
           </div>
-          <span class="text-muted small">{{ l.timestamp | date:'dd/MM HH:mm' }}</span>
-        </li>
-      </ul>
+          <div class="text-end">
+            <span class="badge bg-white text-muted border px-2 py-1" style="font-size: 0.72rem;">
+              <i class="bi bi-clock me-1 text-muted"></i>{{ l.timestamp | date:'dd/MM HH:mm' }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

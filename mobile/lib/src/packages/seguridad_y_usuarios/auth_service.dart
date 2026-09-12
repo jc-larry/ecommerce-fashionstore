@@ -24,16 +24,72 @@ class AuthService {
   static const String _baseUrlOverride =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
   static const String _host =
-      String.fromEnvironment('API_HOST', defaultValue: '192.168.0.12');
+      String.fromEnvironment('API_HOST', defaultValue: '10.10.151.229');
   static const String _port =
       String.fromEnvironment('API_PORT', defaultValue: '8000');
 
+  static String? _customApiBaseUrl;
+
   /// Base pública de la API (la usan también otras vistas, p. ej. el catálogo).
-  static final String apiBaseUrl = _baseUrlOverride.isNotEmpty
-      ? _baseUrlOverride
-      : 'http://$_host:$_port/api/v1';
-  static final String _baseUrl = '$apiBaseUrl/auth';
+  static String get apiBaseUrl {
+    if (_customApiBaseUrl != null && _customApiBaseUrl!.isNotEmpty) {
+      return _customApiBaseUrl!;
+    }
+    if (_baseUrlOverride.isNotEmpty) {
+      return _baseUrlOverride;
+    }
+    return 'http://$_host:$_port/api/v1';
+  }
+
+  static String get _baseUrl => '$apiBaseUrl/auth';
   static const Duration _timeout = Duration(seconds: 15);
+
+  /// Cargar URL personalizada guardada en preferencias (si existe).
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('custom_api_base_url');
+      if (saved != null && saved.trim().isNotEmpty) {
+        _customApiBaseUrl = saved.trim();
+      }
+    } catch (_) {}
+  }
+
+  /// Permite cambiar dinámicamente la IP/URL del backend desde la app sin cables.
+  static Future<void> setCustomBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    var clean = url.trim();
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    if (!clean.endsWith('/api/v1') && !clean.contains('/api/')) {
+      clean = '$clean/api/v1';
+    }
+    _customApiBaseUrl = clean;
+    await prefs.setString('custom_api_base_url', clean);
+  }
+
+  /// Probar conectividad con el backend
+  static Future<bool> testConnection([String? urlToTest]) async {
+    var target = urlToTest != null && urlToTest.trim().isNotEmpty ? urlToTest.trim() : apiBaseUrl;
+    while (target.endsWith('/')) {
+      target = target.substring(0, target.length - 1);
+    }
+    if (!target.endsWith('/api/v1') && !target.contains('/api/')) {
+      target = '$target/api/v1';
+    }
+    try {
+      final r = await http.get(Uri.parse('$target/branches')).timeout(const Duration(seconds: 4));
+      return r.statusCode == 200;
+    } catch (_) {
+      try {
+        final r = await http.get(Uri.parse(target.replaceAll('/api/v1', '/docs'))).timeout(const Duration(seconds: 4));
+        return r.statusCode == 200;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
 
   static Map<String, dynamic> _fail(String message) => {'success': false, 'message': message};
 

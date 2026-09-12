@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'catalog_api.dart';
+import '../ventas_y_pagos/ventas_api.dart';
+import '../ventas_y_pagos/cart_view.dart';
 
 const _brand = Color(0xFFC66F5C);
 const _ink = Color(0xFF2B1F1D);
@@ -25,6 +27,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   int? _colorId;
   int? _sizeId;
   bool _inWishlist = false;
+  bool _addingToCart = false;
 
   int _myRating = 0;
   final _commentCtrl = TextEditingController();
@@ -140,6 +143,51 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         _ratingAvg = (rv['summary']['average'] as num).toDouble();
         _ratingCount = rv['summary']['count'] as int;
       });
+    }
+  }
+
+  int? get _selectedVariantId {
+    if (_product == null || _colorId == null || _sizeId == null) return null;
+    final vars = _product!['variants'] as List? ?? [];
+    for (final v in vars) {
+      if (v['color_id'] == _colorId && v['size']?['id'] == _sizeId) {
+        return v['id'] as int;
+      }
+    }
+    return vars.isNotEmpty ? vars.first['id'] as int : null;
+  }
+
+  Future<void> _addToCart() async {
+    final vId = _selectedVariantId;
+    if (vId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona color y talla disponibles.')),
+      );
+      return;
+    }
+
+    setState(() => _addingToCart = true);
+    final res = await VentasApi.addToCart(vId, 1);
+    if (!mounted) return;
+    setState(() => _addingToCart = false);
+
+    if (res['ok']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('¡Prenda añadida al carrito!'),
+          action: SnackBarAction(
+            label: 'Ver Carrito',
+            textColor: Colors.amberAccent,
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView()));
+            },
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['detail'] ?? 'Stock insuficiente.')),
+      );
     }
   }
 
@@ -356,9 +404,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             SizedBox(
               width: double.infinity, height: 48,
               child: ElevatedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.shopping_bag_outlined),
-                label: const Text('Añadir al carrito (próximamente)'),
+                onPressed: _addingToCart ? null : _addToCart,
+                icon: _addingToCart
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.shopping_bag_outlined),
+                label: Text(_addingToCart ? 'Añadiendo…' : 'Añadir al carrito'),
                 style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               ),

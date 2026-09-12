@@ -1,0 +1,224 @@
+<div class="admin-page">
+  <!-- ENCABEZADO -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">Transferencias entre Sucursales</h3>
+      <p class="text-muted small mb-0">Envío y recepción de prendas entre tiendas físicas para equilibrar existencias.</p>
+    </div>
+    <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" (click)="showCreateModal = true">
+      <i class="bi bi-plus-lg"></i>
+      <span>Nueva Transferencia</span>
+    </button>
+  </div>
+
+  <!-- MENSAJES DE VALIDACIÓN -->
+  <div *ngIf="successMessage" class="validation-card validation-card-success mb-3">
+    <i class="bi bi-check-circle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Transferencia procesada</div>
+      <p class="val-desc">{{ successMessage }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="successMessage = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="validation-card validation-card-error mb-3">
+    <i class="bi bi-exclamation-triangle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Atención en la transferencia</div>
+      <p class="val-desc">{{ errorMessage }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="errorMessage = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small fw-semibold">Estado de orden:</span>
+        <select class="form-select form-select-sm" style="width: 180px;" [(ngModel)]="statusFilter" (change)="loadTransfers()">
+          <option value="">Todos los estados</option>
+          <option value="SOLICITADA">Solicitadas</option>
+          <option value="EN_TRANSITO">En Tránsito</option>
+          <option value="COMPLETADA">Completadas</option>
+          <option value="CANCELADA">Canceladas</option>
+        </select>
+      </div>
+      <span class="badge bg-white border text-secondary shadow-sm">
+        <i class="bi bi-truck text-primary me-1"></i>{{ transfers.length }} transferencia(s)
+      </span>
+    </div>
+  </div>
+
+  <!-- TABLA DE TRANSFERENCIAS -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <p class="text-muted mt-2 small">Cargando transferencias…</p>
+  </div>
+
+  <div *ngIf="!loading && transfers.length === 0" class="text-center py-5 bg-white rounded-4 shadow-sm border">
+    <i class="bi bi-truck text-muted fs-1 d-block mb-2"></i>
+    <p class="mb-0 text-muted">No se registraron transferencias con los filtros aplicados.</p>
+  </div>
+
+  <div *ngIf="!loading && transfers.length > 0" class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table admin-table align-middle mb-0 table-hover">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Origen</th>
+            <th>Destino</th>
+            <th>Prendas</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let t of transfers">
+            <td>
+              <span class="badge bg-white border text-dark font-monospace shadow-sm" style="font-size: 0.8rem;">
+                <i class="bi bi-arrow-left-right text-primary me-1"></i>{{ t.transfer_number }}
+              </span>
+            </td>
+            <td>
+              <i class="bi bi-geo-alt text-danger me-1"></i>{{ t.origin_branch_name }}
+            </td>
+            <td>
+              <i class="bi bi-geo-alt-fill text-success me-1"></i>{{ t.destination_branch_name }}
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border py-1">
+                {{ t.details.length }} variante(s)
+              </span>
+              <div class="small text-muted mt-1" *ngFor="let d of t.details.slice(0, 2)">
+                {{ d.product_name || 'Prenda' }} ({{ d.size }} / {{ d.color }}): <strong>{{ d.quantity }} u.</strong>
+              </div>
+              <div class="small text-muted fst-italic" *ngIf="t.details.length > 2">
+                +{{ t.details.length - 2 }} más…
+              </div>
+            </td>
+            <td>
+              <span class="pill" [ngClass]="{
+                'pill-role': t.status === 'SOLICITADA',
+                'pill-role-cajero': t.status === 'EN_TRANSITO',
+                'pill-ok': t.status === 'COMPLETADA',
+                'pill-off': t.status === 'CANCELADA'
+              }">
+                <span class="pill-dot"></span>
+                {{ t.status }}
+              </span>
+            </td>
+            <td class="text-muted small">
+              {{ t.created_at | date:'dd/MM/yyyy HH:mm' }}
+            </td>
+            <td class="text-end pe-4">
+              <div class="d-flex justify-content-end gap-2">
+                <!-- Si está SOLICITADA -> Enviar a tránsito -->
+                <button *ngIf="t.status === 'SOLICITADA'"
+                        class="btn-action"
+                        (click)="changeStatus(t, 'EN_TRANSITO')"
+                        title="Despachar mercadería y descontar de origen">
+                  <i class="bi bi-truck text-primary"></i> Despachar
+                </button>
+                <!-- Si está EN_TRANSITO -> Completar recepción -->
+                <button *ngIf="t.status === 'EN_TRANSITO'"
+                        class="btn-action"
+                        (click)="changeStatus(t, 'COMPLETADA')"
+                        title="Confirmar recepción y sumar a destino">
+                  <i class="bi bi-check2-circle text-success"></i> Recibir
+                </button>
+                <!-- Cancelar -->
+                <button *ngIf="t.status === 'SOLICITADA' || t.status === 'EN_TRANSITO'"
+                        class="btn-action btn-action-danger"
+                        (click)="changeStatus(t, 'CANCELADA')"
+                        title="Cancelar transferencia">
+                  <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA TRANSFERENCIA -->
+<div *ngIf="showCreateModal" class="modal-backdrop-custom">
+  <div class="modal-dialog-custom p-4" style="max-width: 650px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0 text-dark">
+        <i class="bi bi-arrow-left-right text-primary me-2"></i>Nueva Solicitud de Transferencia
+      </h5>
+      <button class="btn-close" (click)="showCreateModal = false"></button>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Sucursal de Origen *</label>
+        <select class="form-select" [(ngModel)]="originBranchId">
+          <option *ngFor="let b of branches" [value]="b.id">{{ b.name }} ({{ b.city }})</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Sucursal de Destino *</label>
+        <select class="form-select" [(ngModel)]="destinationBranchId">
+          <option *ngFor="let b of branches" [value]="b.id">{{ b.name }} ({{ b.city }})</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">Notas / Justificación</label>
+      <input type="text" class="form-control" placeholder="Ej: Reposición de fin de semana" [(ngModel)]="transferNotes">
+    </div>
+
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label small fw-semibold mb-0">Prendas / Variantes a transferir *</label>
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItemRow()">
+          <i class="bi bi-plus-lg me-1"></i>Agregar prenda
+        </button>
+      </div>
+
+      <div class="table-responsive border rounded-3">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="bg-light text-muted">
+            <tr>
+              <th class="ps-3">ID Variante</th>
+              <th style="width: 140px;">Cantidad</th>
+              <th style="width: 50px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of transferItems; let idx = index">
+              <td class="ps-3">
+                <input type="number" class="form-control form-control-sm" [(ngModel)]="row.variant_id" min="1" placeholder="ID Variante">
+              </td>
+              <td>
+                <input type="number" class="form-control form-control-sm" [(ngModel)]="row.quantity" min="1">
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm text-danger border-0" (click)="removeItemRow(idx)" [disabled]="transferItems.length <= 1">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4">
+      <button class="btn btn-light btn-sm border" (click)="showCreateModal = false">Cancelar</button>
+      <button class="btn btn-primary btn-sm px-4" (click)="createTransfer()">
+        Crear Transferencia
+      </button>
+    </div>
+  </div>
+</div>

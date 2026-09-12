@@ -119,6 +119,9 @@ class ProductReview(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     comment: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="APPROVED", nullable=False)  # 'PENDING' | 'APPROVED' | 'REJECTED'
+    moderated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    moderator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -133,7 +136,7 @@ class ProductReview(Base):
 
 
 class WishlistItem(Base):
-    """[CU14] Prenda marcada como favorita por un cliente."""
+    """[CU14] Prenda marcada como favorita por un cliente (compatibilidad legacy)."""
     __tablename__ = "wishlist_items"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
@@ -141,3 +144,68 @@ class WishlistItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     product: Mapped["Product"] = relationship("Product")
+
+
+class Wishlist(Base):
+    """[CU14+] Lista de deseos personalizable y compartible."""
+    __tablename__ = "wishlists"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), default="Mis Favoritos", nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    share_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    items: Mapped[List["WishlistGroupItem"]] = relationship("WishlistGroupItem", back_populates="wishlist", cascade="all, delete-orphan")
+
+
+class WishlistGroupItem(Base):
+    """[CU14+] Prenda perteneciente a una lista de deseos específica."""
+    __tablename__ = "wishlist_group_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wishlist_id: Mapped[int] = mapped_column(ForeignKey("wishlists.id", ondelete="CASCADE"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    wishlist: Mapped["Wishlist"] = relationship("Wishlist", back_populates="items")
+    product: Mapped["Product"] = relationship("Product")
+
+    __table_args__ = (
+        UniqueConstraint("wishlist_id", "product_id", name="uq_wishlist_group_product"),
+    )
+
+
+class Coupon(Base):
+    """[CU13] Cupón de descuento aplicable en checkout."""
+    __tablename__ = "coupons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    discount_type: Mapped[str] = mapped_column(String(15), nullable=False)  # 'PORCENTAJE' | 'MONTO_FIJO'
+    discount_value: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    min_purchase_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0, nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_uses: Mapped[int] = mapped_column(default=100, nullable=False)
+    used_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SeasonalPromotion(Base):
+    """[CU13] Oferta/Campaña de temporada calendarizada por fechas."""
+    __tablename__ = "seasonal_promotions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    discount_percent: Mapped[int] = mapped_column(nullable=False)
+    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    category: Mapped[Optional["Category"]] = relationship("Category")

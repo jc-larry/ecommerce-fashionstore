@@ -16,7 +16,27 @@
     </div>
   </div>
 
-  <div class="alert alert-danger py-2 small" *ngIf="error">{{ error }}</div>
+  <div class="validation-card validation-card-error mb-3" *ngIf="error">
+    <i class="bi bi-exclamation-triangle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Atención en el registro de usuario</div>
+      <p class="val-desc">{{ error }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="error = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <div class="validation-card validation-card-success mb-3" *ngIf="success">
+    <i class="bi bi-check-circle-fill val-icon"></i>
+    <div class="val-content">
+      <div class="val-title">Operación exitosa</div>
+      <p class="val-desc">{{ success }}</p>
+    </div>
+    <button type="button" class="val-close" (click)="success = ''" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
 
   <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-0">
@@ -34,10 +54,20 @@
           <tbody>
             <tr *ngIf="loading"><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
             <tr *ngIf="!loading && filteredUsers.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">Sin usuarios para mostrar.</td>
+              <td colspan="5" class="text-center text-muted py-4">Sin usuarios encontrados.</td>
             </tr>
             <tr *ngFor="let u of filteredUsers">
-              <td class="fw-bold">{{ u.first_name }} {{ u.last_name }}</td>
+              <td class="fw-bold">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="avatar-circle">
+                    {{ (u.first_name?.[0] || '') + (u.last_name?.[0] || '') }}
+                  </div>
+                  <div>
+                    <div>{{ u.first_name }} {{ u.last_name }}</div>
+                    <small class="text-muted" *ngIf="u.phone">{{ u.phone }}</small>
+                  </div>
+                </div>
+              </td>
               <td class="text-muted">{{ u.email }}</td>
               <td><span class="pill" [ngClass]="roleClass(u)">{{ rolesLabel(u) }}</span></td>
               <td>
@@ -46,9 +76,18 @@
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-light border fw-bold me-2" (click)="openEdit(u)">Editar</button>
-                <button class="btn btn-sm btn-light border text-danger fw-bold"
-                        [disabled]="!u.is_active" (click)="deactivate(u)">Desactivar</button>
+                <div class="d-flex justify-content-end gap-2">
+                  <button class="btn-action" (click)="openEdit(u)" title="Editar datos del usuario">
+                    <i class="bi bi-pencil text-primary"></i> Editar
+                  </button>
+                  <button class="btn-action"
+                          [ngClass]="u.is_active ? 'btn-action-danger' : 'text-success'"
+                          (click)="deactivate(u)"
+                          [title]="u.is_active ? 'Desactivar acceso al sistema' : 'Reactivar cuenta de usuario'">
+                    <i class="bi" [ngClass]="u.is_active ? 'bi-slash-circle' : 'bi-check-circle'"></i>
+                    {{ u.is_active ? 'Desactivar' : 'Activar' }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -58,55 +97,91 @@
   </div>
 </div>
 
-<!-- Panel de alta / edición -->
+<!-- Panel de alta / edición con validaciones explicativas -->
 <ng-container *ngIf="showForm">
   <div class="slide-overlay" (click)="closeForm()"></div>
   <div class="slide-panel">
     <div class="slide-panel-header d-flex justify-content-between align-items-center">
-      <h5 class="fw-bold mb-0">{{ editingId ? 'Editar usuario' : 'Nuevo usuario' }}</h5>
+      <div>
+        <h5 class="fw-bold mb-0">{{ editingId ? 'Editar Usuario' : 'Nuevo Usuario' }}</h5>
+        <small class="text-muted">Control de acceso basado en roles (RBAC)</small>
+      </div>
       <button class="btn btn-sm btn-light border-0" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="slide-panel-body">
       <div class="row g-3">
         <div class="col-6">
-          <label class="form-label small fw-bold">Nombre</label>
-          <input class="form-control" [(ngModel)]="form.first_name">
+          <label class="form-label small fw-bold">Nombre <span class="text-danger">*</span></label>
+          <input class="form-control"
+                 [class.is-invalid]="validationErrors['first_name']"
+                 [(ngModel)]="form.first_name"
+                 placeholder="Ej. Ana">
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['first_name']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['first_name'] }}
+          </div>
         </div>
         <div class="col-6">
-          <label class="form-label small fw-bold">Apellido</label>
-          <input class="form-control" [(ngModel)]="form.last_name">
+          <label class="form-label small fw-bold">Apellido <span class="text-danger">*</span></label>
+          <input class="form-control"
+                 [class.is-invalid]="validationErrors['last_name']"
+                 [(ngModel)]="form.last_name"
+                 placeholder="Ej. Martínez">
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['last_name']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['last_name'] }}
+          </div>
         </div>
         <div class="col-12">
-          <label class="form-label small fw-bold">Correo electrónico</label>
-          <input type="email" class="form-control" [(ngModel)]="form.email">
+          <label class="form-label small fw-bold">Correo electrónico <span class="text-danger">*</span></label>
+          <input type="email"
+                 class="form-control"
+                 [class.is-invalid]="validationErrors['email']"
+                 [(ngModel)]="form.email"
+                 placeholder="usuario@fashionstore.com">
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['email']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['email'] }}
+          </div>
         </div>
         <div class="col-12">
-          <label class="form-label small fw-bold">Teléfono</label>
-          <input class="form-control" [(ngModel)]="form.phone">
+          <label class="form-label small fw-bold">Teléfono de contacto</label>
+          <input class="form-control" [(ngModel)]="form.phone" placeholder="Ej. 77123456">
         </div>
         <div class="col-12" *ngIf="!editingId">
-          <label class="form-label small fw-bold">Contraseña</label>
-          <input type="password" class="form-control" [(ngModel)]="form.password">
+          <label class="form-label small fw-bold">Contraseña inicial <span class="text-danger">*</span></label>
+          <input type="password"
+                 class="form-control"
+                 [class.is-invalid]="validationErrors['password']"
+                 [(ngModel)]="form.password"
+                 placeholder="Mínimo 8 caracteres (A-Z, a-z, 0-9)">
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['password']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['password'] }}
+          </div>
         </div>
         <div class="col-12">
-          <label class="form-label small fw-bold d-block">Roles</label>
+          <label class="form-label small fw-bold d-block">
+            Roles Asignados <span class="text-danger">*</span>
+          </label>
           <div class="form-check form-check-inline" *ngFor="let r of roles">
             <input class="form-check-input" type="checkbox"
                    [checked]="form.role_names.includes(r)" (change)="toggleRole(r)" [id]="'role-' + r">
             <label class="form-check-label small" [for]="'role-' + r">{{ r }}</label>
           </div>
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['roles']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['roles'] }}
+          </div>
         </div>
         <div class="col-12" *ngIf="editingId">
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="activo" [(ngModel)]="form.is_active">
-            <label class="form-check-label small" for="activo">Cuenta activa</label>
+            <label class="form-check-label small" for="activo">Cuenta activa (permite inicio de sesión)</label>
           </div>
         </div>
       </div>
     </div>
     <div class="slide-panel-footer d-flex gap-2 justify-content-end">
       <button class="btn btn-light border" (click)="closeForm()">Cancelar</button>
-      <button class="btn btn-primary fw-bold" (click)="save()">Guardar</button>
+      <button class="btn btn-primary fw-bold shadow-sm" (click)="save()">
+        <i class="bi bi-check-circle-fill me-1"></i> Guardar
+      </button>
     </div>
   </div>
 </ng-container>

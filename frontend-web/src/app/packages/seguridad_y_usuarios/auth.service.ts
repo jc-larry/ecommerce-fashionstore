@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
+import { Observable, BehaviorSubject, of } from 'rxjs';
+import { map, tap, switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -32,7 +32,21 @@ export class AuthService {
           localStorage.setItem('roles', JSON.stringify(response.roles || []));
           this.currentUserSubject.next(response.user);
         }
-      })
+      }),
+      // [Separación por sucursal] Enriquece la sesión con branch_id/branch_name/is_central.
+      // Si /auth/me falla por cualquier motivo, el login básico ya realizado no se ve afectado.
+      switchMap((response) =>
+        this.http.get<any>(`${this.authUrl}/me`).pipe(
+          tap((me) => {
+            if (me) {
+              localStorage.setItem('currentUser', JSON.stringify(me));
+              this.currentUserSubject.next(me);
+            }
+          }),
+          map(() => response),
+          catchError(() => of(response))
+        )
+      )
     );
   }
 
@@ -98,5 +112,13 @@ export class AuthService {
   isAdminUser(): boolean {
     const roles = this.getRoles();
     return roles.some((r) => ['SUPERADMIN', 'ENCARGADO', 'CAJERO'].includes(r));
+  }
+
+  /**
+   * [Separación por sucursal] True solo para SUPERADMIN (Casa Matriz / vista consolidada).
+   * ENCARGADO y CAJERO quedan siempre atados a su propia sucursal.
+   */
+  isCentralUser(): boolean {
+    return this.getRoles().includes('SUPERADMIN');
   }
 }

@@ -20,6 +20,8 @@ export class UsuariosRolesComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
   form = this.emptyForm();
+  validationErrors: { [key: string]: string } = {};
+  success = '';
 
   constructor(private usersService: UsersService) {}
 
@@ -34,7 +36,7 @@ export class UsuariosRolesComponent implements OnInit {
       email: '',
       phone: '',
       password: '',
-      role_names: [] as string[],
+      role_names: ['CLIENTE'] as string[],
       is_active: true,
     };
   }
@@ -47,7 +49,7 @@ export class UsuariosRolesComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        this.error = 'No se pudieron cargar los usuarios.';
+        this.error = 'No se pudieron cargar los usuarios del sistema.';
         this.loading = false;
       },
     });
@@ -83,6 +85,8 @@ export class UsuariosRolesComponent implements OnInit {
   openNew(): void {
     this.editingId = null;
     this.form = this.emptyForm();
+    this.validationErrors = {};
+    this.error = '';
     this.showForm = true;
   }
 
@@ -97,11 +101,14 @@ export class UsuariosRolesComponent implements OnInit {
       role_names: (u.roles || []).map((r: any) => r.name),
       is_active: u.is_active,
     };
+    this.validationErrors = {};
+    this.error = '';
     this.showForm = true;
   }
 
   closeForm(): void {
     this.showForm = false;
+    this.validationErrors = {};
   }
 
   toggleRole(role: string): void {
@@ -110,33 +117,92 @@ export class UsuariosRolesComponent implements OnInit {
     else this.form.role_names.push(role);
   }
 
+  validate(): boolean {
+    this.validationErrors = {};
+
+    const fn = (this.form.first_name || '').trim();
+    if (!fn) {
+      this.validationErrors['first_name'] = 'Ingresa el nombre del usuario.';
+    } else if (fn.length < 2) {
+      this.validationErrors['first_name'] = 'El nombre debe tener al menos 2 letras.';
+    }
+
+    const ln = (this.form.last_name || '').trim();
+    if (!ln) {
+      this.validationErrors['last_name'] = 'Ingresa el apellido del usuario.';
+    } else if (ln.length < 2) {
+      this.validationErrors['last_name'] = 'El apellido debe tener al menos 2 letras.';
+    }
+
+    const em = (this.form.email || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!em) {
+      this.validationErrors['email'] = 'Ingresa el correo electrónico para acceder al sistema.';
+    } else if (!emailRegex.test(em)) {
+      this.validationErrors['email'] = 'El formato del correo no es válido (ejemplo: usuario@fashionstore.com).';
+    }
+
+    if (!this.editingId) {
+      const pw = this.form.password || '';
+      if (!pw) {
+        this.validationErrors['password'] = 'Crea una contraseña para la nueva cuenta.';
+      } else if (pw.length < 8) {
+        this.validationErrors['password'] = 'La contraseña debe tener al menos 8 caracteres.';
+      } else if (!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)) {
+        this.validationErrors['password'] = 'La contraseña debe incluir al menos una letra mayúscula, una minúscula y un número.';
+      }
+    }
+
+    if (!this.form.role_names || this.form.role_names.length === 0) {
+      this.validationErrors['roles'] = 'Selecciona al menos un rol para este usuario (ej. Cajero, Encargado o Administrador).';
+    }
+
+    return Object.keys(this.validationErrors).length === 0;
+  }
+
   /**
    * [CU05] Gestionar perfiles y roles (Crear / Editar)
-   * @description Registra un nuevo empleado o actualiza sus datos y roles asignados.
    */
-  // [CU05 - Paso 1] / [DSC005 - Paso 1] +crearUsuario(datos, roles)
   save(): void {
     this.error = '';
+    this.success = '';
+
+    if (!this.validate()) {
+      this.error = 'Por favor revisa los campos señalados en el formulario antes de guardar.';
+      return;
+    }
+
     if (this.editingId) {
       const payload: any = {
-        first_name: this.form.first_name,
-        last_name: this.form.last_name,
-        email: this.form.email,
-        phone: this.form.phone,
+        first_name: this.form.first_name.trim(),
+        last_name: this.form.last_name.trim(),
+        email: this.form.email.trim(),
+        phone: this.form.phone?.trim() || null,
         is_active: this.form.is_active,
         role_names: this.form.role_names,
       };
       this.usersService.updateUser(this.editingId, payload).subscribe({
-        next: () => { this.loadUsers(); this.closeForm(); },
-        error: (e) => (this.error = e.error?.detail || 'Error al actualizar.'),
+        next: () => {
+          this.success = 'Usuario actualizado correctamente.';
+          this.loadUsers();
+          this.closeForm();
+          setTimeout(() => (this.success = ''), 4000);
+        },
+        error: (e) => (this.error = e.error?.detail || 'Error al actualizar el usuario.'),
       });
     } else {
-      // [CU05 - Paso 2] / [DSC005 - Paso 2] +create_user(datos, roles)
-      this.usersService.createUser({ ...this.form }).subscribe({
-        next: () => { 
-          // [CU05 - Paso 7] / [DSC005 - Paso 7] +Actualizar lista
-          this.loadUsers(); 
-          this.closeForm(); 
+      this.usersService.createUser({
+        ...this.form,
+        first_name: this.form.first_name.trim(),
+        last_name: this.form.last_name.trim(),
+        email: this.form.email.trim(),
+        phone: this.form.phone?.trim() || null,
+      }).subscribe({
+        next: () => {
+          this.success = 'Usuario registrado exitosamente en la plataforma.';
+          this.loadUsers();
+          this.closeForm();
+          setTimeout(() => (this.success = ''), 4000);
         },
         error: (e) => (this.error = e.error?.detail || 'Error al crear el usuario.'),
       });
@@ -144,14 +210,37 @@ export class UsuariosRolesComponent implements OnInit {
   }
 
   /**
-   * [CU05] Gestionar perfiles y roles (Dar de baja)
-   * @description Realiza una baja lógica del empleado, impidiendo su acceso futuro al ERP.
+   * [CU05] Baja lógica de usuario:
+   * Prohibido eliminar usuarios para preservar la trazabilidad de ventas, compras y auditoría (CU36).
    */
   deactivate(u: any): void {
-    if (!confirm(`¿Desactivar al usuario ${u.first_name} ${u.last_name}?`)) return;
-    this.usersService.deactivateUser(u.id).subscribe({
-      next: () => this.loadUsers(),
-      error: (e) => (this.error = e.error?.detail || 'Error al desactivar.'),
-    });
+    const isCurrentlyActive = u.is_active;
+    const action = isCurrentlyActive ? 'desactivar' : 'reactivar';
+    const msg = isCurrentlyActive
+      ? `¿Deseas desactivar la cuenta de ${u.first_name} ${u.last_name}?\n\nℹ️ El usuario no podrá iniciar sesión en el sistema, pero todas sus operaciones registradas se mantendrán intactas para auditoría.`
+      : `¿Deseas reactivar la cuenta de ${u.first_name} ${u.last_name}?`;
+
+    if (!confirm(msg)) return;
+
+    this.error = '';
+    if (isCurrentlyActive) {
+      this.usersService.deactivateUser(u.id).subscribe({
+        next: () => {
+          this.success = `Usuario ${u.first_name} ${u.last_name} desactivado. Trazabilidad preservada.`;
+          this.loadUsers();
+          setTimeout(() => (this.success = ''), 4000);
+        },
+        error: (e) => (this.error = e.error?.detail || 'Error al desactivar la cuenta.'),
+      });
+    } else {
+      this.usersService.updateUser(u.id, { is_active: true }).subscribe({
+        next: () => {
+          this.success = `Cuenta de ${u.first_name} ${u.last_name} reactivada con éxito.`;
+          this.loadUsers();
+          setTimeout(() => (this.success = ''), 4000);
+        },
+        error: (e) => (this.error = e.error?.detail || 'Error al reactivar la cuenta.'),
+      });
+    }
   }
 }
