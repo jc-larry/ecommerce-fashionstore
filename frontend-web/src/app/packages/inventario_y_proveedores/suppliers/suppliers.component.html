@@ -58,18 +58,19 @@
               <th>Contacto</th>
               <th>Dirección / Planta</th>
               <th>Estado</th>
+              <th>Acceso al Portal</th>
               <th class="text-end">Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngIf="loading">
-              <td colspan="7" class="text-center text-muted py-4">
+              <td colspan="8" class="text-center text-muted py-4">
                 <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                 Cargando directorio de proveedores…
               </td>
             </tr>
             <tr *ngIf="!loading && filtered.length === 0">
-              <td colspan="7" class="text-center text-muted py-4">
+              <td colspan="8" class="text-center text-muted py-4">
                 No se encontraron proveedores coincidentes con los filtros aplicados.
               </td>
             </tr>
@@ -106,7 +107,21 @@
                   {{ s.is_active !== false ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
+              <td>
+                <div *ngIf="s.users && s.users.length > 0; else noPortalUser">
+                  <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 mb-1" *ngFor="let u of s.users">
+                    <i class="bi bi-person-badge"></i> {{ u.first_name }} {{ u.last_name }}
+                    <button class="btn-close btn-close-sm" style="font-size: 0.55rem;" (click)="removeAssignedUser(s, u.id)" title="Quitar acceso"></button>
+                  </span>
+                </div>
+                <ng-template #noPortalUser>
+                  <span class="text-muted extra-small">Sin usuario vinculado</span>
+                </ng-template>
+              </td>
               <td class="text-end">
+                <button class="btn-action me-1" (click)="openAssignUser(s)" title="Asignar usuario del portal">
+                  <i class="bi bi-person-plus"></i> Portal
+                </button>
                 <button class="btn-action me-1" (click)="openEdit(s)" title="Editar datos">
                   <i class="bi bi-pencil-square"></i> Editar
                 </button>
@@ -253,6 +268,61 @@
       <button class="btn btn-primary fw-bold shadow-sm" (click)="save()">
         <i class="bi bi-check-circle-fill me-1"></i>
         {{ editingId ? 'Guardar Cambios' : 'Registrar Proveedor' }}
+      </button>
+    </div>
+  </div>
+</ng-container>
+
+<!-- [Rol PROVEEDOR] Drawer para crear y vincular un usuario del portal de autoservicio -->
+<ng-container *ngIf="showAssignForm">
+  <div class="slide-overlay" (click)="closeAssignForm()"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="fw-bold mb-0 text-dark">Asignar usuario del portal</h5>
+        <small class="text-muted">Proveedor: {{ assignTargetSupplier?.name }}</small>
+      </div>
+      <button class="btn btn-sm btn-light border-0" (click)="closeAssignForm()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="slide-panel-body">
+      <div class="alert alert-light border small rounded-3 mb-3">
+        <i class="bi bi-info-circle-fill text-primary me-1"></i>
+        Este usuario podrá iniciar sesión en un portal limitado: ver/editar su ficha de
+        contacto, ver sus productos suministrados y su historial de compras — nunca precios
+        de venta, sucursales, ni datos de otros proveedores.
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Nombre</label>
+        <input class="form-control" [(ngModel)]="assignForm.first_name">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Apellido</label>
+        <input class="form-control" [(ngModel)]="assignForm.last_name">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Correo electrónico</label>
+        <input type="email" class="form-control" [(ngModel)]="assignForm.email">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Teléfono</label>
+        <input class="form-control" [(ngModel)]="assignForm.phone">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Contraseña temporal</label>
+        <input type="password" class="form-control" [(ngModel)]="assignForm.password">
+      </div>
+
+      <div class="validation-card validation-card-error mb-3" *ngIf="assignError">
+        <div class="val-content">{{ assignError }}</div>
+      </div>
+    </div>
+
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="closeAssignForm()">Cancelar</button>
+      <button class="btn btn-primary fw-bold shadow-sm" (click)="saveAssignUser()">
+        <i class="bi bi-check-circle-fill me-1"></i> Crear y vincular
       </button>
     </div>
   </div>

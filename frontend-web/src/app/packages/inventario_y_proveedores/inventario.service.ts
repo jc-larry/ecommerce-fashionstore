@@ -34,6 +34,36 @@ export class InventarioService {
     return this.http.patch<any>(`${this.api}/suppliers/${id}/toggle`, {});
   }
 
+  // ---------- Vinculación de usuarios PROVEEDOR a un proveedor (SUPERADMIN) ----------
+  assignSupplierUser(supplierId: number, userId: number): Observable<any> {
+    return this.http.post<any>(`${this.api}/suppliers/${supplierId}/users`, { user_id: userId });
+  }
+
+  removeSupplierUser(supplierId: number, userId: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/suppliers/${supplierId}/users/${userId}`);
+  }
+
+  // ---------- Portal de autoservicio del proveedor (rol PROVEEDOR) ----------
+  getMySupplierProfile(): Observable<any> {
+    return this.http.get<any>(`${this.api}/suppliers/me`);
+  }
+
+  updateMySupplierProfile(payload: { contact_name?: string; email?: string; phone?: string; address?: string }): Observable<any> {
+    return this.http.put<any>(`${this.api}/suppliers/me`, payload);
+  }
+
+  getMySuppliedProducts(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/suppliers/me/products`);
+  }
+
+  // ---------- Historial de compras (personal con scope de sucursal, o proveedor con scope propio) ----------
+  getPurchaseOrders(params?: { branch_id?: number; supplier_id?: number }): Observable<any[]> {
+    const query: any = {};
+    if (params?.branch_id) query.branch_id = params.branch_id;
+    if (params?.supplier_id) query.supplier_id = params.supplier_id;
+    return this.http.get<any[]>(`${this.api}/merchandise/purchase-orders`, { params: query });
+  }
+
   // ---------- MERCADERÍA / INGRESOS (CU10) ----------
   registerIntake(intake: any): Observable<any> {
     return this.http.post<any>(`${this.api}/merchandise/intake`, intake);

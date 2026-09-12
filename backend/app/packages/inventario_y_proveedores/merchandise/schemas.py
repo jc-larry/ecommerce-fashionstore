@@ -48,9 +48,28 @@ class InventoryResponse(BaseModel):
     avg_cost: float
     stock_minimo: int
     stock_maximo: int
+    # Campos de exhibición (para POS/vitrina) — opcionales por compatibilidad.
+    sku: Optional[str] = None
+    product_name: Optional[str] = None
+    color_name: Optional[str] = None
+    size_name: Optional[str] = None
+    image_url: Optional[str] = None
+    sale_price: Optional[float] = None
 
     class Config:
         from_attributes = True
+
+
+# --- Portal de Proveedor: disponibilidad de sus productos (solo lectura, sin costo/precio) ---
+class SupplierProductAvailability(BaseModel):
+    variant_id: int
+    sku: Optional[str] = None
+    product_name: Optional[str] = None
+    color_name: Optional[str] = None
+    size_name: Optional[str] = None
+    branch_id: int
+    branch_name: Optional[str] = None
+    stock_actual: int
 
 
 # --- CU37: Valoración de inventario / capital invertido ---

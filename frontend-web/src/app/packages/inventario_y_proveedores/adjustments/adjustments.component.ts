@@ -4,6 +4,7 @@ import { InventarioService, InventoryAdjustment } from '../inventario.service';
 import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
 
 import { BranchContextService } from '../../catalogo_y_tiendas/branches/branch-context.service';
+import { AuthService } from '../../seguridad_y_usuarios/auth.service';
 
 export interface AdjustmentReasonOption {
   value: string;
@@ -87,7 +88,8 @@ export class AdjustmentsComponent implements OnInit {
   constructor(
     private inventario: InventarioService,
     private catalogo: CatalogoService,
-    public branchContext: BranchContextService
+    public branchContext: BranchContextService,
+    public authService: AuthService
   ) {}
 
   ngOnInit(): void {

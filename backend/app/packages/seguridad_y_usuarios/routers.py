@@ -110,6 +110,46 @@ def get_branch_scope(
         )
     return BranchScope(is_central=False, branch_id=branch_id)
 
+
+@dataclass
+class SupplierScope:
+    """Resultado de resolver a qué proveedor está atado el usuario PROVEEDOR autenticado."""
+    supplier_id: int
+
+
+def _resolve_supplier_id(current_user: User, db: Session) -> Optional[int]:
+    """Busca el proveedor asignado al usuario en supplier_employees (1 proveedor por usuario).
+
+    Import local para evitar un ciclo de imports, igual que _resolve_branch_id.
+    """
+    from app.packages.inventario_y_proveedores.suppliers.models import supplier_employees
+    row = db.execute(
+        supplier_employees.select().where(supplier_employees.c.user_id == current_user.id)
+    ).first()
+    return row.supplier_id if row else None
+
+
+def get_supplier_scope(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SupplierScope:
+    """[Rol PROVEEDOR] A diferencia de BranchScope, aquí SUPERADMIN NO tiene bypass: no
+    existe el concepto de "proveedor central", así que un SUPERADMIN que llame a una vista
+    de autoservicio de proveedor debe recibir un 403 explícito, no datos ambiguos."""
+    user_roles = [r.name for r in current_user.roles]
+    if "PROVEEDOR" not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta vista es solo para usuarios con rol PROVEEDOR.",
+        )
+    supplier_id = _resolve_supplier_id(current_user, db)
+    if supplier_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu usuario no tiene un proveedor asignado. Contacta a un administrador.",
+        )
+    return SupplierScope(supplier_id=supplier_id)
+
 # --- BITÁCORA AUDITORA ---
 def log_event(db: Session, user_id: int, action: str, table: str, row_id: int, details: dict, ip: str = None):
     """[CU36] Auxiliar para registrar auditoría de base de datos"""

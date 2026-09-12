@@ -25,7 +25,6 @@ from app.packages.seguridad_y_usuarios import User, RoleChecker, log_event, get_
 router = APIRouter(prefix="/api/v1/sales", tags=["sales"])
 
 staff_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO", "CAJERO"])
-admin_check = RoleChecker(allowed_roles=["SUPERADMIN"])
 
 
 # ===================================================================
@@ -294,11 +293,23 @@ def process_checkout(
     current_user: User = Depends(get_current_user),
 ):
     """[CU18 / CU19 / CU20] Procesa una compra omnicanal con herencia de pagos y facturación IVA 13% (ACID)."""
+    # [Separación por sucursal] Una venta POS es una operación de personal de tienda: exige
+    # rol de staff y fuerza la sucursal real del usuario (ignora branch_id del cliente).
+    # El canal ONLINE sigue abierto a cualquier usuario autenticado (checkout de cliente),
+    # donde branch_id es solo el punto de recogida elegido, no un límite de propiedad de datos.
+    if data.channel == "POS":
+        user_roles = [r.name for r in current_user.roles]
+        if not any(r in user_roles for r in ("SUPERADMIN", "ENCARGADO", "CAJERO")):
+            raise HTTPException(status_code=403, detail="Solo el personal de tienda puede registrar ventas en POS.")
+        scope = get_branch_scope(current_user, db)
+        if not scope.is_central:
+            data.branch_id = scope.branch_id
+
     branch = db.query(Branch).filter(Branch.id == data.branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada.")
 
-    # Si es POS, validar turno de caja abierto
+    # Si es POS, validar turno de caja abierto y de propiedad del cajero autenticado
     if data.channel == "POS":
         if not data.cash_shift_id:
             raise HTTPException(status_code=400, detail="Ventas en POS requieren un turno de caja activo (cash_shift_id).")
@@ -308,6 +319,8 @@ def process_checkout(
         ).first()
         if not shift:
             raise HTTPException(status_code=400, detail="El turno de caja especificado no existe o ya está cerrado.")
+        if shift.cashier_id != current_user.id:
+            raise HTTPException(status_code=400, detail="El turno de caja especificado no pertenece a tu usuario.")
         if shift.branch_id != data.branch_id:
             raise HTTPException(
                 status_code=400,
@@ -717,6 +730,7 @@ def create_quotation(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU21] Genera una cotización comercial con período de validez."""
     if not data.details:
@@ -743,6 +757,7 @@ def create_quotation(
         customer_email=data.customer_email.strip() if data.customer_email else None,
         customer_phone=data.customer_phone.strip() if data.customer_phone else None,
         created_by_id=current_user.id,
+        branch_id=scope.branch_id if not scope.is_central else None,
         total_amount=round(total, 2),
         valid_until=valid_until,
         status="VIGENTE",
@@ -785,6 +800,7 @@ def create_quotation(
               {"quotation_number": quotation.quotation_number, "total": float(quotation.total_amount)},
               request.client.host)
 
+    branch = db.query(Branch).filter(Branch.id == quotation.branch_id).first() if quotation.branch_id else None
     return QuotationResponse(
         id=quotation.id,
         quotation_number=quotation.quotation_number,
@@ -796,17 +812,26 @@ def create_quotation(
         status=quotation.status,
         created_at=quotation.created_at,
         items=items_resp,
+        branch_id=quotation.branch_id,
+        branch_name=branch.name if branch else None,
     )
 
 
 @router.get("/quotations", response_model=List[QuotationResponse])
 def list_quotations(
+    branch_id: Optional[int] = None,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
 ):
-    """[CU21] Lista el historial de cotizaciones comerciales generadas."""
-    quotes = db.query(Quotation).order_by(Quotation.id.desc()).limit(limit).all()
+    """[CU21] Lista el historial de cotizaciones comerciales generadas (scoped por sucursal)."""
+    effective_branch_id = branch_id if scope.is_central else scope.branch_id
+    query = db.query(Quotation)
+    if effective_branch_id:
+        query = query.filter(Quotation.branch_id == effective_branch_id)
+    quotes = query.order_by(Quotation.id.desc()).limit(limit).all()
+    branches_by_id = {b.id: b.name for b in db.query(Branch.id, Branch.name).all()}
     results = []
     now_utc = datetime.now(timezone.utc)
     for q in quotes:
@@ -848,6 +873,8 @@ def list_quotations(
                 status=q.status,
                 created_at=q.created_at,
                 items=items_resp,
+                branch_id=q.branch_id,
+                branch_name=branches_by_id.get(q.branch_id) if q.branch_id else None,
             )
         )
     return results
@@ -860,8 +887,12 @@ def convert_quotation_to_order(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU21 -> CU18/CU20] Convierte una cotización vigente en venta formal con emisión de factura."""
+    if not scope.is_central:
+        data.branch_id = scope.branch_id
+
     quotation = db.query(Quotation).filter(Quotation.id == quotation_id).first()
     if not quotation:
         raise HTTPException(status_code=404, detail="Cotización no encontrada.")
@@ -920,10 +951,13 @@ def process_order_return(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU22] Procesa devolución de dinero o cambio de prendas reingresando stock al inventario."""
     order = db.query(Order).filter(Order.id == data.order_id).first()
     if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if not scope.is_central and order.branch_id != scope.branch_id:
         raise HTTPException(status_code=404, detail="Orden no encontrada.")
 
     # [Regla de Negocio] Validación de plazo máximo de 30 días para devolución

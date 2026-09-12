@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../seguridad_y_usuarios/auth_service.dart';
 import 'catalog_api.dart';
 import 'product_detail_view.dart';
 
@@ -31,20 +32,28 @@ class _CatalogoViewState extends State<CatalogoView> {
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      CatalogApi.fetchProducts(),
-      CatalogApi.fetchCategories(),
-      CatalogApi.fetchRatingsSummary(),
-      CatalogApi.fetchWishlistIds(),
-    ]);
     if (!mounted) return;
-    setState(() {
-      _products = results[0] as List;
-      _categories = results[1] as List;
-      _ratings = results[2] as Map<int, Map<String, dynamic>>;
-      _wishlist = results[3] as Set<int>;
-      _loading = false;
-    });
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        CatalogApi.fetchProducts(),
+        CatalogApi.fetchCategories(),
+        CatalogApi.fetchRatingsSummary(),
+        CatalogApi.fetchWishlistIds(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _products = results[0] as List;
+        _categories = results[1] as List;
+        _ratings = results[2] as Map<int, Map<String, dynamic>>;
+        _wishlist = results[3] as Set<int>;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   List<dynamic> get _filtered {
@@ -74,6 +83,108 @@ class _CatalogoViewState extends State<CatalogoView> {
     }
   }
 
+  void _showServerConfigDialog() {
+    final controller = TextEditingController(text: AuthService.apiBaseUrl);
+    bool testing = false;
+    String? testStatus;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.wifi, color: _brand),
+              SizedBox(width: 8),
+              Text('Servidor Backend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingresa la IP de tu PC donde corre el backend FastAPI (puerto 8000):',
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: 'URL de la API',
+                  hintText: 'http://192.168.0.11:8000/api/v1',
+                  prefixIcon: const Icon(Icons.link),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: testing
+                        ? null
+                        : () async {
+                            setDialogState(() {
+                              testing = true;
+                              testStatus = null;
+                            });
+                            final ok = await AuthService.testConnection(controller.text);
+                            setDialogState(() {
+                              testing = false;
+                              testStatus = ok ? 'Conectado exitosamente ✅' : 'No responde el backend ❌';
+                            });
+                          },
+                    icon: testing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bolt, size: 16),
+                    label: const Text('Probar Conexión', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (testStatus != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  testStatus!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: testStatus!.contains('✅') ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _brand,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final nav = Navigator.of(ctx);
+                await AuthService.setCustomBaseUrl(controller.text);
+                nav.pop();
+                _load();
+              },
+              child: const Text('Guardar y Recargar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,6 +193,13 @@ class _CatalogoViewState extends State<CatalogoView> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text('FashionStore', style: TextStyle(color: _ink, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.wifi, color: _brand),
+            tooltip: 'Configurar Servidor / IP',
+            onPressed: _showServerConfigDialog,
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _brand))
@@ -145,9 +263,51 @@ class _CatalogoViewState extends State<CatalogoView> {
                   const SizedBox(height: 8),
 
                   if (_filtered.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: Text('No hay prendas disponibles por el momento.', style: TextStyle(color: _muted))),
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 24),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFEFE7E3)),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(_products.isEmpty ? Icons.cloud_off : Icons.search_off, size: 48, color: _brand.withValues(alpha: 0.6)),
+                          const SizedBox(height: 12),
+                          Text(
+                            _products.isEmpty ? 'No se pudo conectar al catálogo' : 'No se encontraron prendas',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _ink),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _products.isEmpty
+                                ? 'Verifica que tu celular esté en el mismo Wi-Fi que tu PC y que la IP del servidor sea la correcta.\n\nServidor actual: ${AuthService.apiBaseUrl}'
+                                : 'Prueba cambiando los filtros o el texto de búsqueda.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12, color: _muted),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_products.isEmpty)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: Colors.white),
+                                  onPressed: _showServerConfigDialog,
+                                  icon: const Icon(Icons.wifi, size: 16),
+                                  label: const Text('Configurar IP / Servidor', style: TextStyle(fontSize: 12)),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: _load,
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('Reintentar', style: TextStyle(fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     )
                   else
                     GridView.builder(

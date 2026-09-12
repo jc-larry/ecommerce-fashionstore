@@ -30,6 +30,7 @@ import { CashShiftComponent } from './packages/ventas_y_pagos/cash-shift/cash-sh
 import { QuotationsReturnsComponent } from './packages/ventas_y_pagos/quotations-returns/quotations-returns.component';
 import { CustomerOrdersComponent } from './packages/ventas_y_pagos/orders/customer-orders.component';
 import { CartModalComponent } from './packages/ventas_y_pagos/cart/cart-modal.component';
+import { SupplierPortalComponent } from './packages/inventario_y_proveedores/supplier-portal/supplier-portal.component';
 import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.interceptor';
 
 @NgModule({
@@ -59,7 +60,8 @@ import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.intercepto
     CashShiftComponent,
     QuotationsReturnsComponent,
     CustomerOrdersComponent,
-    CartModalComponent
+    CartModalComponent,
+    SupplierPortalComponent
   ],
   imports: [
     BrowserModule,

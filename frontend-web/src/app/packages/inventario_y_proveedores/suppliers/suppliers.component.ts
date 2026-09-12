@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { InventarioService } from '../inventario.service';
+import { UsersService } from '../../seguridad_y_usuarios/users.service';
 
 export const SUPPLIER_CATEGORIES = [
   'Telas y Textiles',
@@ -30,7 +31,13 @@ export class SuppliersComponent implements OnInit {
   form = this.emptyForm();
   validationErrors: { [key: string]: string } = {};
 
-  constructor(private inventario: InventarioService) {}
+  // [Rol PROVEEDOR] Asignar/crear un usuario con acceso al portal de autoservicio
+  showAssignForm = false;
+  assignTargetSupplier: any = null;
+  assignForm = this.emptyAssignForm();
+  assignError = '';
+
+  constructor(private inventario: InventarioService, private users: UsersService) {}
 
   ngOnInit(): void {
     this.load();
@@ -218,6 +225,59 @@ export class SuppliersComponent implements OnInit {
       error: (e) => {
         this.error = e.error?.detail || `Error al ${actionWord} el proveedor.`;
       }
+    });
+  }
+
+  // ===================================================================
+  // [Rol PROVEEDOR] Asignar un usuario con acceso al portal de autoservicio
+  // ===================================================================
+
+  emptyAssignForm() {
+    return { first_name: '', last_name: '', email: '', phone: '', password: '' };
+  }
+
+  openAssignUser(s: any): void {
+    this.assignTargetSupplier = s;
+    this.assignForm = this.emptyAssignForm();
+    this.assignError = '';
+    this.showAssignForm = true;
+  }
+
+  closeAssignForm(): void {
+    this.showAssignForm = false;
+    this.assignTargetSupplier = null;
+  }
+
+  /**
+   * [Rol PROVEEDOR] Crea un usuario con rol PROVEEDOR y lo vincula de inmediato
+   * a la ficha de proveedor seleccionada (mismo flujo que asignar un empleado a sucursal).
+   */
+  saveAssignUser(): void {
+    this.assignError = '';
+    const payload = {
+      first_name: this.assignForm.first_name,
+      last_name: this.assignForm.last_name,
+      email: this.assignForm.email,
+      phone: this.assignForm.phone,
+      password: this.assignForm.password,
+      role_names: ['PROVEEDOR'],
+    };
+    this.users.createUser(payload).subscribe({
+      next: (created) => {
+        this.inventario.assignSupplierUser(this.assignTargetSupplier.id, created.id).subscribe({
+          next: () => { this.load(); this.closeAssignForm(); },
+          error: (e) => (this.assignError = e.error?.detail || 'Usuario creado, pero falló la vinculación al proveedor.'),
+        });
+      },
+      error: (e) => (this.assignError = e.error?.detail || 'Error al crear el usuario proveedor.'),
+    });
+  }
+
+  removeAssignedUser(s: any, userId: number): void {
+    if (!confirm('¿Quitar el acceso de este usuario al portal de proveedor?')) return;
+    this.inventario.removeSupplierUser(s.id, userId).subscribe({
+      next: () => this.load(),
+      error: (e) => (this.error = e.error?.detail || 'No se pudo quitar el acceso del usuario.'),
     });
   }
 }

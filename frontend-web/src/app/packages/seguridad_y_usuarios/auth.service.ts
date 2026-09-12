@@ -121,4 +121,9 @@ export class AuthService {
   isCentralUser(): boolean {
     return this.getRoles().includes('SUPERADMIN');
   }
+
+  /** [Rol PROVEEDOR] True si el usuario tiene el rol PROVEEDOR (portal propio, fuera del panel admin y de la tienda). */
+  isProveedorUser(): boolean {
+    return this.getRoles().includes('PROVEEDOR');
+  }
 }

@@ -17,6 +17,10 @@ export class AuthGuard implements CanActivate {
     if (this.auth.isAdminUser()) {
       return true;
     }
+    // [Rol PROVEEDOR] no pertenece al panel admin ni a la tienda: tiene su propio portal
+    if (this.auth.isProveedorUser()) {
+      return this.router.createUrlTree(['/proveedor']);
+    }
     // Sesión válida pero sin rol de panel → es cliente
     return this.router.createUrlTree(['/tienda']);
   }
@@ -50,5 +54,27 @@ export class CentralOnlyGuard implements CanActivate {
       return true;
     }
     return this.router.createUrlTree(['/admin/dashboard']);
+  }
+}
+
+/**
+ * [Rol PROVEEDOR] Protege el portal de autoservicio del proveedor (/proveedor):
+ * exige sesión activa y rol PROVEEDOR. Un admin o cliente son redirigidos a su propio panel.
+ */
+@Injectable({ providedIn: 'root' })
+export class ProveedorGuard implements CanActivate {
+  constructor(private auth: AuthService, private router: Router) {}
+
+  canActivate(): boolean | UrlTree {
+    if (!this.auth.isLoggedIn()) {
+      return this.router.createUrlTree(['/login']);
+    }
+    if (this.auth.isProveedorUser()) {
+      return true;
+    }
+    if (this.auth.isAdminUser()) {
+      return this.router.createUrlTree(['/admin/dashboard']);
+    }
+    return this.router.createUrlTree(['/tienda']);
   }
 }

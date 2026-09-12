@@ -1,0 +1,131 @@
+<div class="supplier-portal-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+      <h3 class="fw-bold mb-1">
+        <i class="bi bi-truck me-2 text-primary"></i>
+        {{ profile?.name || 'Portal de Proveedor' }}
+      </h3>
+      <p class="text-muted small mb-0">NIT: {{ profile?.nit || '—' }} · {{ profile?.category || '' }}</p>
+    </div>
+  </div>
+
+  <div class="validation-card validation-card-error mb-3" *ngIf="error">
+    <div class="val-content">{{ error }}</div>
+    <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
+  </div>
+  <div class="validation-card validation-card-success mb-3" *ngIf="success">
+    <div class="val-content">{{ success }}</div>
+    <button class="val-close" (click)="success = ''" title="Cerrar">&times;</button>
+  </div>
+
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+      <a class="nav-link" [class.active]="activeTab === 'perfil'" (click)="setTab('perfil')" style="cursor:pointer;">
+        <i class="bi bi-person-vcard me-1"></i> Mi Perfil
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" [class.active]="activeTab === 'productos'" (click)="setTab('productos')" style="cursor:pointer;">
+        <i class="bi bi-box-seam me-1"></i> Mis Productos
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" [class.active]="activeTab === 'compras'" (click)="setTab('compras')" style="cursor:pointer;">
+        <i class="bi bi-clipboard-data me-1"></i> Mis Compras
+      </a>
+    </li>
+  </ul>
+
+  <!-- MI PERFIL -->
+  <div *ngIf="activeTab === 'perfil'" class="card border-0 shadow-sm rounded-4 p-4" style="max-width: 560px;">
+    <p class="text-muted small">
+      Solo puedes actualizar tus datos de contacto. El NIT, la razón social y la categoría son
+      administrados por FashionStore.
+    </p>
+    <div class="mb-3">
+      <label class="form-label small fw-bold">Nombre de contacto</label>
+      <input class="form-control" [(ngModel)]="contactForm.contact_name" name="contact_name">
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-bold">Correo electrónico</label>
+      <input type="email" class="form-control" [(ngModel)]="contactForm.email" name="email">
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-bold">Teléfono</label>
+      <input class="form-control" [(ngModel)]="contactForm.phone" name="phone">
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-bold">Dirección</label>
+      <input class="form-control" [(ngModel)]="contactForm.address" name="address">
+    </div>
+    <button class="btn btn-primary fw-bold" (click)="saveContact()">Guardar cambios</button>
+  </div>
+
+  <!-- MIS PRODUCTOS -->
+  <div *ngIf="activeTab === 'productos'" class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>SKU</th>
+              <th>Prenda</th>
+              <th>Color</th>
+              <th>Talla</th>
+              <th>Sucursal</th>
+              <th class="text-end">Stock actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="!loading && products.length === 0">
+              <td colspan="6" class="text-center text-muted py-4">
+                Todavía no registramos compras de prendas a tu proveedor.
+              </td>
+            </tr>
+            <tr *ngFor="let p of products">
+              <td class="font-monospace">{{ p.sku }}</td>
+              <td>{{ p.product_name }}</td>
+              <td>{{ p.color_name }}</td>
+              <td>{{ p.size_name }}</td>
+              <td>{{ p.branch_name }}</td>
+              <td class="text-end fw-bold">{{ p.stock_actual }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIS COMPRAS -->
+  <div *ngIf="activeTab === 'compras'" class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Orden</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Factura</th>
+              <th class="text-end">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
+            <tr *ngIf="!loading && purchaseOrders.length === 0">
+              <td colspan="5" class="text-center text-muted py-4">Todavía no tienes órdenes de compra registradas.</td>
+            </tr>
+            <tr *ngFor="let o of purchaseOrders">
+              <td class="fw-bold font-monospace">OC-{{ o.id }}</td>
+              <td>{{ o.created_at | date:'dd/MM/yyyy' }}</td>
+              <td><span class="badge bg-light text-dark border">{{ o.status }}</span></td>
+              <td>{{ o.invoice_number || '—' }}</td>
+              <td class="text-end fw-bold">Bs. {{ o.total_amount | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
+from app.packages.seguridad_y_usuarios.schemas import UserDetailResponse
 
 class SupplierBase(BaseModel):
     nit: str = Field(..., min_length=5, max_length=20)
@@ -26,6 +27,19 @@ class SupplierUpdate(BaseModel):
 
 class SupplierResponse(SupplierBase):
     id: int
+    users: List[UserDetailResponse] = []
 
     class Config:
         from_attributes = True
+
+
+# --- Portal de autoservicio del proveedor ---
+class SupplierContactUpdate(BaseModel):
+    contact_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+
+class AssignSupplierUser(BaseModel):
+    user_id: int

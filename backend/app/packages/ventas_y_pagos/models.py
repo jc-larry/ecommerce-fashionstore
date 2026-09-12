@@ -189,6 +189,8 @@ class Quotation(Base):
     customer_email: Mapped[Optional[str]] = mapped_column(String(100))
     customer_phone: Mapped[Optional[str]] = mapped_column(String(30))
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    # [Separación por sucursal] Nullable por compatibilidad con cotizaciones antiguas sin este dato.
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id", ondelete="SET NULL"))
     total_amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="VIGENTE", nullable=False)  # 'VIGENTE', 'CONVERTIDA', 'VENCIDA'

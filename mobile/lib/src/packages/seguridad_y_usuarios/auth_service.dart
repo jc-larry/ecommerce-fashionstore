@@ -24,7 +24,7 @@ class AuthService {
   static const String _baseUrlOverride =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
   static const String _host =
-      String.fromEnvironment('API_HOST', defaultValue: '10.10.151.229');
+      String.fromEnvironment('API_HOST', defaultValue: '192.168.0.11');
   static const String _port =
       String.fromEnvironment('API_PORT', defaultValue: '8000');
 

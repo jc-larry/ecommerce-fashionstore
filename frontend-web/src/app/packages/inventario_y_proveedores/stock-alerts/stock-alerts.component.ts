@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { InventarioService, StockAlertItem } from '../inventario.service';
 import { CatalogoService, BranchOption } from '../../catalogo_y_tiendas/catalogo.service';
 import { BranchContextService } from '../../catalogo_y_tiendas/branches/branch-context.service';
+import { AuthService } from '../../seguridad_y_usuarios/auth.service';
 
 @Component({
   selector: 'app-stock-alerts',
@@ -24,7 +25,8 @@ export class StockAlertsComponent implements OnInit {
   constructor(
     private inventarioService: InventarioService,
     private catalogoService: CatalogoService,
-    public branchContext: BranchContextService
+    public branchContext: BranchContextService,
+    public authService: AuthService
   ) {}
 
   ngOnInit(): void {

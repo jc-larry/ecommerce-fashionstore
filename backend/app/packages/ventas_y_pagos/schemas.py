@@ -199,6 +199,8 @@ class QuotationResponse(BaseModel):
     status: str
     created_at: datetime
     items: List[OrderItemResponse]
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -22,7 +22,10 @@ from app.packages.catalogo_y_tiendas.branches.models import Branch
 from app.packages.catalogo_y_tiendas.models import Product, ProductVariant, Color, Size
 from app.packages.inventario_y_proveedores.suppliers.models import Supplier
 # Importar control de roles, usuario y logueo de auditoría del paquete de Seguridad
-from app.packages.seguridad_y_usuarios import User, RoleChecker, log_event, get_current_user, get_branch_scope, BranchScope
+from app.packages.seguridad_y_usuarios import (
+    User, RoleChecker, log_event, get_current_user, get_branch_scope, BranchScope,
+    get_supplier_scope,
+)
 
 router = APIRouter(prefix="/api/v1/merchandise", tags=["merchandise"])
 
@@ -30,6 +33,8 @@ router = APIRouter(prefix="/api/v1/merchandise", tags=["merchandise"])
 staff_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO"])
 # Módulos operativos de sucursal (inventario, alertas, ajustes, transferencias): también CAJERO
 branch_staff_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO", "CAJERO"])
+# Historial de compras: personal de tienda (scoped por sucursal) o el proveedor dueño (scoped a sí mismo)
+purchase_history_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO", "CAJERO", "PROVEEDOR"])
 
 REASON_LABELS = {
     "MERMA": "Merma general",
@@ -158,6 +163,35 @@ def register_merchandise_intake(
     )
     return purchase
 
+
+@router.get("/purchase-orders", response_model=List[PurchaseOrderResponse])
+def list_purchase_orders(
+    branch_id: Optional[int] = None,
+    supplier_id: Optional[int] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(purchase_history_check),
+):
+    """Historial de órdenes de compra: el personal de tienda lo ve por sucursal (con el
+    mismo alcance ya aplicado en el resto del módulo), y un usuario PROVEEDOR solo ve las
+    órdenes de su propio proveedor, ignorando cualquier branch_id/supplier_id que envíe."""
+    user_roles = [r.name for r in current_user.roles]
+    query = db.query(PurchaseOrder).options(selectinload(PurchaseOrder.details))
+
+    if "PROVEEDOR" in user_roles and not any(r in user_roles for r in ("SUPERADMIN", "ENCARGADO", "CAJERO")):
+        scope = get_supplier_scope(current_user, db)
+        query = query.filter(PurchaseOrder.supplier_id == scope.supplier_id)
+    else:
+        branch_scope = get_branch_scope(current_user, db)
+        effective_branch_id = branch_id if branch_scope.is_central else branch_scope.branch_id
+        if effective_branch_id:
+            query = query.filter(PurchaseOrder.branch_id == effective_branch_id)
+        if supplier_id:
+            query = query.filter(PurchaseOrder.supplier_id == supplier_id)
+
+    return query.order_by(PurchaseOrder.created_at.desc()).limit(limit).all()
+
+
 @router.get("/inventory", response_model=List[InventoryResponse])
 def get_inventory_levels(
     branch_id: Optional[int] = None,
@@ -165,12 +199,44 @@ def get_inventory_levels(
     current_user: User = Depends(branch_staff_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
-    """[CU10] Consulta el stock de variantes actual global (central) o de la sucursal del usuario"""
+    """[CU10] Consulta el stock de variantes actual global (central) o de la sucursal del usuario.
+
+    Incluye datos de exhibición (nombre, SKU, color, talla, imagen, precio de venta) para que
+    el POS pueda listar productos vendibles sin depender de /valuation (que expone costo/margen
+    y por eso está restringido a SUPERADMIN/ENCARGADO)."""
     effective_branch_id = branch_id if scope.is_central else scope.branch_id
-    query = db.query(Inventory)
+    query = (
+        db.query(Inventory, ProductVariant, Product, Color, Size)
+        .join(ProductVariant, ProductVariant.id == Inventory.variant_id)
+        .join(Product, Product.id == ProductVariant.product_id)
+        .outerjoin(Color, Color.id == ProductVariant.color_id)
+        .outerjoin(Size, Size.id == ProductVariant.size_id)
+    )
     if effective_branch_id:
         query = query.filter(Inventory.branch_id == effective_branch_id)
-    return query.all()
+
+    results = []
+    for inv, variant, prod, color, size in query.all():
+        sale_price = float(variant.price_override if variant.price_override is not None else (prod.base_price or 0))
+        img_url = None
+        if prod.images:
+            primary = next((img.image_url for img in prod.images if img.is_primary), None)
+            img_url = primary or prod.images[0].image_url
+        results.append(InventoryResponse(
+            branch_id=inv.branch_id,
+            variant_id=inv.variant_id,
+            stock_actual=inv.stock_actual,
+            avg_cost=float(inv.avg_cost or 0),
+            stock_minimo=inv.stock_minimo,
+            stock_maximo=inv.stock_maximo,
+            sku=variant.sku,
+            product_name=prod.name,
+            color_name=color.name if color else "Estándar",
+            size_name=size.name if size else "Única",
+            image_url=img_url,
+            sale_price=sale_price,
+        ))
+    return results
 
 @router.get("/ledger", response_model=List[InventoryLedgerResponse])
 def get_inventory_ledger(

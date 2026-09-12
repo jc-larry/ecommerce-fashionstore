@@ -24,7 +24,8 @@ import { PosComponent } from './packages/ventas_y_pagos/pos/pos.component';
 import { CashShiftComponent } from './packages/ventas_y_pagos/cash-shift/cash-shift.component';
 import { QuotationsReturnsComponent } from './packages/ventas_y_pagos/quotations-returns/quotations-returns.component';
 import { CustomerOrdersComponent } from './packages/ventas_y_pagos/orders/customer-orders.component';
-import { AuthGuard, SessionGuard, CentralOnlyGuard } from './packages/seguridad_y_usuarios/auth.guard';
+import { SupplierPortalComponent } from './packages/inventario_y_proveedores/supplier-portal/supplier-portal.component';
+import { AuthGuard, SessionGuard, CentralOnlyGuard, ProveedorGuard } from './packages/seguridad_y_usuarios/auth.guard';
 
 const routes: Routes = [
   // Autenticación (CU01, CU03, CU04)
@@ -59,6 +60,9 @@ const routes: Routes = [
   { path: 'admin/quotations-returns', component: QuotationsReturnsComponent, canActivate: [AuthGuard], title: 'Cotizaciones y Devoluciones' },
   { path: 'admin/employees', component: EmployeesComponent, canActivate: [AuthGuard], title: 'Empleados' },
   { path: 'admin/audit', component: AuditComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Auditoría' },
+
+  // [Rol PROVEEDOR] Portal de autoservicio, fuera del panel admin y de la tienda
+  { path: 'proveedor', component: SupplierPortalComponent, canActivate: [ProveedorGuard], title: 'Portal de Proveedor' },
 
   { path: '**', redirectTo: 'login' }
 ];

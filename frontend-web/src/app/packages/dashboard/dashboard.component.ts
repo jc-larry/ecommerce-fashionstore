@@ -93,12 +93,19 @@ export class DashboardComponent implements OnInit {
 
   loadBranchDashboard(branchId: number): void {
     this.loading = true;
+    // [Separación por sucursal] /merchandise/valuation es SUPERADMIN+ENCARGADO (expone
+    // costo/margen); /audit/logs es SUPERADMIN-only. Evitamos llamarlos cuando el rol
+    // actual no tiene permiso, para no mostrar "Bs. 0.00" o "sin actividad" falsos.
+    const roles = this.auth.getRoles();
+    const canSeeValuation = roles.some((r) => ['SUPERADMIN', 'ENCARGADO'].includes(r));
+    const canSeeAuditLogs = this.auth.isCentralUser();
+
     forkJoin({
       inventory: this.inventario.getInventory(branchId).pipe(catchError(() => of([] as any[]))),
-      valuation: this.inventario.getValuation(branchId).pipe(catchError(() => of(null))),
+      valuation: canSeeValuation ? this.inventario.getValuation(branchId).pipe(catchError(() => of(null))) : of(null),
       shifts: this.ventas.getCashShifts(branchId).pipe(catchError(() => of([] as any[]))),
       branches: this.catalogo.getBranches().pipe(catchError(() => of([] as any[]))),
-      logs: this.users.getAuditLogs().pipe(catchError(() => of([] as any[]))),
+      logs: canSeeAuditLogs ? this.users.getAuditLogs().pipe(catchError(() => of([] as any[]))) : of([] as any[]),
     }).subscribe(({ inventory, valuation, shifts, branches, logs }: { inventory: any[]; valuation: any; shifts: any[]; branches: any[]; logs: any[] }) => {
       const targetBranch = branches.find((b: any) => b.id === branchId);
       const employeesCount = targetBranch?.employees?.length || 0;
@@ -112,12 +119,19 @@ export class DashboardComponent implements OnInit {
           icon: 'bi-boxes',
           subtitle: `${inventory.length} variantes disponibles`
         },
-        {
-          label: 'Capital en esta Sucursal',
-          value: valuation ? `Bs. ${Number(valuation.capital_invertido).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Bs. 0.00',
-          icon: 'bi-safe2',
-          subtitle: 'Valuación al costo'
-        },
+        canSeeValuation
+          ? {
+              label: 'Capital en esta Sucursal',
+              value: valuation ? `Bs. ${Number(valuation.capital_invertido).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Bs. 0.00',
+              icon: 'bi-safe2',
+              subtitle: 'Valuación al costo'
+            }
+          : {
+              label: 'Prendas Vendibles',
+              value: `${(inventory || []).filter((i: any) => Number(i.stock_actual) > 0).length}`,
+              icon: 'bi-tag',
+              subtitle: 'Variantes con stock disponible'
+            },
         {
           label: 'Estado de Caja',
           value: openShift ? `Abierta (#${openShift.id})` : 'Cerrada',
@@ -131,7 +145,7 @@ export class DashboardComponent implements OnInit {
           subtitle: 'Equipo de tienda'
         },
       ];
-      this.recentLogs = logs.slice(0, 6);
+      this.recentLogs = canSeeAuditLogs ? logs.slice(0, 6) : [];
       this.loading = false;
     });
   }

@@ -75,6 +75,7 @@ _COLUMN_UPGRADES = [
     "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) DEFAULT 0",
     "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS previous_avg_cost NUMERIC(10, 2) DEFAULT 0",
     "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS new_avg_cost NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL",
 ]
 
 # Normalización de datos: el correo es único e insensible a mayúsculas. Se pasan a

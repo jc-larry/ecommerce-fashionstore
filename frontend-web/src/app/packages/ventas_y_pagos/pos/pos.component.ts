@@ -124,10 +124,13 @@ export class PosComponent implements OnInit, OnDestroy {
 
   loadBranchInventory(branchId: number): void {
     this.loadingInventory = true;
-    this.inventarioService.getValuation(branchId).subscribe({
-      next: (val) => {
+    // [Separación por sucursal] Se usa /inventory (accesible para CAJERO) en vez de
+    // /valuation (solo SUPERADMIN/ENCARGADO, expone costo/margen) — el POS solo necesita
+    // stock y precio de venta, no capital invertido.
+    this.inventarioService.getInventory(branchId).subscribe({
+      next: (items) => {
         // Solo prendas con existencias reales en esta tienda física
-        this.branchInventory = (val.items || []).filter(item => item.stock_actual > 0);
+        this.branchInventory = (items || []).filter((item: any) => item.stock_actual > 0);
         this.loadingInventory = false;
       },
       error: () => {

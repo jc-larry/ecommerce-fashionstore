@@ -63,10 +63,13 @@
           <div class="row g-3 mb-3">
             <div class="col-md-6">
               <label class="form-label small fw-bold text-secondary mb-1">Sucursal <span class="text-danger">*</span></label>
-              <select class="form-select custom-select" [(ngModel)]="branchId" (change)="onBranchChange()">
+              <select *ngIf="authService.isCentralUser(); else fixedBranchLabel" class="form-select custom-select" [(ngModel)]="branchId" (change)="onBranchChange()">
                 <option [ngValue]="null" disabled>Selecciona la sucursal…</option>
                 <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
               </select>
+              <ng-template #fixedBranchLabel>
+                <div class="form-control bg-light">📍 {{ (branchContext.activeBranch$ | async)?.name || 'Sin sucursal asignada' }}</div>
+              </ng-template>
             </div>
             <div class="col-md-6">
               <label class="form-label small fw-bold text-secondary mb-1">Prenda / Variante <span class="text-danger">*</span></label>

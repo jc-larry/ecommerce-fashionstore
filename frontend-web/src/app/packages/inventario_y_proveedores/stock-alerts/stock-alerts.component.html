@@ -38,10 +38,13 @@
     <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
       <div class="d-flex align-items-center gap-2">
         <span class="text-muted small fw-semibold">Sucursal:</span>
-        <select class="form-select form-select-sm" style="width: 240px;" [(ngModel)]="branchFilter" (change)="onLocalBranchChange()">
+        <select *ngIf="authService.isCentralUser(); else fixedBranchLabel" class="form-select form-select-sm" style="width: 240px;" [(ngModel)]="branchFilter" (change)="onLocalBranchChange()">
           <option [ngValue]="null">📍 Todas las sucursales</option>
           <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }} ({{ b.city }})</option>
         </select>
+        <ng-template #fixedBranchLabel>
+          <span class="fw-semibold">📍 {{ (branchContext.activeBranch$ | async)?.name || 'Sin sucursal asignada' }}</span>
+        </ng-template>
       </div>
       <span class="badge bg-white border text-secondary shadow-sm">
         <span class="pill" [ngClass]="alerts.length > 0 ? 'pill-off' : 'pill-ok'">
