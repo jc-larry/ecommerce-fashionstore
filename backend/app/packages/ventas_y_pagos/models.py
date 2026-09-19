@@ -85,6 +85,8 @@ class Payment(Base):
     card_last4: Mapped[Optional[str]] = mapped_column(String(4))
     gateway_reference: Mapped[Optional[str]] = mapped_column(String(80))
     qr_reference: Mapped[Optional[str]] = mapped_column(String(80))
+    paypal_payer_id: Mapped[Optional[str]] = mapped_column(String(50))
+    paypal_payer_email: Mapped[Optional[str]] = mapped_column(String(100))
     credit_due_date: Mapped[Optional[date]] = mapped_column(Date)
 
     order: Mapped[Order] = relationship("Order", back_populates="payments")
@@ -105,6 +107,10 @@ class TarjetaPayment(Payment):
 
 class QRPayment(Payment):
     __mapper_args__ = {"polymorphic_identity": "QR"}
+
+
+class PayPalPayment(Payment):
+    __mapper_args__ = {"polymorphic_identity": "PAYPAL"}
 
 
 class CreditoPayment(Payment):

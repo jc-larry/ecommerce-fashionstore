@@ -1,0 +1,89 @@
+<div class="container py-5" style="max-width: 800px;">
+  <div class="text-center mb-5">
+    <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold mb-2">
+      <i class="bi bi-geo-alt-fill me-1"></i> RASTREO SATELITAL Y LOGÍSTICA
+    </span>
+    <h2 class="fw-bold text-dark mb-2">Trazabilidad de Envíos FashionStore</h2>
+    <p class="text-muted small">
+      [CU30] Monitorea en tiempo real la ruta y el estado de entrega de tus prendas compradas.
+    </p>
+
+    <!-- Buscador de Tracking -->
+    <div class="card border-0 shadow-sm rounded-pill p-2 mt-4 mx-auto" style="max-width: 550px; background: #fff;">
+      <div class="input-group">
+        <span class="input-group-text bg-transparent border-0 ps-3">
+          <i class="bi bi-search text-muted"></i>
+        </span>
+        <input type="text" class="form-control border-0 shadow-none font-monospace" [(ngModel)]="trackingCode" (keyup.enter)="searchTracking()" placeholder="Ingresa código (Ej. TRK-A1B2C3D4)">
+        <button class="btn btn-primary rounded-pill px-4 fw-bold" [disabled]="loading" (click)="searchTracking()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+          Rastrear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerta de Error -->
+  <div *ngIf="errorMsg" class="alert alert-warning text-center rounded-4 shadow-sm py-3" role="alert">
+    <i class="bi bi-exclamation-circle-fill me-2"></i>{{ errorMsg }}
+  </div>
+
+  <!-- Resultado del Tracking -->
+  <div *ngIf="shipment" class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+    <!-- Cabecera de estado -->
+    <div class="p-4 text-white bg-dark d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <small class="text-white-50 text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 1px;">GUÍA DE SEGUIMIENTO</small>
+        <span class="fs-4 fw-bold font-monospace">{{ shipment.tracking_number }}</span>
+      </div>
+      <div>
+        <span class="badge rounded-pill fs-6 px-3 py-2" [ngClass]="getStatusBadge(shipment.status)">
+          {{ getStatusText(shipment.status) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Detalles del Envío -->
+    <div class="card-body p-4">
+      <div class="row g-3 mb-4 p-3 bg-light rounded-3">
+        <div class="col-sm-6">
+          <small class="text-muted d-block">Destinatario:</small>
+          <strong class="text-dark">{{ shipment.recipient_name }}</strong>
+          <small class="d-block text-muted">📞 {{ shipment.recipient_phone }}</small>
+        </div>
+        <div class="col-sm-6">
+          <small class="text-muted d-block">Dirección de Destino:</small>
+          <strong class="text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ shipment.delivery_address }}</strong>
+          <small class="d-block text-muted" *ngIf="shipment.zone_name">{{ shipment.zone_name }}</small>
+        </div>
+        <div class="col-sm-6 border-top pt-2">
+          <small class="text-muted d-block">Empresa de Reparto:</small>
+          <span class="fw-semibold text-dark">{{ shipment.carrier_name }}</span>
+        </div>
+        <div class="col-sm-6 border-top pt-2">
+          <small class="text-muted d-block">Costo de Envío:</small>
+          <span class="fw-bold text-primary">Bs. {{ shipment.shipping_cost | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <!-- Línea de Tiempo Cronológica -->
+      <h6 class="fw-bold text-dark mb-3">
+        <i class="bi bi-clock-history text-primary me-2"></i>Línea de Tiempo de Entrega:
+      </h6>
+
+      <div class="timeline ps-4">
+        <div *ngFor="let ev of shipment.events; let last = last" class="timeline-item">
+          <div class="timeline-badge" [ngClass]="last ? 'bg-success' : 'bg-primary'"></div>
+          <div class="timeline-content">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="badge bg-white text-dark border">{{ ev.status }}</span>
+              <small class="text-muted">{{ ev.created_at | date:'dd/MM/yyyy HH:mm' }}</small>
+            </div>
+            <div class="fw-bold text-dark small"><i class="bi bi-pin-map-fill text-danger me-1"></i>{{ ev.location }}</div>
+            <p class="text-muted small mb-0">{{ ev.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

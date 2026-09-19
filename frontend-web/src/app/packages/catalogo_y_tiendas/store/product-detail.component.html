@@ -110,60 +110,95 @@
           <p class="text-muted small mb-0">{{ product.description }}</p>
         </details>
 
-        <!-- Disponibilidad por Sucursal y Cita de Vestidor (CU12 / CU15) -->
+        <!-- Disponibilidad por Sucursal y Reserva en Probador (CU12 / CU26) -->
         <div class="branch-stock-section p-3 rounded-4 bg-light border mb-3">
           <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="small fw-bold text-dark d-flex align-items-center gap-1">
-              <i class="bi bi-shop text-primary"></i> Disponibilidad y Estado de Sucursales
-            </span>
+            <div>
+              <span class="small fw-bold text-dark d-flex align-items-center gap-1">
+                <i class="bi bi-door-open-fill text-primary"></i> Sucursales con Probador y Stock (CU26)
+              </span>
+              <small class="text-muted d-block" style="font-size: 11px;">
+                <strong>Paso 1:</strong> Prenda elegida: <em>{{ selectedColor?.name || 'Color' }} / Talla {{ selectedSize?.name || 'Talla' }}</em>
+              </small>
+            </div>
             <span class="badge" [ngClass]="totalSelectedVariantStock > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'">
               {{ totalSelectedVariantStock > 0 ? (totalSelectedVariantStock + ' u. disponibles') : 'Agotado' }}
             </span>
           </div>
 
-          <div class="list-group list-group-flush rounded-3 border-0 gap-2" *ngIf="branchStockList.length > 0">
-            <div class="list-group-item p-2 bg-white rounded-3 border shadow-2xs"
-                 *ngFor="let b of branchStockList">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <div class="fw-bold text-dark small d-flex align-items-center gap-1">
-                    <i class="bi bi-geo-alt-fill text-danger"></i> {{ b.branchName }}
-                    <span class="text-muted fw-normal" style="font-size: 11px;">({{ b.city }})</span>
-                  </div>
-                  <!-- Estado de atención en vivo de la sucursal -->
-                  <div class="mt-1">
-                    <span class="badge py-1 px-2"
-                          [ngClass]="b.isTemporarilyClosed ? 'bg-danger text-white' : 'bg-success-subtle text-success border border-success-subtle'"
-                          style="font-size: 10px;">
-                      <i class="bi me-1" [ngClass]="b.isTemporarilyClosed ? 'bi-cone-striped' : 'bi-door-open-fill'"></i>
-                      {{ b.isTemporarilyClosed ? 'Cerrada hoy: ' + (b.closureReason || 'En refacciones') : 'Abierta hoy (' + b.openingTime + ' - ' + b.closingTime + ')' }}
-                    </span>
-                  </div>
-                </div>
+          <!-- Paso 2: Sucursales filtradas donde SÍ está disponible la prenda -->
+          <div class="mt-2" *ngIf="selectedColorId && selectedSizeId">
+            <div class="small fw-semibold text-secondary mb-2 d-flex align-items-center gap-1" style="font-size: 12px;">
+              <i class="bi bi-funnel-fill text-primary"></i> <strong>Paso 2:</strong> Sucursales donde ESTÁ la prenda disponible:
+            </div>
 
-                <div class="text-end">
-                  <span class="badge rounded-pill mb-1 d-inline-block"
-                        [ngClass]="b.hasStock ? 'bg-success text-white' : 'bg-secondary text-white-50'">
-                    {{ b.hasStock ? (b.stock + ' u. en tienda') : 'Sin stock' }}
-                  </span>
-                  <!-- Botón para agendar cita de probador / vestidor -->
-                  <div *ngIf="b.hasFittingRoom && b.hasStock">
-                    <button class="btn btn-xs btn-outline-primary py-1 px-2 rounded-pill fw-bold shadow-2xs"
-                            style="font-size: 11px;"
-                            [disabled]="b.isTemporarilyClosed"
-                            (click)="openFittingModal(b)"
-                            [title]="b.isTemporarilyClosed ? 'Sucursal cerrada temporalmente' : 'Agendar cita para probarse esta prenda en tienda'">
-                      <i class="bi bi-person-standing me-1"></i>
-                      {{ b.isTemporarilyClosed ? 'Probador cerrado' : 'Agendar Cita en Vestidor' }}
-                    </button>
+            <!-- Sucursales con stock físico disponible -->
+            <div class="list-group list-group-flush rounded-3 border-0 gap-2 mb-2" *ngIf="branchesWithStock.length > 0">
+              <div class="list-group-item p-2 bg-white rounded-3 border border-success-subtle shadow-2xs"
+                   *ngFor="let b of branchesWithStock">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div class="fw-bold text-dark small d-flex align-items-center gap-1">
+                      <i class="bi bi-geo-alt-fill text-danger"></i> {{ b.branchName }}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle px-1" style="font-size: 10px;">En stock</span>
+                      <span class="text-muted fw-normal" style="font-size: 11px;">({{ b.city }})</span>
+                    </div>
+                    <!-- Estado de atención en vivo de la sucursal -->
+                    <div class="mt-1">
+                      <span class="badge py-1 px-2"
+                            [ngClass]="b.isTemporarilyClosed ? 'bg-danger text-white' : 'bg-light text-secondary border'"
+                            style="font-size: 10px;">
+                        <i class="bi me-1" [ngClass]="b.isTemporarilyClosed ? 'bi-cone-striped' : 'bi-clock'"></i>
+                        {{ b.isTemporarilyClosed ? 'Cerrada hoy: ' + (b.closureReason || 'En refacciones') : 'Atención: ' + b.openingTime + ' - ' + b.closingTime }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="text-end">
+                    <span class="badge bg-success text-white rounded-pill mb-1 d-inline-block" style="font-size: 10px;">
+                      {{ b.stock }} u. en probador
+                    </span>
+                    <!-- Botón para agendar cita de probador / vestidor -->
+                    <div *ngIf="b.hasFittingRoom">
+                      <button class="btn btn-xs btn-primary py-1 px-2 rounded-pill fw-bold shadow-2xs"
+                              style="font-size: 11px;"
+                              [disabled]="b.isTemporarilyClosed"
+                              (click)="openFittingModal(b)"
+                              [title]="b.isTemporarilyClosed ? 'Sucursal cerrada temporalmente' : 'Agendar reserva para probarse esta prenda en tienda'">
+                        <i class="bi bi-calendar-check me-1"></i>
+                        {{ b.isTemporarilyClosed ? 'Probador cerrado' : 'Reservar en esta tienda' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Aviso cuando ninguna sucursal tiene stock -->
+            <div class="alert alert-warning py-2 px-3 small rounded-3 mb-2" *ngIf="branchesWithStock.length === 0">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              <strong>Sin existencias físicas para probador:</strong> Esta talla y color no se encuentra disponible actualmente en las tiendas físicas. Puedes probar seleccionando otra talla o comprarla en línea con entrega a domicilio.
+            </div>
+
+            <!-- Sucursales sin stock (deshabilitadas para reserva) -->
+            <div *ngIf="branchesWithoutStock.length > 0" class="mt-2">
+              <details class="small text-muted">
+                <summary class="cursor-pointer text-muted" style="font-size: 11px;">
+                  Ver sucursales sin disponibilidad actual ({{ branchesWithoutStock.length }})
+                </summary>
+                <div class="list-group list-group-flush gap-1 mt-1">
+                  <div class="list-group-item p-1 px-2 bg-light rounded-2 border-0 text-muted d-flex justify-content-between align-items-center"
+                       *ngFor="let b of branchesWithoutStock" style="font-size: 11px;">
+                    <span><i class="bi bi-building me-1"></i>{{ b.branchName }} ({{ b.city }})</span>
+                    <span class="badge bg-secondary-subtle text-secondary">Sin stock en tienda</span>
+                  </div>
+                </div>
+              </details>
+            </div>
           </div>
 
-          <p class="text-muted small mb-0 mt-1" *ngIf="branchStockList.length === 0">
-            Selecciona una talla y color para verificar la disponibilidad y estado de las tiendas.
+          <p class="text-muted small mb-0 mt-1" *ngIf="!selectedColorId || !selectedSizeId">
+            <i class="bi bi-info-circle me-1"></i> Selecciona primero un color y una talla para ver las sucursales donde está disponible la prenda.
           </p>
         </div>
 
@@ -185,6 +220,17 @@
               <i class="bi" [ngClass]="inWishlist ? 'bi-heart-fill' : 'bi-heart'"></i>
             </button>
           </div>
+
+          <!-- Acceso directo al Vestidor Virtual (CU32) -->
+          <a *ngIf="product"
+             [routerLink]="['/tienda/vestidor']"
+             [queryParams]="{ productId: product.id, variantId: selectedVariant?.id }"
+             class="btn btn-outline-dark w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2 shadow-sm rounded-3 mt-1"
+             title="Probar esta prenda en el vestidor virtual con IA">
+            <i class="bi bi-stars text-primary fs-5"></i>
+            <span>Probar en Vestidor Virtual con IA</span>
+            <span class="badge bg-primary bg-opacity-10 text-primary small">CU32</span>
+          </a>
         </div>
       </div>
     </div>
@@ -321,9 +367,14 @@
               </div>
             </div>
 
-            <div class="alert alert-info py-2 px-3 small rounded-3 mt-3 mb-0">
+            <!-- Error de Reserva -->
+            <div class="alert alert-danger py-2 px-3 small rounded-3 mt-3 mb-0" *ngIf="bookingError">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i> {{ bookingError }}
+            </div>
+
+            <div class="alert alert-info py-2 px-3 small rounded-3 mt-3 mb-0" *ngIf="!bookingError">
               <i class="bi bi-info-circle-fill me-1"></i>
-              El vendedor de la tienda tendrá el probador reservado y las prendas separadas en tu talla para entregártelas de inmediato cuando llegues.
+              El stock se apartará preventivamente a tu nombre por <strong>48 horas</strong> en esta sucursal para que puedas probártelo.
             </div>
           </div>
 
@@ -332,19 +383,19 @@
             <div class="p-3 bg-success bg-opacity-10 text-success rounded-circle d-inline-flex mb-3">
               <i class="bi bi-check-circle-fill fs-1"></i>
             </div>
-            <h5 class="fw-bold text-dark mb-1">¡Cita de Vestidor Agendada!</h5>
-            <p class="text-muted small mb-3">Tu solicitud ha quedado registrada en la sucursal.</p>
+            <h5 class="fw-bold text-dark mb-1">¡Reserva de Probador Confirmada!</h5>
+            <p class="text-muted small mb-3">Tu stock ha quedado bloqueado por 48h en la sucursal seleccionada.</p>
 
             <div class="p-3 bg-light rounded-3 border text-start mb-3">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="small text-muted">Código de Cita:</span>
+                <span class="small text-muted">Código Oficial de Reserva:</span>
                 <span class="badge bg-primary fs-6 font-monospace">{{ bookingCode }}</span>
               </div>
               <div class="small mb-1"><strong>Sucursal:</strong> {{ selectedAppointmentBranch?.branchName }} ({{ selectedAppointmentBranch?.city }})</div>
               <div class="small mb-1"><strong>Fecha y Hora:</strong> {{ appointmentDate }} a las {{ appointmentTime }}</div>
               <div class="small mb-1"><strong>Prenda y Talla:</strong> {{ product?.name }} (Talla {{ selectedSize?.name }} - Color {{ selectedColor?.name }})</div>
               <div class="small text-muted mt-2 border-top pt-2">
-                <i class="bi bi-person-check me-1 text-success"></i> El asesor de tienda te estará esperando para entregarte directamente las prendas en el vestidor.
+                <i class="bi bi-clock-history me-1 text-primary"></i> Bloqueo HOLD activo: Tienes 48h hábiles para presentarte al probador.
               </div>
             </div>
           </div>
@@ -354,11 +405,16 @@
           <button type="button" class="btn btn-light px-4 fw-semibold border" *ngIf="!bookingConfirmed" (click)="closeFittingModal()">
             Cancelar
           </button>
-          <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" *ngIf="!bookingConfirmed" (click)="confirmAppointment()">
-            <i class="bi bi-calendar-check me-1"></i> Confirmar Cita
+          <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" *ngIf="!bookingConfirmed" [disabled]="bookingLoading" (click)="confirmAppointment()">
+            <span *ngIf="bookingLoading" class="spinner-border spinner-border-sm me-1"></span>
+            <i *ngIf="!bookingLoading" class="bi bi-calendar-check me-1"></i>
+            {{ bookingLoading ? 'Confirmando Reserva...' : 'Confirmar Reserva en Sucursal' }}
           </button>
+          <a routerLink="/tienda/reservas" class="btn btn-outline-primary px-3 fw-bold shadow-sm" *ngIf="bookingConfirmed" (click)="closeFittingModal()">
+            <i class="bi bi-door-open-fill me-1"></i> Ver Mis Reservas
+          </a>
           <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" *ngIf="bookingConfirmed" (click)="closeFittingModal()">
-            <i class="bi bi-check2 me-1"></i> Entendido / Cerrar
+            <i class="bi bi-check2 me-1"></i> Cerrar
           </button>
         </div>
       </div>

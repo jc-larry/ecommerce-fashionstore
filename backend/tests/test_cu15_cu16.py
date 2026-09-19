@@ -22,11 +22,10 @@ def get_admin_token():
     admin = db.query(User).filter(User.email == "admin@fashionstore.com").first()
     if not admin:
         admin = db.query(User).filter(User.is_active == True).first()
-    token = create_access_token({"sub": str(admin.id), "roles": ["SUPERADMIN"]})
+    token = create_access_token(admin.id)
     session_rec = SessionToken(
         user_id=admin.id,
         token=token,
-        ip_address="127.0.0.1",
         expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
         is_revoked=False
     )

@@ -1,0 +1,237 @@
+<div class="container-fluid p-4">
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-geo-alt-fill text-danger me-2"></i>Zonas de Cobertura y Tarifas de Despacho
+      </h3>
+      <p class="text-muted small mb-0">
+        [CU31] Mapa interactivo satelital con anillos de cobertura concéntricos, geolocalización GPS y cálculo dinámico de fletes por kilometraje real.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-bold" (click)="useCurrentGPS()" [disabled]="geocodingLoading">
+        <i class="bi bi-crosshair me-1 text-danger"></i>
+        <span *ngIf="!geocodingLoading">📍 Mi Ubicación GPS</span>
+        <span *ngIf="geocodingLoading" class="spinner-border spinner-border-sm me-1"></span>
+      </button>
+      <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" (click)="openCreate()">
+        <i class="bi bi-plus-lg me-1"></i> Nueva Zona
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="successMsg" class="alert alert-success alert-dismissible fade show rounded-3" role="alert">
+    <i class="bi bi-check-circle me-1"></i> {{ successMsg }}
+    <button type="button" class="btn-close" (click)="successMsg = ''"></button>
+  </div>
+  <div *ngIf="errorMsg" class="alert alert-danger alert-dismissible fade show rounded-3" role="alert">
+    <i class="bi bi-exclamation-triangle me-1"></i> {{ errorMsg }}
+    <button type="button" class="btn-close" (click)="errorMsg = ''"></button>
+  </div>
+
+  <!-- SECCIÓN PRINCIPAL: MAPA INTERACTIVO ESTILO PEDIDOSYA + CALCULADORA GPS -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+    <div class="card-header bg-dark text-white p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-danger rounded-pill px-2 py-1">GPS ACTIVO</span>
+        <span class="fw-bold fs-6">Mapa Interactivo de Cobertura y Trazabilidad de Ruta</span>
+      </div>
+      <!-- Selector de Sucursal de Retiro / Origen -->
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-white-50 mb-0 fw-bold">Sucursal de Despacho:</label>
+        <select class="form-select form-select-sm bg-light text-dark fw-bold border-0" style="width: 250px;"
+                [(ngModel)]="selectedBranchId" (change)="onBranchChange()">
+          <option *ngFor="let b of branches" [value]="b.id">
+            🏬 {{ b.name }} ({{ b.city || 'Santa Cruz' }})
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row g-0">
+      <!-- Mapa Leaflet -->
+      <div class="col-lg-8 position-relative">
+        <div id="delivery-map" style="height: 480px; width: 100%; z-index: 1;"></div>
+        <!-- Overlay de Instrucción rápida -->
+        <div class="position-absolute bottom-0 start-0 m-3 px-3 py-2 bg-white bg-opacity-90 rounded-3 shadow-sm border small" style="z-index: 1000;">
+          <i class="bi bi-info-circle text-primary me-1"></i>
+          <strong>Haz clic o arrastra el pin rojo</strong> en el mapa para marcar el domicilio del cliente.
+        </div>
+      </div>
+
+      <!-- Panel Lateral de Resumen de Flete en Tiempo Real -->
+      <div class="col-lg-4 p-4 bg-light d-flex flex-column justify-content-between border-start">
+        <div>
+          <h5 class="fw-bold text-dark mb-3">
+            <i class="bi bi-calculator-fill text-primary me-2"></i>Cálculo Dinámico de Flete
+          </h5>
+
+          <!-- Origen -->
+          <div class="mb-3 p-3 bg-white rounded-3 border">
+            <div class="text-muted small fw-bold text-uppercase mb-1">
+              <i class="bi bi-shop text-primary me-1"></i> Origen (Retiro de mercadería):
+            </div>
+            <div class="fw-bold text-dark">{{ selectedBranch?.name || 'Sucursal Central' }}</div>
+            <small class="text-muted d-block">{{ selectedBranch?.address || 'Av. San Martín #450, Equipetrol' }}</small>
+          </div>
+
+          <!-- Destino -->
+          <div class="mb-3 p-3 bg-white rounded-3 border">
+            <div class="text-muted small fw-bold text-uppercase mb-1">
+              <i class="bi bi-geo-alt-fill text-danger me-1"></i> Destino del Cliente (Entrega):
+            </div>
+            <div class="fw-bold text-dark" *ngIf="!geocodingLoading">{{ customerAddress }}</div>
+            <div *ngIf="geocodingLoading" class="text-muted small">
+              <span class="spinner-border spinner-border-sm me-1 text-primary"></span>
+              Obteniendo dirección real vía satélite...
+            </div>
+            <small class="text-muted d-block mt-1 font-monospace" style="font-size: 11px;">
+              Lat: {{ customerLat | number:'1.4-4' }} | Lng: {{ customerLng | number:'1.4-4' }}
+            </small>
+          </div>
+
+          <!-- Métricas de Ruta -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="p-2 bg-white rounded-3 border text-center">
+                <small class="text-muted d-block">Distancia en Ruta</small>
+                <strong class="fs-5 text-dark">{{ calculatedDistanceKm }} km</strong>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 bg-white rounded-3 border text-center">
+                <small class="text-muted d-block">Tiempo Estimado</small>
+                <strong class="fs-5 text-dark">{{ estimatedHours }} hrs</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zona Identificada -->
+          <div class="p-2 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+            <span class="small fw-bold text-primary">Zona / Anillo de Cobertura:</span>
+            <span class="badge bg-primary rounded-pill">{{ matchingZoneName }}</span>
+          </div>
+        </div>
+
+        <!-- Tarifa Total Calculada -->
+        <div class="p-3 bg-white rounded-3 border shadow-sm mt-3">
+          <div class="d-flex justify-content-between align-items-baseline mb-1">
+            <span class="text-muted small fw-bold">TARIFA DE ENVÍO:</span>
+            <span class="fs-3 fw-bold text-success">Bs. {{ calculatedRate | number:'1.2-2' }}</span>
+          </div>
+          <small class="text-muted d-block text-end" style="font-size: 11px;">
+            Fórmula: Tarifa Base + ({{ calculatedDistanceKm }} km × Bs. 1.50/km)
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA DE ZONAS CONFIGURADAS -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white p-3 border-0 d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0 text-dark">
+        <i class="bi bi-circle-square text-secondary me-2"></i>Anillos y Radios Configurados en el Sistema
+      </h5>
+      <span class="badge bg-secondary rounded-pill">{{ zones.length }} Zonas Activas</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light text-muted small text-uppercase">
+          <tr>
+            <th class="ps-4">Zona / Anillo</th>
+            <th>Ciudad</th>
+            <th>Radio Geográfico</th>
+            <th>Tarifa Base</th>
+            <th>Tiempo Estimado</th>
+            <th>Estado</th>
+            <th class="text-end pe-4">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let z of zones">
+            <td class="ps-4 fw-bold text-dark">{{ z.name }}</td>
+            <td>{{ z.city }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">
+                {{ z.min_distance_km }} km - {{ z.max_distance_km }} km
+              </span>
+            </td>
+            <td class="fw-bold text-primary fs-6">Bs. {{ z.base_rate | number:'1.2-2' }}</td>
+            <td><i class="bi bi-clock me-1"></i>{{ z.estimated_hours }} hrs</td>
+            <td>
+              <span class="badge" [ngClass]="z.is_active ? 'bg-success' : 'bg-secondary'">
+                {{ z.is_active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-end pe-4">
+              <button class="btn btn-sm btn-outline-primary rounded-pill px-3" (click)="openEdit(z)">
+                <i class="bi bi-pencil-square me-1"></i> Editar
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!loading && zones.length === 0">
+            <td colspan="7" class="text-center py-5 text-muted">No hay zonas configuradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR / EDITAR ZONA -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showModal" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-dark text-white rounded-top-4">
+        <h5 class="modal-title fw-bold">
+          {{ editingZoneId ? 'Editar Zona de Cobertura' : 'Registrar Nueva Zona' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closeModal()"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Nombre de la Zona / Anillo:</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="formName" placeholder="Ej. 1er a 2do Anillo (Centro)">
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Distancia Mín (km):</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="formMinKm" step="0.5">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Distancia Máx (km):</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="formMaxKm" step="0.5">
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Tarifa Base (Bs.):</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="formRate">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Tiempo Estimado (horas):</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="formHours">
+          </div>
+        </div>
+
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault" [(ngModel)]="formActive">
+          <label class="form-check-label small fw-bold" for="flexSwitchCheckDefault">Zona activa para entregas</label>
+        </div>
+      </div>
+      <div class="modal-footer bg-light rounded-bottom-4">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-primary fw-bold" [disabled]="saving" (click)="saveZone()">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>
+          Guardar Zona
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -82,13 +82,16 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 
 ### 0.3 Alcance por canal (Móvil vs Web)
 
-> - **App Móvil (Flutter):** exclusiva para el **cliente final** (autenticación, consulta de
->   catálogo, vista de detalle de prenda, reseñas y favoritos). No incluye funciones
->   administrativas.
-> - **Frontend Web (Angular):** atiende **dos audiencias** en el mismo sitio, separadas por rol
+> - **App Móvil (Flutter):** en el Ciclo 1 era exclusiva del **cliente final** (autenticación,
+>   consulta de catálogo, detalle de prenda, reseñas y favoritos). **Desde el Ciclo 3** también la
+>   usa el **repartidor** (entra directo a su panel de entregas); el personal de tienda, Casa
+>   Matriz y el proveedor reciben el aviso "usa el panel web".
+> - **Frontend Web (Angular):** atiende a todos los actores en el mismo sitio, separados por rol
 >   tras el inicio de sesión:
 >   - **Personal** (`SUPERADMIN` / `ENCARGADO` / `CAJERO`) → **panel administrativo** (`/admin/...`).
 >   - **Cliente** (`CLIENTE`) → **tienda del cliente** (`/tienda`).
+>   - **Proveedor** (`PROVEEDOR`, desde el Ciclo 2) → **portal del proveedor** (`/proveedor`).
+>   - **Repartidor** (`REPARTIDOR`, desde el Ciclo 3) → **portal del repartidor** (`/repartidor`).
 > - **Separación cliente / administrador:** el registro público (`CU04`) **siempre** crea rol
 >   `CLIENTE`; las cuentas de personal solo las crea un `SUPERADMIN` (CU05 / CU09).
 
@@ -110,6 +113,23 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 | CU38 | Gestionar ajustes de inventario (mermas, daños, pérdidas) | ❌ | ✅ | ✅ | `inventario_y_proveedores` |
 | CU36 | Consultar bitácora de auditoría | ❌ | ✅ | ✅ | `seguridad_y_usuarios` |
 
+### 0.4 Cambios posteriores (Ciclos 2 y 3) sobre casos de uso del Ciclo 1
+
+Estos cambios ya están implementados y se documentan en las fichas y diagramas de este archivo
+(marcados como **Actualización**):
+
+| CU | Cambio | Dónde |
+| :-- | :-- | :-- |
+| CU01 | Enrutamiento por rol ampliado: `PROVEEDOR` → `/proveedor`, `REPARTIDOR` → `/repartidor` (web) y panel de entregas (móvil); en móvil el personal y el proveedor no entran. Botones de **acceso rápido de prueba** en el login web. | §1.3.1, §2.2 CU01, DSC001, §3.2.2 |
+| CU05 | `ENCARGADO` y `CAJERO` se crean **con su sucursal obligatoria**; una sola sucursal por empleado y **un solo encargado activo por sucursal** (409). El listado muestra la sucursal. | §1.3.5, DSC005 |
+| CU06 | Solo sucursales de **Santa Cruz de la Sierra**; horario, días de atención, probador, retiro en tienda, foto, WhatsApp y coordenadas (mapa); **cierre temporal** con motivo. | §1.3.6 |
+| CU07 | La edición del catálogo es **solo de Casa Matriz**; encargado y cajero lo ven en **solo lectura**. | §1.3.7 |
+| CU08 | **Portal del proveedor** (`PROVEEDOR` inicia sesión): estado de sus prendas, **ofertas de modelos nuevos**, **pedidos de reposición** que Casa Matriz le envía. | §1.3.8 (ampliación) |
+| CU09 | Módulo "Empleados" solo para Casa Matriz; asignar a otra sucursal **traslada** al empleado. | §1.3.9 |
+| CU10 | Nuevo flujo: la **sucursal destino confirma la recepción** de un pedido de reposición despachado por el proveedor → ingreso a inventario con costo promedio ponderado. | §1.3.10 |
+| CU11 | El detalle de prenda ahora tiene **carrito** (CU17), **stock por sucursal** (CU12), **reservar** (CU26) y **vestidor virtual** (CU32); en móvil se agregó la pantalla **Inicio** con accesos directos. | §1.3.11 |
+| CU37 | En la web, la valoración es **solo de Casa Matriz** (`CentralOnlyGuard`); el backend la permite también al encargado para su sucursal. | §1.1 |
+
 ---
 
 # 1. Captura de Requisitos
@@ -125,12 +145,16 @@ está en `PaquetesUML.md`; la vista del Ciclo 1 está en la §2.1 de este docume
 | 3 | **Superadmin** (rol `SUPERADMIN`) | Humano primario | CU01, CU02, CU05, CU06, CU07, CU08, CU09, CU10, CU36, CU37, CU38 |
 | 4 | **Encargado de sucursal** (rol `ENCARGADO`) | Humano primario | CU01, CU02, CU10, CU37, CU38 |
 | 5 | **Cajero** (rol `CAJERO`) | Humano primario | CU01, CU02 |
-| 6 | **Proveedor** | Humano de apoyo | Entidad registrada por el personal (CU08) y referenciada en CU10; no inicia sesión en el Ciclo 1 |
+| 6 | **Proveedor** (rol `PROVEEDOR`) | Humano de apoyo en el Ciclo 1 · **primario desde el Ciclo 2** | En el Ciclo 1 es una entidad registrada por Casa Matriz (CU08) y referenciada en CU10. **Actualización:** desde el Ciclo 2 sus usuarios inician sesión (CU01) y usan el portal `/proveedor` (ampliación de CU08). |
+| 6b | **Repartidor** (rol `REPARTIDOR`) | Humano primario **desde el Ciclo 3** | Inicia sesión (CU01) en web (`/repartidor`) o en la app móvil; opera CU29/CU30 (ver `Ciclo3.md`). |
 | 7 | **Servicio de correo (SMTP)** | Sistema externo | CU03 (entrega del enlace de recuperación) |
 | 8 | **Reloj del sistema / Temporizador** | Actor "Tiempo" | CU02 (expiración del JWT y del token de recuperación, cierre por inactividad) |
 
 **Herencia de actores** (generalización): `Usuario` ⭅ `Cliente` / `Empleado`;
 `Empleado` ⭅ `Superadmin` / `Encargado` / `Cajero`.
+**Actualización (Ciclos 2 y 3):** también heredan de `Usuario` el **Proveedor** y el
+**Repartidor**. Cada `Encargado` y `Cajero` pertenece a **una sola sucursal**; solo el
+`Superadmin` opera como **Casa Matriz**.
 
 ```mermaid
 flowchart TD
@@ -178,6 +202,11 @@ flowchart TD
 
 ¹ CU03 siempre lo inicia un **usuario no autenticado** (olvidó su contraseña), sin importar el rol de esa cuenta.
 
+> **Actualización de permisos (implementación actual):** CU07 (edición), CU08, CU09 y CU36 son
+> exclusivos de Casa Matriz; el encargado ve el catálogo en solo lectura. CU10 y CU38 los opera
+> el encargado **solo en su sucursal**. CU37 se muestra en la web únicamente a Casa Matriz.
+> `PROVEEDOR` y `REPARTIDOR` también usan CU01/CU02/CU03.
+
 ---
 
 ## 1.2 Priorización de casos de uso
@@ -221,14 +250,15 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | :--- | :--- |
 | **Caso de Uso** | CU01 : Iniciar sesión |
 | **Propósito** | Restringir y asegurar el acceso a la plataforma (Web / Móvil), autenticando la identidad del usuario. |
-| **Descripción** | Un usuario registrado (Cliente o personal administrativo) ingresa sus credenciales; el sistema le asigna un token de sesión (JWT) y lo enruta según su rol: el personal al panel administrativo y el cliente a la tienda. |
-| **Actores** | Cliente, Superadmin, Encargado, Cajero. |
+| **Descripción** | Un usuario registrado ingresa sus credenciales; el sistema le asigna un token de sesión (JWT) y lo enruta según su rol: el personal al panel administrativo, el cliente a la tienda y, desde los ciclos 2 y 3, el proveedor a su portal y el repartidor a su panel de entregas. |
+| **Actores** | Cliente, Superadmin, Encargado, Cajero; **Proveedor** (desde el Ciclo 2) y **Repartidor** (desde el Ciclo 3). |
 | **Actor iniciador** | Usuario no autenticado (Cliente o empleado). |
 | **Tablas** | `users`, `roles`, `user_roles`, `session_tokens`, `audit_logs` |
 | **Precondición** | El usuario está registrado y su estado lógico es "Activo" (`is_active = true`). |
-| **Flujo principal** | 1. El actor abre la app móvil o el sitio web.<br>2. El sistema muestra el formulario de inicio de sesión.<br>3. El actor introduce Correo y Contraseña y envía la petición.<br>4. El sistema **normaliza el correo a minúsculas** (es único e insensible a mayúsculas), verifica que el usuario exista y compara el hash de la contraseña (BCrypt).<br>5. El sistema genera un JWT único (con `jti` e `iat`) y expiración de 60 min, y guarda la sesión en `session_tokens`.<br>6. El sistema registra la acción `LOGIN` en `audit_logs` (usuario, IP).<br>7. El sistema devuelve el token y los roles; el frontend enruta: personal → `/admin/dashboard`, cliente → `/tienda`. |
+| **Flujo principal** | 1. El actor abre la app móvil o el sitio web.<br>2. El sistema muestra el formulario de inicio de sesión.<br>3. El actor introduce Correo y Contraseña y envía la petición.<br>4. El sistema **normaliza el correo a minúsculas** (es único e insensible a mayúsculas), verifica que el usuario exista y compara el hash de la contraseña (BCrypt).<br>5. El sistema genera un JWT único (con `jti` e `iat`) y expiración de 60 min, y guarda la sesión en `session_tokens`.<br>6. El sistema registra la acción `LOGIN` en `audit_logs` (usuario, IP).<br>7. El sistema devuelve el token y los roles; el frontend enruta según el rol. **Web:** `PROVEEDOR` → `/proveedor`; `REPARTIDOR` → `/repartidor`; `SUPERADMIN`/`ENCARGADO`/`CAJERO` → `/admin/dashboard`; `CLIENTE` → `/tienda`. **Móvil:** `REPARTIDOR` → panel de entregas; `SUPERADMIN`/`ADMINISTRADOR`/`ENCARGADO`/`CAJERO`/`PROVEEDOR` → aviso "usa el panel web" y la sesión se cierra; `CLIENTE` → tienda. Al reabrir la app con la sesión guardada, el repartidor vuelve directo a su panel. |
 | **Post condición** | El usuario queda autenticado hasta que expire o se revoque su JWT. El ingreso queda registrado en la bitácora. |
-| **Reglas** | El correo se guarda y se busca **en minúsculas** en CU01, CU04 y CU05, de modo que registrarse desde la web e iniciar sesión desde el móvil (o viceversa) siempre coordinan. |
+| **Reglas** | El correo se guarda y se busca **en minúsculas** en CU01, CU04 y CU05, de modo que registrarse desde la web e iniciar sesión desde el móvil (o viceversa) siempre coordinan; web y móvil además eliminan espacios accidentales del correo. |
+| **Accesos rápidos (demo)** | **Actualización:** el login web tiene botones de acceso de un clic (Admin, Encargada Equipetrol, Cajero, Proveedor, Repartidor, Cliente) que rellenan el correo y la contraseña de prueba `Password123!` de las cuentas creadas por `migrate_master_fashion_data.py`. Son para la demostración y deben retirarse en producción. |
 | **Excepciones** | **E1: Credenciales inválidas** (falla el paso 4): "Correo electrónico o contraseña incorrectos".<br>**E2: Usuario inactivo**: "Cuenta de usuario desactivada".<br>**E3: Sin conexión con el servidor:** el cliente muestra la URL del backend a la que intentó conectarse y cómo configurarla (`--dart-define=API_HOST` / `API_BASE_URL` en móvil). |
 
 ### 1.3.2 · CU02: Cerrar sesión [Prioridad: Media]
@@ -284,14 +314,15 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | :--- | :--- |
 | **Caso de Uso** | CU05 : Gestionar perfiles, roles y clientes |
 | **Propósito** | Administrar las cuentas del personal interno (y de clientes) y asignarles permisos mediante roles. |
-| **Descripción** | El Superadmin crea cuentas para el personal (`ENCARGADO`, `CAJERO`) o para otros administradores, edita sus datos y roles, y los da de baja lógicamente. |
+| **Descripción** | El Superadmin crea cuentas para el personal (`ENCARGADO`, `CAJERO`) o para otros administradores, edita sus datos y roles, y los da de baja lógicamente. **Actualización:** también crea cuentas `PROVEEDOR` y `REPARTIDOR`; al crear o editar un `ENCARGADO` o `CAJERO` debe indicar su **sucursal** (`branch_id`). |
 | **Actores** | Superadmin. |
 | **Actor iniciador** | Superadmin. |
 | **Tablas** | `users`, `roles`, `user_roles`, `audit_logs` |
 | **Precondición** | El iniciador está autenticado con el rol `SUPERADMIN`. |
 | **Flujo principal** | 1. El Superadmin entra al módulo "Usuarios y Roles".<br>2. El sistema muestra el listado de usuarios (filtro por rol y búsqueda).<br>3. El Superadmin pulsa "Nuevo Usuario" y completa el formulario, marcando uno o más roles.<br>4. El sistema valida el correo, encripta la contraseña, crea el usuario y le asigna los roles.<br>5. El sistema registra `INSERT` / `UPDATE` / desactivación en `audit_logs`.<br>6. El sistema actualiza el listado. |
 | **Post condición** | Se crea, edita o desactiva la cuenta solicitada. |
-| **Excepciones** | **E1: Correo existente:** "El correo electrónico ya existe".<br>**E2: Falta de permisos:** **HTTP 403** si el rol no es `SUPERADMIN`. |
+| **Reglas (actualización)** | Un `ENCARGADO` o `CAJERO` pertenece a **exactamente una sucursal** (`assign_user_to_branch` reemplaza la asignación anterior en `branch_employees`). Cada sucursal tiene **un solo `ENCARGADO` activo**. Si un usuario deja de ser personal de tienda, se libera su sucursal. El listado (`GET /users`) devuelve `branch_id`, `branch_name` e `is_central`. |
+| **Excepciones** | **E1: Correo existente:** "El correo electrónico ya existe".<br>**E2: Falta de permisos:** **HTTP 403** si el rol no es `SUPERADMIN`.<br>**E3: Encargado/cajero sin sucursal:** HTTP 400 "Un ENCARGADO o CAJERO debe crearse asignado a una sucursal".<br>**E4: Segundo encargado:** HTTP 409 "La sucursal X ya tiene como encargado a …".<br>**E5: Asignar sucursal a otro rol:** HTTP 400 "Solo un ENCARGADO o CAJERO puede asignarse a una sucursal". |
 
 ### 1.3.6 · CU06: Gestionar sucursales [Prioridad: Alta]
 
@@ -299,14 +330,16 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | :--- | :--- |
 | **Caso de Uso** | CU06 : Gestionar sucursales |
 | **Propósito** | Mantener el registro de las tiendas físicas de la cadena y su personal asignado. |
-| **Descripción** | El Superadmin registra nuevas sucursales (nombre, dirección, teléfono, coordenadas, estado), las edita, las desactiva y asigna o retira empleados (`ENCARGADO` / `CAJERO`) de cada una. |
+| **Descripción** | El Superadmin registra nuevas sucursales (nombre, dirección, teléfono, coordenadas, estado), las edita, las desactiva y asigna o retira empleados (`ENCARGADO` / `CAJERO`) de cada una. **Actualización:** cada sucursal guarda además código, zona, referencia, WhatsApp, **horario** (`opening_time`/`closing_time`), **días de atención**, si tiene **probador** (`has_fitting_room`) y **retiro en tienda** (`pickup_enabled`), foto y **coordenadas en mapa**; puede **cerrarse temporalmente** con un motivo. |
 | **Actores** | Superadmin. |
 | **Actor iniciador** | Superadmin. |
 | **Tablas** | `branches`, `branch_employees`, `users`, `audit_logs` |
 | **Precondición** | El Superadmin está autenticado. |
 | **Flujo principal** | 1. El actor entra al módulo "Sucursales".<br>2. El actor pulsa "Nueva Sucursal" e ingresa nombre, dirección, teléfono y coordenadas.<br>3. El sistema valida que el nombre no exista y guarda la sucursal.<br>4. El actor asigna un `ENCARGADO` o `CAJERO` existente a la sucursal.<br>5. El sistema valida el rol y lo vincula en `branch_employees`.<br>6. El sistema registra la operación en `audit_logs`. |
 | **Post condición** | La cadena cuenta con la sucursal registrada y su personal asignado, lista para recibir inventario. |
-| **Excepciones** | **E1: Nombre de sucursal duplicado.**<br>**E2: Datos obligatorios faltantes** (nombre o dirección).<br>**E3: Empleado con rol inválido:** solo `ENCARGADO` o `CAJERO`. |
+| **Flujo de cierre temporal (actualización)** | `PATCH /branches/{id}/toggle-closure` con `is_temporarily_closed` y `closure_reason` (refacciones, mantenimiento…). Mientras está cerrada, la tienda la marca como cerrada en la disponibilidad por sucursal (CU12) y no permite reservar en ella (CU26). |
+| **Reglas (actualización)** | La plataforma opera **solo en Santa Cruz de la Sierra**: la ciudad se fija en "Santa Cruz". Asignar un empleado que ya estaba en otra sucursal lo **traslada** (una sola sucursal por empleado). El horario de la sucursal limita las horas de cita de las reservas (CU26). |
+| **Excepciones** | **E1: Nombre de sucursal duplicado.**<br>**E2: Datos obligatorios faltantes** (nombre o dirección).<br>**E3: Empleado con rol inválido:** solo `ENCARGADO` o `CAJERO`.<br>**E4: Ciudad distinta de Santa Cruz:** HTTP 400 "La plataforma FashionStore opera exclusivamente con sucursales físicas en Santa Cruz de la Sierra".<br>**E5: Segundo encargado en la sucursal:** HTTP 409. |
 
 ### 1.3.7 · CU07: Gestionar catálogo [Prioridad: Alta]
 
@@ -315,7 +348,7 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | **Caso de Uso** | CU07 : Gestionar catálogo |
 | **Propósito** | Administrar las prendas, sus parámetros (categorías **con imagen**, tallas, colores, temporadas), su **galería de fotos**, su **precio de oferta** y sus variantes (color + talla + SKU). |
 | **Descripción** | El Superadmin parametriza el catálogo y da de alta, edita u oculta prendas, definiendo por cada una su categoría, temporada, precio base, **precio antes (oferta)**, una **galería de 2–5 fotos** (cada foto asociable a un color) y sus variantes. Los **colores son multivaluados** (una prenda puede combinar varios colores); en la tienda el cliente elige el color y cambian las fotos y las tallas disponibles. Las variantes se pueden **editar también al modificar** la prenda (no solo al crearla): las que se quitan se marcan `is_active = false` y las nuevas se insertan validando el SKU. |
-| **Actores** | Superadmin. *(En ciclos posteriores se prevé habilitar también al Encargado.)* |
+| **Actores** | Superadmin. **Actualización:** la edición sigue siendo solo de Casa Matriz (`admin_check`); el Encargado y el Cajero ven el catálogo en **solo lectura** (`/admin/products`). |
 | **Actor iniciador** | Superadmin. |
 | **Tablas** | `products` (+ `compare_at_price`), `product_variants`, `product_images` (galería, `color_id` nullable), `categories` (+ `image_url`), `seasons`, `colors`, `sizes`, `audit_logs` |
 | **Precondición** | Deben existir al menos una categoría, una talla y un color parametrizados. |
@@ -338,6 +371,67 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | **Post condición** | El proveedor queda disponible para seleccionarse en los ingresos de mercadería (CU10). |
 | **Excepciones** | **E1: NIT duplicado:** "El NIT del proveedor ya se encuentra registrado".<br>**E2: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN`. |
 
+#### Ampliación de CU08 (Ciclos 2 y 3): portal del proveedor y pedidos de reposición
+
+**Actualización implementada.** El proveedor deja de ser solo un registro: sus usuarios
+(rol `PROVEEDOR`) inician sesión y trabajan en el portal `/proveedor`.
+
+| Campo | Descripción |
+| :--- | :--- |
+| **Actores** | Casa Matriz (`SUPERADMIN`/`ADMINISTRADOR`), Proveedor (`PROVEEDOR`), Encargado de la sucursal destino. |
+| **Tablas** | `suppliers` (+ `logo_url`, `city`, `rating`, `delivery_time_days`, `notes`, `specialty`), `supplier_employees` (usuarios del proveedor), `supplier_offers`, `supplier_reorder_requests`, `supplier_product_status`, `purchase_orders`, `inventory`, `inventory_ledger` |
+| **Gestión (Casa Matriz)** | CRUD de proveedores, activar/desactivar (`PATCH /suppliers/{id}/toggle`), vincular o quitar usuarios del proveedor (`POST/DELETE /suppliers/{id}/users/…`). |
+| **Portal del proveedor** | Ver y editar los datos de su empresa (`GET/PUT /suppliers/me`); ver las **prendas que suministra** con su foto (`GET /suppliers/me/products`) y declarar si todavía las trae: **`DISPONIBLE`, `AGOTADO` o `DESCONTINUADO`** (`PUT /suppliers/me/products/{id}/status`). |
+| **Ofertas de modelos nuevos** | El proveedor oferta un modelo (nombre, descripción, categoría, costo, precio sugerido, mínimo, tallas, colores, fotos) → `PENDING` (`POST /suppliers/offers`). Casa Matriz revisa la bandeja (`GET /suppliers/offers`) y la **aprueba o rechaza**, indicando la sucursal destino y la prenda del catálogo vinculada (`PATCH /suppliers/offers/{id}/review` → `APPROVED`/`REJECTED`). |
+| **Pedidos de reposición** | 1. Casa Matriz pide reposición de una variante al proveedor **eligiendo la sucursal destino**, cantidad y costo (`POST /suppliers/reorder-requests` → `PENDING`); se bloquea si el proveedor marcó la prenda `AGOTADO` o `DESCONTINUADO`.<br>2. El proveedor ve su bandeja (`GET /suppliers/reorder-requests/my`) y **acepta con fecha estimada o rechaza** (`PATCH …/respond` → `ACCEPTED`/`REJECTED`).<br>3. El proveedor **despacha** (`PATCH …/mark-shipped` → `SHIPPED`).<br>4. El **encargado de la sucursal destino confirma la recepción** (`PATCH …/mark-received` → `RECEIVED`): ingreso a inventario (ver CU10).<br>Casa Matriz puede **anular** mientras no se haya despachado (`PATCH …/cancel` → `CANCELLED`). |
+| **Visibilidad** | El encargado solo ve las solicitudes dirigidas a su sucursal (`/admin/supplier-requests`). |
+
+```mermaid
+flowchart LR
+    M(("👤 Casa Matriz"))
+    P(("👤 Proveedor"))
+    E(("👤 Encargado destino"))
+    IU_M(["🖥️ IU_PedidosProveedor"])
+    IU_P(["🖥️ IU_PortalProveedor"])
+    CTR(("⚙️ CTR_OfertasReposicion"))
+    CE_R[("🗄️ CE_SolicitudReposicion")]
+    CE_S[("🗄️ CE_EstadoPrendaProveedor")]
+    CE_I[("🗄️ CE_Inventario / LibroMayor")]
+
+    M -- "1: pedirReposicion(variante, sucursal, cant, costo)" --> IU_M
+    IU_M -- "2: POST reorder-requests" --> CTR
+    CTR -- "3: ¿prenda DISPONIBLE?" --> CE_S
+    CTR -- "4: PENDING" --> CE_R
+    P -- "5: aceptar(fecha) / rechazar" --> IU_P
+    IU_P -- "6: PATCH respond → ACCEPTED" --> CTR
+    P -- "7: despachar" --> IU_P
+    IU_P -- "8: PATCH mark-shipped → SHIPPED" --> CTR
+    E -- "9: confirmar recepción" --> IU_M
+    IU_M -- "10: PATCH mark-received" --> CTR
+    CTR -- "11: + stock, costo promedio, INGRESO" --> CE_I
+    CTR -- "12: RECEIVED" --> CE_R
+```
+
+```mermaid
+sequenceDiagram
+    actor M as Casa Matriz
+    actor P as Proveedor
+    actor E as Encargado destino
+    participant API as /api/v1/suppliers
+    participant DB as PostgreSQL
+
+    M->>API: 1: POST /reorder-requests (variante, sucursal destino, cantidad, costo)
+    API->>DB: 2: validar estado de la prenda del proveedor (DISPONIBLE)
+    API->>DB: 3: INSERT supplier_reorder_requests (PENDING)
+    P->>API: 4: GET /reorder-requests/my
+    P->>API: 5: PATCH /{id}/respond (ACCEPTED, fecha estimada)
+    P->>API: 6: PATCH /{id}/mark-shipped (SHIPPED)
+    E->>API: 7: PATCH /{id}/mark-received
+    API->>DB: 8: inventory += cant · avg_cost ponderado · ledger INGRESO
+    API->>DB: 9: status = RECEIVED
+    API-->>E: 10: mercadería ingresada
+```
+
 ### 1.3.9 · CU09: Gestionar empleados [Prioridad: Media]
 
 | Campo | Descripción |
@@ -349,9 +443,9 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | **Actor iniciador** | Superadmin. |
 | **Tablas** | `users`, `roles`, `user_roles`, `branch_employees`, `branches`, `audit_logs` |
 | **Precondición** | Debe existir al menos una sucursal (CU06). |
-| **Flujo principal** | 1. El actor entra al módulo "Empleados".<br>2. El actor pulsa "Nuevo Empleado" e ingresa nombre, correo, teléfono, contraseña temporal, rol y sucursal.<br>3. El sistema crea el usuario con ese rol (CU05).<br>4. El sistema lo asigna a la sucursal elegida en `branch_employees` (CU06).<br>5. El sistema registra la operación en `audit_logs`.<br>6. El actor puede desactivar a un empleado (baja lógica del usuario). |
+| **Flujo principal** | 1. El actor entra al módulo "Empleados" (**solo Casa Matriz**, `/admin/employees`).<br>2. El actor pulsa "Nuevo Empleado" e ingresa nombre, correo, teléfono, contraseña temporal, rol y sucursal.<br>3. El sistema crea el usuario con ese rol (CU05) **junto con su sucursal en la misma transacción**.<br>4. El sistema lo asigna a la sucursal elegida en `branch_employees` (CU06); si ya estaba en otra, **lo traslada** (una sola sucursal por empleado).<br>5. El sistema registra la operación en `audit_logs`.<br>6. El actor puede desactivar a un empleado (baja lógica del usuario). |
 | **Post condición** | El empleado queda registrado con su rol y asignado a la sucursal indicada. |
-| **Excepciones** | **E1: Correo existente.**<br>**E2: Empleado ya asignado a esa sucursal.**<br>**E3: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN`. |
+| **Excepciones** | **E1: Correo existente.**<br>**E2: La sucursal ya tiene encargado:** HTTP 409 (solo un `ENCARGADO` activo por sucursal).<br>**E3: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN`. |
 
 > **Nota:** el Ciclo 1 no registra datos de contratación (cargo, salario, horario). La relación
 > laboral se modela con el **rol** del usuario y la tabla asociativa `branch_employees`.
@@ -369,6 +463,8 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | **Precondición** | El proveedor (CU08), la sucursal (CU06) y las variantes de la prenda (CU07) ya existen. |
 | **Flujo principal** | 1. El actor entra a "Mercadería" → "Ingreso de Nueva Mercadería".<br>2. El actor selecciona Proveedor y Sucursal destino.<br>3. El actor añade filas: Variante + Cantidad + Costo Unitario.<br>4. El sistema calcula el subtotal por fila y el total.<br>5. El actor pulsa "Registrar Ingreso de Mercadería".<br>6. En **una sola transacción**, el sistema: crea la cabecera en `purchase_orders`, el detalle en `purchase_details`, **suma las cantidades al stock** en `inventory` (creándolo si no existía), **recalcula `inventory.avg_cost`** (`nuevo_avg = (stock_previo·avg_previo + cant·costo_lote) / (stock_previo + cant)`) y escribe un movimiento `INGRESO` por variante en `inventory_ledger` con su costo unitario y la referencia `OC-{id}`.<br>7. El sistema registra `INSERT` sobre `purchase_orders` en `audit_logs`.<br>8. El panel "Ingresos Recientes" muestra el nuevo documento. |
 | **Post condición** | El stock de la sucursal aumenta, el costo promedio ponderado queda recalculado y el movimiento es auditable. |
+| **Flujo alternativo (actualización): recepción de reposición** | Cuando un pedido de reposición (ampliación de CU08) está `SHIPPED`, el **encargado de la sucursal destino** confirma la recepción física (`PATCH /suppliers/reorder-requests/{id}/mark-received`). El sistema suma la cantidad al `inventory` de esa sucursal (creándolo si no existía), recalcula `avg_cost` con el costo unitario pactado, asienta `INGRESO` en `inventory_ledger` y deja la solicitud en `RECEIVED`. Solo la sucursal destino puede confirmar; no se puede recibir dos veces. |
+| **Alcance por sucursal (actualización)** | El encargado registra ingresos y consulta inventario y libro mayor **solo de su sucursal** (`get_branch_scope`); Casa Matriz ve todas. `GET /merchandise/purchase-orders` también lo consulta el proveedor (sus propias compras). |
 | **Excepciones** | **E1: Cantidad o costo inválidos** (≤ 0).<br>**E2: Proveedor, sucursal o variante inexistente:** HTTP 404.<br>**E3: Falta de permisos:** HTTP 403 si el rol no es `SUPERADMIN` ni `ENCARGADO`.<br>**E4: Fallo a mitad de la transacción:** se revierte todo. |
 
 ### 1.3.11 · CU11: Consultar catálogo (cliente) [Prioridad: Alta]
@@ -386,6 +482,14 @@ cotización, devoluciones, arqueo, historial). Al **Ciclo 3**: CU25–CU35, CU39
 | **Flujo principal** | 1. El actor abre la tienda en la web o la app.<br>2. El sistema consulta el catálogo público (`GET /api/v1/catalog/products`), las categorías y el resumen de ratings (`GET /api/v1/catalog/ratings-summary`); si hay sesión, también sus favoritos.<br>3. El sistema muestra la tira de categorías, el hero y la grilla lookbook (precio, oferta, ★, ♥).<br>4. El actor filtra por categoría o busca por texto.<br>5. El actor toca una prenda → el sistema pide `GET /api/v1/catalog/products/{id}` y sus reseñas y muestra el detalle.<br>6. El actor cambia el color → el sistema recalcula la galería y las tallas disponibles de ese color. |
 | **Post condición** | Ninguna afectación de datos (CU11 es solo lectura; opinar o marcar favorito es CU14). |
 | **Excepciones** | **E1: Catálogo vacío:** "No hay prendas disponibles por el momento".<br>**E2: Prenda inexistente u oculta:** HTTP 404 en el detalle.<br>**E3: Sin conexión (móvil):** aviso de conexión en lugar de quedarse cargando. |
+
+> **Actualización (Ciclos 2 y 3) de la vista de detalle:** el botón "Añadir al carrito" ya está
+> activo (CU17); el detalle muestra el **stock de la talla y el color elegidos en cada sucursal**
+> (CU12) con la opción **Reservar en tienda** (CU26) y un acceso al **Vestidor virtual** (CU32).
+> En la app móvil la galería ocupa ~45 % de la pantalla (la prenda se ve completa, con miniaturas)
+> y las acciones principales quedan en una **barra fija inferior** (precio, reservar, añadir al
+> carrito). La app arranca en la pantalla **Inicio**, con accesos directos a vestidor, reservas,
+> compras y devoluciones, rastreo, notificaciones, asistente IA y búsqueda por voz.
 
 > **Alcance de CU11 en el Ciclo 1:** navegación por categorías, grilla lookbook con oferta/★/♥,
 > vista de detalle con selección de color, tallas por color, guía de tallas y descripción, más
@@ -757,7 +861,8 @@ flowchart LR
     ENT -. "4: +Datos y Hash" .-> CTR
     CTR -- "5: +create_token()" --> ENT_S
     ENT_S -. "6: +Token JWT" .-> CTR
-    CTR -. "7: +Redirigir a Home" .-> IU
+    CTR -. "7: +Token y roles" .-> IU
+    IU -. "8: +Redirigir según rol (tienda / panel / portal proveedor / portal repartidor)" .-> Actor
 ```
 
 ### CU02: Cerrar Sesión
@@ -832,7 +937,9 @@ flowchart LR
     ENT -. "4: +ID Usuario" .-> CTR
     CTR -- "5: +assign_roles(id, roles)" --> ENT_R
     ENT_R -. "6: +Roles asignados" .-> CTR
-    CTR -. "7: +Actualizar lista" .-> IU
+    CTR -- "7: +assign_user_to_branch(id, branch_id) [ENCARGADO/CAJERO]" --> ENT_B[("🗄️ CE_SucursalEmpleado")]
+    ENT_B -. "8: +Asignado (409 si ya hay encargado)" .-> CTR
+    CTR -. "9: +Actualizar lista (con sucursal)" .-> IU
 ```
 
 ### CU06: Gestionar sucursales
@@ -855,7 +962,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Actor(("👤 Admin / Encargado"))
+    Actor(("👤 Admin (SUPERADMIN)"))
     IU(["🖥️ IU_Productos"])
     CTR(("⚙️ CTR_Catalogo"))
     ENT_P[("🗄️ CE_Producto")]
@@ -877,7 +984,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Actor(("👤 Admin / Encargado"))
+    Actor(("👤 Admin (SUPERADMIN)"))
     IU(["🖥️ IU_Proveedores"])
     CTR(("⚙️ CTR_Proveedores"))
     ENT[("🗄️ CE_Proveedor")]
@@ -1675,8 +1782,16 @@ sequenceDiagram
     Note over CTR: Verifica contraseña (BCrypt)
     CTR->>+CE_S: 5: create_token()
     CE_S-->>-CTR: 6: Token JWT
-    CTR-->>-IU: 7: Token JWT y Datos
-    IU-->>-U: 8: Redirigir a Home()
+    CTR-->>-IU: 7: Token JWT, roles y datos
+    alt PROVEEDOR
+        IU-->>U: 8a: /proveedor (web) · aviso "usa el panel web" (móvil)
+    else REPARTIDOR
+        IU-->>U: 8b: /repartidor (web) · panel de entregas (móvil)
+    else SUPERADMIN / ENCARGADO / CAJERO
+        IU-->>U: 8c: /admin/dashboard (web) · aviso "usa el panel web" (móvil)
+    else CLIENTE
+        IU-->>-U: 8d: /tienda (web) · Inicio de la tienda (móvil)
+    end
 ```
 
 **DSC002: Cerrar sesión**
@@ -1759,7 +1874,11 @@ sequenceDiagram
     CE_U-->>-CTR: 4: ID Usuario
     CTR->>+CE_U: 5: assign_roles(id, roles)
     CE_U-->>-CTR: 6: Roles asignados
-    CTR-->>-IU: 7: Usuario Creado
+    opt rol ENCARGADO o CAJERO (branch_id obligatorio)
+        CTR->>CE_U: 6.1: assign_user_to_branch(id, branch_id)
+        Note over CTR,CE_U: una sola sucursal por empleado · 409 si la sucursal ya tiene encargado
+    end
+    CTR-->>-IU: 7: Usuario Creado (con branch_name)
     IU-->>-A: 8: Actualizar lista en UI
 ```
 
@@ -2008,12 +2127,17 @@ flowchart TD
     REG --> LOGIN
     LOGIN -->|"rol personal (SUPERADMIN/ENCARGADO/CAJERO)"| DASH["/admin/dashboard"]
     LOGIN -->|"rol CLIENTE"| TIENDA["/tienda · IU_StoreHome"]
+    LOGIN -->|"rol PROVEEDOR (Ciclo 2)"| PROV["/proveedor · portal del proveedor"]
+    LOGIN -->|"rol REPARTIDOR (Ciclo 3)"| REP["/repartidor · portal del repartidor"]
     DASH --> ADMINNAV{{"Barra lateral admin (AuthGuard)"}}
     TIENDA -->|"cerrar sesión"| LOGIN
     DASH -->|"cerrar sesión"| LOGIN
 ```
 
-* `SessionGuard` protege `/tienda`; `AuthGuard` protege `/admin/**`; `**` → `/login`.
+* `SessionGuard` protege las rutas del cliente con sesión (`/tienda/favoritos`, `/tienda/pedidos`,
+  `/tienda/reservas`); `AuthGuard` protege `/admin/**` (y reenvía al proveedor y al repartidor a
+  su portal); `CentralOnlyGuard` y `RoleGuard` (`data.roles`) restringen por rol;
+  `ProveedorGuard` y `RepartidorGuard` protegen los portales; `**` → `/login`.
 
 **Subsistema del panel administrativo (Ciclo 1)**
 
@@ -2050,7 +2174,8 @@ flowchart LR
     subgraph MOVIL["Móvil (Flutter)"]
         MLOGIN["login_view"] --> MREG["register_view"]
         MLOGIN --> MREC["recover_view (aviso: revisa tu correo)"]
-        MLOGIN -->|"sesión iniciada"| MSHELL["store_shell: Inicio · Catálogo · Carrito · Favoritos · Perfil"]
+        MLOGIN -->|"CLIENTE"| MSHELL["store_shell: Inicio · Catálogo · Carrito · Favoritos · Perfil"]
+        MLOGIN -->|"REPARTIDOR (Ciclo 3)"| MREP["delivery_dashboard_view: Bolsa · Mis entregas · Historial"]
         MSHELL --> MCAT["catalogo_view: categorías + grilla lookbook"]
         MCAT -->|"tocar prenda"| MPD["product_detail_view: galería, color, tallas, reseñas (CU14)"]
         MSHELL --> MWL["wishlist_view (CU14)"]
@@ -2527,11 +2652,11 @@ Formato: por caso de uso. Resultados verificados contra PostgreSQL real.
 | **CU03** | `POST /auth/recover` · `POST /auth/reset-password` | `seguridad_y_usuarios/routers.py` · `recover_credentials`, `reset_password` | §2.2 CU03 / DSC003 | IU_Recover → CTR_Auth → CE_Usuario/CE_AuditLog (+ SMTP) | `users` (`reset_token`, `reset_token_expires`), `audit_logs` | `seguridad_y_usuarios/recover/` · `mobile recover_view.dart` |
 | **CU04** | `POST /auth/register` | `seguridad_y_usuarios/routers.py` · `register` | §2.2 CU04 / DSC004 | IU_Register → CTR_Auth → CE_Usuario/CE_Rol/CE_AuditLog | `users`, `roles`, `user_roles`, `audit_logs` | `seguridad_y_usuarios/register/` · `mobile register_view.dart` |
 | **CU05** | `GET/POST /users` · `PUT/DELETE /users/{id}` | `seguridad_y_usuarios/routers.py` · `list_users`, `create_user`, `update_user`, `deactivate_user` | §2.2 CU05 / DSC005 | IU_UsuariosRoles → CTR_Users → CE_Usuario/CE_Rol/CE_AuditLog | `users`, `roles`, `user_roles`, `audit_logs` | `seguridad_y_usuarios/usuarios_roles/` |
-| **CU06** | `GET/POST /branches` · `PUT/DELETE /branches/{id}` | `catalogo_y_tiendas/branches/routers.py` | §2.2 CU06 / DSC006 | IU_Branches → CTR_Branches → CE_Sucursal/CE_AuditLog | `branches`, `branch_employees`, `audit_logs` | `catalogo_y_tiendas/branches/` |
+| **CU06** | `GET/POST /branches` · `PUT/DELETE /branches/{id}` · `PATCH /branches/{id}/toggle-closure` · `POST/DELETE /branches/{id}/employees` | `catalogo_y_tiendas/branches/routers.py` | §2.2 CU06 / DSC006 | IU_Branches → CTR_Branches → CE_Sucursal/CE_AuditLog | `branches`, `branch_employees`, `audit_logs` | `catalogo_y_tiendas/branches/` |
 | **CU07** | `GET/POST/PUT /catalog/categories` · `GET/POST /catalog/{seasons,colors,sizes}` · `POST /catalog/upload-image` · `GET/POST/PUT/DELETE /catalog/products` | `catalogo_y_tiendas/routers.py` · `create_product`, `update_product` (reconcilia `variants` por SKU), `update_category` | §2.2 CU07 / DSC007 | IU_Products → CTR_Catalogo → CE_Producto/CE_Variante/CE_ImagenPrenda/CE_ParametroCatalogo/CE_AuditLog | `products` (`compare_at_price`), `product_variants` (`is_active`), `product_images`, `categories` (`image_url`), `seasons`, `colors`, `sizes`, `audit_logs` | `catalogo_y_tiendas/products/` |
-| **CU08** | `GET/POST /suppliers` · `PUT/DELETE /suppliers/{id}` | `inventario_y_proveedores/suppliers/routers.py` | §2.2 CU08 / DSC008 | IU_Suppliers → CTR_Proveedores → CE_Proveedor/CE_AuditLog | `suppliers`, `audit_logs` | `inventario_y_proveedores/suppliers/` |
+| **CU08** | `GET/POST /suppliers` · `PUT/DELETE /suppliers/{id}` · `PATCH /suppliers/{id}/toggle` · portal `/suppliers/me*` · `/suppliers/offers*` · `/suppliers/reorder-requests*` | `inventario_y_proveedores/suppliers/routers.py` | §2.2 CU08 / DSC008 | IU_Suppliers → CTR_Proveedores → CE_Proveedor/CE_AuditLog | `suppliers`, `audit_logs` | `inventario_y_proveedores/suppliers/` |
 | **CU09** | `POST/DELETE /branches/{id}/employees` (+ `POST /users`) | `catalogo_y_tiendas/branches/routers.py` · `assign_employee_to_branch`, `remove_employee_from_branch` | §2.2 CU09 / DSC009 | IU_Employees → CTR_Branches/CTR_Users → CE_Usuario/CE_Rol/CE_Sucursal/CE_AuditLog | `users`, `roles`, `user_roles`, `branch_employees`, `branches`, `audit_logs` | `catalogo_y_tiendas/employees/` |
-| **CU10** | `POST /merchandise/intake` · `GET /merchandise/inventory` · `GET /merchandise/ledger` | `inventario_y_proveedores/merchandise/routers.py` · `register_merchandise_intake` | §2.2 CU10 / DSC010 | IU_Merchandise → CTR_Inventario → CE_Compra/CE_Inventario/CE_LibroMayor/CE_AuditLog | `purchase_orders`, `purchase_details`, `inventory` (`avg_cost`), `inventory_ledger`, `audit_logs` | `inventario_y_proveedores/merchandise/` |
+| **CU10** | `POST /merchandise/intake` · `GET /merchandise/inventory` · `GET /merchandise/ledger` · `PATCH /suppliers/reorder-requests/{id}/mark-received` | `inventario_y_proveedores/merchandise/routers.py` · `register_merchandise_intake` | §2.2 CU10 / DSC010 | IU_Merchandise → CTR_Inventario → CE_Compra/CE_Inventario/CE_LibroMayor/CE_AuditLog | `purchase_orders`, `purchase_details`, `inventory` (`avg_cost`), `inventory_ledger`, `audit_logs` | `inventario_y_proveedores/merchandise/` |
 | **CU11** | `GET /catalog/products` · `GET /catalog/products/{id}` · `GET /catalog/ratings-summary` | `catalogo_y_tiendas/routers.py` · `list_products`, `get_product`, `ratings_summary`, `_attach_ratings` | §2.2 CU11 / DSC011 | IU_StoreHome, IU_ProductDetail → CTR_Catalogo → CE_Producto/CE_Variante/CE_ImagenPrenda/CE_Resena | `products`, `product_variants`, `product_images`, `categories`, `product_reviews` (★) | `catalogo_y_tiendas/store/store-home.component.*`, `product-detail.component.*` · `mobile catalogo_view.dart`, `product_detail_view.dart` |
 | **CU14** | `GET/POST /catalog/products/{id}/reviews` · `GET /catalog/wishlist` · `POST/DELETE /catalog/wishlist/{product_id}` | `catalogo_y_tiendas/routers.py` · `list_reviews`, `submit_review`, `get_wishlist`, `add_to_wishlist`, `remove_from_wishlist` | §2.2 CU14 / DSC014 | IU_ProductDetail, IU_Wishlist → CTR_Catalogo → CE_Resena/CE_Favorito/CE_AuditLog | `product_reviews`, `wishlist_items`, `audit_logs` | `catalogo_y_tiendas/store/product-detail.component.*`, `wishlist.component.*` · `mobile product_detail_view.dart`, `wishlist_view.dart` |
 | **CU36** | `GET /audit/logs` | `seguridad_y_usuarios/routers.py` · `get_audit_logs` | §2.2 CU36 / DSC036 | IU_Audit → CTR_Auditoria → CE_AuditLog | `audit_logs` | `seguridad_y_usuarios/audit/` |

@@ -1,0 +1,452 @@
+<div class="container-fluid p-4">
+  <!-- Encabezado de la Bandeja Kanban -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-kanban text-primary me-2"></i>Bandeja Kanban de Reservas de Probador
+      </h3>
+      <p class="text-muted small mb-0">
+        [CU27] Preparación de prendas para prueba física en fitting room, [CU28] liberación de stock y [CU25] conversión en venta POS.
+      </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <select class="form-select form-select-sm" [(ngModel)]="selectedBranchId" (change)="loadReservations()" style="min-width: 220px;">
+        <option [ngValue]="undefined">🏢 Todas las Sucursales</option>
+        <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }} ({{ b.city }})</option>
+      </select>
+      <button class="btn btn-sm btn-outline-secondary" (click)="loadReservations()" title="Actualizar">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas de estado -->
+  <div *ngIf="successMsg" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ successMsg }}
+    <button type="button" class="btn-close" (click)="successMsg = ''"></button>
+  </div>
+  <div *ngIf="errorMsg" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMsg }}
+    <button type="button" class="btn-close" (click)="errorMsg = ''"></button>
+  </div>
+
+  <!-- Spinner de carga -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="text-muted small mt-2">Cargando tablero de reservas...</p>
+  </div>
+
+  <!-- TABLERO KANBAN DE 4 COLUMNAS -->
+  <div *ngIf="!loading" class="kanban-grid">
+
+    <!-- COLUMNA 1: PENDIENTE -->
+    <div class="kanban-col col-pending">
+      <div class="col-header bg-warning bg-opacity-10 border-warning text-warning-emphasis">
+        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i> Pendientes</span>
+        <span class="badge bg-warning text-dark">{{ getByStatus('PENDING').length }}</span>
+      </div>
+      <div class="col-body">
+        <div *ngFor="let r of getByStatus('PENDING')" class="res-card shadow-xs">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-dark font-monospace">{{ r.reservation_code }}</span>
+            <small class="text-muted"><i class="bi bi-geo-alt"></i> {{ r.branch_name }}</small>
+          </div>
+          <div class="fw-bold text-dark mb-1">{{ r.customer_name }}</div>
+          <small class="text-muted d-block mb-2" *ngIf="r.customer_phone">📞 {{ r.customer_phone }}</small>
+          
+          <!-- Lista de prendas con miniatura -->
+          <div class="items-list mb-2">
+            <div *ngFor="let it of r.items" class="d-flex align-items-center gap-2 py-1 border-bottom border-light">
+              <div class="rounded-2 overflow-hidden border bg-white flex-shrink-0" style="width: 32px; height: 32px;" *ngIf="it.image_url">
+                <img [src]="resolveImg(it.image_url)" [alt]="it.product_name" class="w-100 h-100 object-fit-cover"
+                     (error)="$any($event.target).src='assets/placeholder-fashion.jpg'">
+              </div>
+              <span class="badge bg-secondary">{{ it.quantity }}x</span>
+              <span class="small text-truncate flex-grow-1">{{ it.product_name }} ({{ it.size_name }})</span>
+            </div>
+          </div>
+
+          <!-- Información de Seña y Pago para el Operador -->
+          <div class="p-2 bg-success bg-opacity-10 border border-success-subtle rounded-2 mb-2 small text-success-emphasis">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-shield-check me-1 text-success"></i><strong>Seña 50%:</strong> Bs. {{ (r.deposit_amount || calculateSubtotal(r) * 0.5) | number:'1.2-2' }}</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">{{ r.payment_method || 'TARJETA' }}</span>
+            </div>
+            <div class="extra-small text-muted text-truncate mt-0.5" *ngIf="r.payment_reference">
+              Ref: {{ r.payment_reference }}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1 fw-bold text-dark">
+              <span class="extra-small text-muted">Saldo a liquidar en caja:</span>
+              <span class="text-primary">Bs. {{ (r.balance_due !== undefined ? r.balance_due : (calculateSubtotal(r) * 0.5)) | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <small class="text-danger d-block mb-2" style="font-size: 0.72rem;">
+            ⏳ Vence: {{ r.expires_at | date:'dd/MM HH:mm' }}
+          </small>
+
+          <div class="d-flex gap-1 mt-2">
+            <button class="btn btn-sm btn-primary flex-grow-1" (click)="advanceStatus(r, 'PREPARING')">
+              <i class="bi bi-play-fill"></i> Preparar
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="cancelReservation(r)" title="Liberar Stock">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        <div *ngIf="getByStatus('PENDING').length === 0" class="empty-col">Sin reservas pendientes</div>
+      </div>
+    </div>
+
+    <!-- COLUMNA 2: EN PREPARACIÓN -->
+    <div class="kanban-col col-preparing">
+      <div class="col-header bg-primary bg-opacity-10 border-primary text-primary-emphasis">
+        <span class="fw-bold"><i class="bi bi-bag-check me-1"></i> En Preparación</span>
+        <span class="badge bg-primary">{{ getByStatus('PREPARING').length }}</span>
+      </div>
+      <div class="col-body">
+        <div *ngFor="let r of getByStatus('PREPARING')" class="res-card shadow-xs">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-dark font-monospace">{{ r.reservation_code }}</span>
+            <small class="text-muted">{{ r.branch_name }}</small>
+          </div>
+          <div class="fw-bold text-dark mb-1">{{ r.customer_name }}</div>
+          
+          <div class="items-list mb-2">
+            <div *ngFor="let it of r.items" class="d-flex align-items-center gap-2 py-1 border-bottom border-light">
+              <div class="rounded-2 overflow-hidden border bg-white flex-shrink-0" style="width: 32px; height: 32px;" *ngIf="it.image_url">
+                <img [src]="resolveImg(it.image_url)" [alt]="it.product_name" class="w-100 h-100 object-fit-cover"
+                     (error)="$any($event.target).src='assets/placeholder-fashion.jpg'">
+              </div>
+              <span class="badge bg-primary">{{ it.quantity }}x</span>
+              <span class="small text-truncate flex-grow-1">{{ it.product_name }} ({{ it.size_name }} - {{ it.color_name }})</span>
+            </div>
+          </div>
+
+          <!-- Información de Seña para el Operador -->
+          <div class="p-2 bg-success bg-opacity-10 border border-success-subtle rounded-2 mb-2 small text-success-emphasis">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-shield-check me-1 text-success"></i><strong>Seña 50%:</strong> Bs. {{ (r.deposit_amount || calculateSubtotal(r) * 0.5) | number:'1.2-2' }}</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">{{ r.payment_method || 'TARJETA' }}</span>
+            </div>
+            <div class="extra-small text-muted text-truncate mt-0.5" *ngIf="r.payment_reference">
+              Ref: {{ r.payment_reference }}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1 fw-bold text-dark">
+              <span class="extra-small text-muted">Saldo a liquidar en caja:</span>
+              <span class="text-primary">Bs. {{ (r.balance_due !== undefined ? r.balance_due : (calculateSubtotal(r) * 0.5)) | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="d-flex gap-1 mt-2">
+            <button class="btn btn-sm btn-success flex-grow-1" (click)="advanceStatus(r, 'READY')">
+              <i class="bi bi-check-lg"></i> Listo en Probador
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="cancelReservation(r)" title="Cancelar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        <div *ngIf="getByStatus('PREPARING').length === 0" class="empty-col">Sin reservas en preparación</div>
+      </div>
+    </div>
+
+    <!-- COLUMNA 3: LISTO EN PROBADOR -->
+    <div class="kanban-col col-ready">
+      <div class="col-header bg-success bg-opacity-10 border-success text-success-emphasis">
+        <span class="fw-bold"><i class="bi bi-door-open-fill me-1"></i> Listo en Probador</span>
+        <span class="badge bg-success">{{ getByStatus('READY').length }}</span>
+      </div>
+      <div class="col-body">
+        <div *ngFor="let r of getByStatus('READY')" class="res-card border-success shadow-xs">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-success font-monospace">{{ r.reservation_code }}</span>
+            <span class="badge bg-light text-dark border">Probador Activo</span>
+          </div>
+          <div class="fw-bold text-dark mb-1">{{ r.customer_name }}</div>
+          <small class="text-muted d-block mb-2">📞 {{ r.customer_phone || 'Sin teléfono' }}</small>
+          
+          <div class="items-list mb-2">
+            <div *ngFor="let it of r.items" class="d-flex align-items-center justify-content-between py-1 border-bottom border-light small gap-2">
+              <div class="d-flex align-items-center gap-2 text-truncate">
+                <div class="rounded-2 overflow-hidden border bg-white flex-shrink-0" style="width: 32px; height: 32px;" *ngIf="it.image_url">
+                  <img [src]="resolveImg(it.image_url)" [alt]="it.product_name" class="w-100 h-100 object-fit-cover"
+                       (error)="$any($event.target).src='assets/placeholder-fashion.jpg'">
+                </div>
+                <span>{{ it.quantity }}x {{ it.product_name }} ({{ it.size_name }})</span>
+              </div>
+              <span class="fw-bold text-nowrap">Bs. {{ it.unit_price * it.quantity }}</span>
+            </div>
+          </div>
+
+          <!-- Información de Seña para el Operador -->
+          <div class="p-2 bg-success bg-opacity-10 border border-success-subtle rounded-2 mb-2 small text-success-emphasis">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-shield-check me-1 text-success"></i><strong>Seña 50%:</strong> Bs. {{ (r.deposit_amount || calculateSubtotal(r) * 0.5) | number:'1.2-2' }}</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">{{ r.payment_method || 'TARJETA' }}</span>
+            </div>
+            <div class="extra-small text-muted text-truncate mt-0.5" *ngIf="r.payment_reference">
+              Ref: {{ r.payment_reference }}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1 fw-bold text-dark">
+              <span class="extra-small text-muted">Saldo a liquidar en caja:</span>
+              <span class="text-primary">Bs. {{ (r.balance_due !== undefined ? r.balance_due : (calculateSubtotal(r) * 0.5)) | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between fw-bold mb-2 text-primary">
+            <span>Total Pre-Reserva:</span>
+            <span>Bs. {{ calculateSubtotal(r) | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- BOTÓN CU25: CONVERTIR EN VENTA POS -->
+          <div class="d-flex gap-1 mt-2">
+            <button class="btn btn-sm btn-dark flex-grow-1 fw-bold" (click)="openPosModal(r)">
+              <i class="bi bi-receipt-cutoff me-1"></i> Facturar en POS
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="cancelReservation(r)" title="No asistió / Liberar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        <div *ngIf="getByStatus('READY').length === 0" class="empty-col">Ninguna prenda en probador ahora</div>
+      </div>
+    </div>
+
+    <!-- COLUMNA 4: FINALIZADOS / VENDIDOS -->
+    <div class="kanban-col col-completed">
+      <div class="col-header bg-secondary bg-opacity-10 border-secondary text-secondary-emphasis">
+        <span class="fw-bold"><i class="bi bi-check2-all me-1"></i> Concretados en POS</span>
+        <span class="badge bg-secondary">{{ getByStatus('COMPLETED').length }}</span>
+      </div>
+      <div class="col-body">
+        <div *ngFor="let r of getByStatus('COMPLETED')" class="res-card opacity-75 shadow-xs">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="badge bg-secondary font-monospace">{{ r.reservation_code }}</span>
+            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Vendido</span>
+          </div>
+          <div class="fw-bold text-dark small">{{ r.customer_name }}</div>
+          <small class="text-muted d-block">Pedido POS: #{{ r.completed_sale_id }}</small>
+          <small class="text-muted" style="font-size: 0.7rem;">{{ r.reserved_at | date:'dd/MM/yyyy HH:mm' }}</small>
+        </div>
+        <div *ngIf="getByStatus('COMPLETED').length === 0" class="empty-col">Sin reservas concretadas hoy</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL [CU25]: CONVERTIR RESERVA EN VENTA POS CON FACTURACIÓN SELECTIVA Y REPOSICIÓN -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="selectedResForPos" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-dark text-white rounded-top-4">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-receipt-cutoff text-warning me-2"></i>Cobro y Facturación en Caja POS — Reserva {{ selectedResForPos.reservation_code }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closePosModal()"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Instrucciones y datos del cliente -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="text-muted small">Cliente:</span>
+            <strong class="text-dark ms-1">{{ selectedResForPos.customer_name }}</strong>
+            <span class="text-muted small ms-2" *ngIf="selectedResForPos.customer_phone">({{ selectedResForPos.customer_phone }})</span>
+          </div>
+          <span class="badge bg-primary rounded-pill">
+            Lleva {{ getPurchasedItems().length }} de {{ selectedResForPos.items.length }} prendas
+          </span>
+        </div>
+
+        <!-- LISTA DE PRENDAS CON CHECKBOX DE COMPRA / REPOSICIÓN Y FOTO -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark d-flex justify-content-between">
+            <span><i class="bi bi-bag-check-fill text-primary me-1"></i> Selecciona las prendas que el cliente efectivamente COMPRA:</span>
+            <span class="text-muted" style="font-size: 11px;">Desmarca las que el cliente dejó para reponer a inventario</span>
+          </label>
+          <div class="list-group gap-2">
+            <div *ngFor="let it of selectedResForPos.items"
+                 class="list-group-item p-3 rounded-3 border d-flex justify-content-between align-items-center cursor-pointer"
+                 [class.border-primary]="isItemSelected(it.id)"
+                 [class.bg-light]="!isItemSelected(it.id)"
+                 (click)="toggleItemSelection(it.id)">
+              <div class="d-flex align-items-center gap-3">
+                <input type="checkbox" class="form-check-input mt-0 fs-5 flex-shrink-0"
+                       [checked]="isItemSelected(it.id)"
+                       (click)="$event.stopPropagation(); toggleItemSelection(it.id)">
+                
+                <!-- FOTO DE LA PRENDA SELECCIONADA POR EL CLIENTE -->
+                <div class="rounded-3 overflow-hidden border shadow-xs bg-white flex-shrink-0 position-relative"
+                     style="width: 65px; height: 75px; min-width: 65px;">
+                  <img *ngIf="it.image_url" [src]="resolveImg(it.image_url)" [alt]="it.product_name"
+                       class="w-100 h-100 object-fit-cover"
+                       (error)="$any($event.target).src='assets/placeholder-fashion.jpg'">
+                  <div *ngIf="!it.image_url" class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light text-muted">
+                    <i class="bi bi-tag fs-4 text-secondary"></i>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="fw-bold text-dark mb-0">{{ it.product_name }}</div>
+                  <small class="text-muted d-block" style="font-size: 12px;">
+                    Talla: <strong>{{ it.size_name }}</strong> · Color: <strong>{{ it.color_name }}</strong>
+                  </small>
+                  <!-- Estado de la prenda -->
+                  <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 10px;" *ngIf="isItemSelected(it.id)">
+                    <i class="bi bi-check-circle me-1"></i> Se factura y se entrega al cliente
+                  </span>
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle mt-1" style="font-size: 10px;" *ngIf="!isItemSelected(it.id)">
+                    <i class="bi bi-arrow-return-left me-1"></i> Reposición inmediata a stock libre
+                  </span>
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold text-dark fs-6">Bs. {{ (it.unit_price * it.quantity) | number:'1.2-2' }}</div>
+                <small class="text-muted d-block" style="font-size: 11px;">
+                  Seña 50%: Bs. {{ (it.unit_price * it.quantity * 0.5) | number:'1.2-2' }}
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerta de Reposición si desmarcó prendas -->
+        <div class="alert alert-info py-2 px-3 small rounded-3 mb-3 d-flex align-items-center gap-2" *ngIf="getReturnedItems().length > 0">
+          <i class="bi bi-arrow-clockwise fs-5 text-primary"></i>
+          <div>
+            <strong>Reposición a inventario:</strong> {{ getReturnedItems().length }} prenda(s) no comprada(s) serán devueltas inmediatamente al stock activo de la sucursal para que queden disponibles para venta general.
+          </div>
+        </div>
+
+        <!-- Resumen Financiero y Liquidación en Caja -->
+        <div class="p-3 bg-light rounded-3 border mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-muted">Subtotal prendas compradas:</span>
+            <strong class="text-dark">Bs. {{ calculatePurchasedSubtotal() | number:'1.2-2' }}</strong>
+          </div>
+          <div class="d-flex justify-content-between small text-success mb-1">
+            <span><i class="bi bi-check2-circle me-1"></i> Seña del 50% ya abonada:</span>
+            <strong class="text-success">- Bs. {{ calculatePurchasedDeposit() | number:'1.2-2' }}</strong>
+          </div>
+          <div class="d-flex justify-content-between text-muted small mb-1" style="font-size: 11px;">
+            <span>IVA Débito Fiscal (13% incluido en factura):</span>
+            <span>Bs. {{ (calculatePurchasedSubtotal() * 0.13) | number:'1.2-2' }}</span>
+          </div>
+          <div class="d-flex justify-content-between fw-bold text-dark fs-5 pt-2 mt-2 border-top">
+            <span>Saldo Neto a Cobrar en Caja:</span>
+            <span class="text-primary">Bs. {{ calculateBalanceToPay() | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Medio de Pago en Caja -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark">Método de Pago del Saldo en Caja:</label>
+          <div class="btn-group w-100 mb-2" role="group">
+            <input type="radio" class="btn-check" name="btnradio" id="payEfectivo" [(ngModel)]="posPaymentMethod" value="EFECTIVO">
+            <label class="btn btn-outline-dark btn-sm" for="payEfectivo">💵 Efectivo</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="payTarjeta" [(ngModel)]="posPaymentMethod" value="TARJETA">
+            <label class="btn btn-outline-dark btn-sm" for="payTarjeta">💳 Tarjeta</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="payQr" [(ngModel)]="posPaymentMethod" value="QR">
+            <label class="btn btn-outline-dark btn-sm" for="payQr">📱 QR Simple</label>
+          </div>
+
+          <!-- PAGO CON EFECTIVO -->
+          <div *ngIf="posPaymentMethod === 'EFECTIVO'" class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 mb-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-6">
+                <label class="extra-small fw-bold text-dark d-block">Efectivo Recibido (Bs.):</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-white">Bs.</span>
+                  <input type="number" class="form-control" [(ngModel)]="posCashReceived" [min]="calculateBalanceToPay()" step="1">
+                </div>
+              </div>
+              <div class="col-6 text-end">
+                <span class="extra-small text-muted d-block">Cambio a Entregar:</span>
+                <span class="fs-5 fw-bold text-success">Bs. {{ posCashChange | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAGO CON TARJETA EN TERMINAL POS -->
+          <div *ngIf="posPaymentMethod === 'TARJETA'" class="p-3 bg-light border rounded-3 mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="extra-small fw-bold text-dark">Cobro POS Bancario (Red Enlace / Linkser)</span>
+              <span class="badge bg-primary">VISA / MasterCard</span>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="extra-small text-muted d-block">Marca de Tarjeta</label>
+                <select class="form-select form-select-sm" [(ngModel)]="posCardBrand">
+                  <option value="VISA">VISA</option>
+                  <option value="MASTERCARD">MasterCard</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="extra-small text-muted d-block">Últimos 4 dígitos</label>
+                <input type="text" class="form-control form-control-sm font-monospace" placeholder="4242" maxlength="4" [(ngModel)]="posCardLast4">
+              </div>
+            </div>
+          </div>
+
+          <!-- PAGO CON QR SIMPLE DE BOLIVIA (ESCANEABLE EN MOSTRADOR) -->
+          <div *ngIf="posPaymentMethod === 'QR'" class="p-3 bg-white border border-primary border-2 rounded-4 text-center mb-2 shadow-xs">
+            <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+              <span class="badge bg-primary text-white font-monospace" style="font-size: 11px;">
+                <i class="bi bi-qr-code me-1"></i> QR SIMPLE INTEROPERABLE
+              </span>
+              <span class="extra-small text-muted">Banca Móvil Bolivia</span>
+            </div>
+
+            <!-- IMAGEN DINÁMICA DEL CÓDIGO QR GENERADA CON EL MONTO EXACTO -->
+            <div class="p-2.5 bg-light d-inline-block rounded-3 border shadow-sm my-1">
+              <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=165x165&data=FASHIONSTORE-SALDO-' + (selectedResForPos?.reservation_code || 'RES') + '-BS-' + calculateBalanceToPay()"
+                   alt="Código QR de Cobro de Saldo"
+                   style="width: 165px; height: 165px; display: block;">
+            </div>
+
+            <div class="fw-bold fs-5 text-dark mt-1">
+              Bs. {{ calculateBalanceToPay() | number:'1.2-2' }}
+            </div>
+            <p class="small text-muted mb-2" style="font-size: 11.5px;">
+              Muestra esta pantalla al cliente para que escanee y pague desde su aplicación bancaria (BNB, BCP, Unión, Mercantil, Ganadero, Bisa, Soli o Yape).
+            </p>
+
+            <div class="p-2 bg-success bg-opacity-10 border border-success rounded-3 text-start small d-flex align-items-center justify-content-between">
+              <span class="text-success fw-bold d-flex align-items-center gap-1.5" style="font-size: 11px;">
+                <i class="bi bi-shield-check fs-5"></i> Ref: QR-POS-{{ selectedResForPos?.reservation_code }}
+              </span>
+              <span class="badge bg-success">Listo para Escanear</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos de Facturación -->
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small fw-bold">NIT / CI Factura:</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="posNit" placeholder="Ej. 8765432">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Razón Social:</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="posBusinessName" placeholder="Nombre cliente">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer bg-light rounded-bottom-4">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePosModal()">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow-sm"
+                [disabled]="posProcessing || getPurchasedItems().length === 0"
+                (click)="executeConvertToPos()">
+          <span *ngIf="posProcessing" class="spinner-border spinner-border-sm me-1"></span>
+          <i *ngIf="!posProcessing" class="bi bi-printer me-1"></i> Cobrar Saldo (Bs. {{ calculateBalanceToPay() }}) y Emitir Factura
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

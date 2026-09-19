@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Requerido para consumir la API REST del backend -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Búsqueda por voz (CU34): el reconocedor de voz necesita el micrófono -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
     <application
-        android:label="fashionstore_mobile"
+        android:label="FashionStore"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
@@ -41,6 +43,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Android 11+: permite encontrar el servicio de reconocimiento de voz (speech_to_text) -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

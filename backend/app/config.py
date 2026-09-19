@@ -48,6 +48,20 @@ class Settings:
     SMTP_FROM: str = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "marilynesthercondori@gmail.com"))
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "FashionStore")
 
+    # --- Pasarela de Pago PayPal (Sandbox / Producción) ---
+    # Credenciales de la app REST creada en https://developer.paypal.com (Apps & Credentials).
+    # Vacías => modo simulación (sin cobro). Con credenciales sandbox => conexión real con PayPal.
+    PAYPAL_CLIENT_ID: str = os.getenv("PAYPAL_CLIENT_ID", "")
+    PAYPAL_CLIENT_SECRET: str = os.getenv("PAYPAL_CLIENT_SECRET", "")
+    PAYPAL_MODE: str = os.getenv("PAYPAL_MODE", "sandbox")  # 'sandbox' o 'live'
+    PAYPAL_EXCHANGE_RATE_BOB_USD: float = float(os.getenv("PAYPAL_EXCHANGE_RATE_BOB_USD", "6.96"))
+
+    @property
+    def paypal_api_base(self) -> str:
+        if self.PAYPAL_MODE.lower() == "live":
+            return "https://api-m.paypal.com"
+        return "https://api-m.sandbox.paypal.com"
+
     @property
     def smtp_enabled(self) -> bool:
         return bool(self.SMTP_USER and self.SMTP_PASSWORD)

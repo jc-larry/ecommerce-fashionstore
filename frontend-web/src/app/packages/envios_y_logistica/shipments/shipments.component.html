@@ -1,0 +1,261 @@
+<div class="container-fluid p-4">
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-truck text-primary me-2"></i>Gestión de Despachos y Envíos
+      </h3>
+      <p class="text-muted small mb-0">
+        [CU29] Asignación de transportistas, generación de guías y trazabilidad de pedidos delivery.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <select class="form-select form-select-sm" [(ngModel)]="statusFilter" (change)="loadShipments()" style="min-width: 180px;">
+        <option value="">Todos los Estados</option>
+        <option value="PENDING_DISPATCH">En Almacén</option>
+        <option value="DISPATCHED">Despachado</option>
+        <option value="IN_TRANSIT">En Tránsito</option>
+        <option value="OUT_FOR_DELIVERY">En Reparto Final</option>
+        <option value="DELIVERED">Entregado</option>
+      </select>
+      <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" (click)="openCreateModal()">
+        <i class="bi bi-plus-lg me-1"></i> Nuevo Despacho
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="successMsg" class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ successMsg }}
+    <button type="button" class="btn-close" (click)="successMsg = ''"></button>
+  </div>
+  <div *ngIf="errorMsg" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ errorMsg }}
+    <button type="button" class="btn-close" (click)="errorMsg = ''"></button>
+  </div>
+
+  <!-- Tabla de Despachos -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light text-muted small text-uppercase">
+          <tr>
+            <th class="ps-4">Guía Tracking</th>
+            <th>Pedido</th>
+            <th>Destinatario / Dirección</th>
+            <th>Transportista</th>
+            <th>Flete</th>
+            <th>Estado</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of shipments">
+            <td class="ps-4">
+              <span class="badge bg-dark font-monospace fs-6">{{ s.tracking_number }}</span>
+              <small class="text-muted d-block" style="font-size: 0.72rem;">{{ s.created_at | date:'dd/MM/yyyy HH:mm' }}</small>
+            </td>
+            <td>
+              <span class="fw-bold">Pedido #{{ s.order_id }}</span>
+              <small class="text-muted d-block" *ngIf="s.zone_name">{{ s.zone_name }}</small>
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ s.recipient_name }}</div>
+              <small class="text-muted d-block text-truncate" style="max-width: 250px;">
+                <i class="bi bi-geo-alt"></i> {{ s.delivery_address }}
+              </small>
+              <small class="text-muted">📞 {{ s.recipient_phone }}</small>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ s.delivery_person_name || s.carrier_name }}</span>
+              <small class="text-muted d-block" *ngIf="s.carrier_phone">Tel: {{ s.carrier_phone }}</small>
+              <small class="text-success d-block" *ngIf="s.delivery_photo_url"><i class="bi bi-camera-fill"></i> Con evidencia</small>
+            </td>
+            <td class="fw-bold text-primary">
+              Bs. {{ s.shipping_cost | number:'1.2-2' }}
+            </td>
+            <td>
+              <span class="badge rounded-pill" [ngClass]="getStatusBadge(s.status)">
+                {{ getStatusLabel(s.status) }}
+              </span>
+            </td>
+            <td class="text-end pe-4">
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" (click)="openDetail(s)" title="Ver Trazabilidad">
+                  <i class="bi bi-clock-history"></i>
+                </button>
+                <button class="btn btn-outline-dark" (click)="openEventModal(s)" title="Registrar Hito">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!loading && shipments.length === 0">
+            <td colspan="7" class="text-center py-5 text-muted">
+              No hay despachos registrados con los filtros seleccionados.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL [CU29]: NUEVO DESPACHO -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showCreateModal" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-box-seam me-2"></i>Crear Guía de Despacho
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closeCreateModal()"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">ID Pedido / Orden:</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="newOrderId">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Zona de Entrega:</label>
+            <select class="form-select form-select-sm" [(ngModel)]="newZoneId" (change)="onZoneSelected()">
+              <option [ngValue]="undefined">Seleccionar Zona...</option>
+              <option *ngFor="let z of zones" [ngValue]="z.id">{{ z.name }} (Bs. {{ z.base_rate }})</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Nombre Destinatario:</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="newRecipient" placeholder="Ej. Juan Pérez">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Teléfono Destinatario:</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="newPhone" placeholder="70000000">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Dirección Completa de Envío:</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="newAddress" placeholder="Calle / Av., Número, Barrio, Referencia">
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Transportista / Courier:</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="newCarrierName">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Costo Flete (Bs.):</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="newCost">
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small fw-bold">Notas de Despacho:</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="newNotes" placeholder="Instrucciones para el repartidor">
+        </div>
+      </div>
+      <div class="modal-footer bg-light rounded-bottom-4">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeCreateModal()">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-primary fw-bold" [disabled]="createProcessing" (click)="executeCreateShipment()">
+          <span *ngIf="createProcessing" class="spinner-border spinner-border-sm me-1"></span>
+          Generar Guía de Despacho
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REGISTRAR HITO / ACTUALIZAR ESTADO -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="selectedShipmentForEvent" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-dark text-white rounded-top-4">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-pin-map me-2"></i>Registrar Hito de Rastreo
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closeEventModal()"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="small text-muted mb-3">
+          Actualizar guía: <strong>{{ selectedShipmentForEvent.tracking_number }}</strong>
+        </p>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Nuevo Estado Logístico:</label>
+          <select class="form-select form-select-sm" [(ngModel)]="newEventStatus">
+            <option value="DISPATCHED">Despachado del Almacén</option>
+            <option value="IN_TRANSIT">En Tránsito por la Ciudad</option>
+            <option value="OUT_FOR_DELIVERY">En Reparto Final (Cerca del destino)</option>
+            <option value="DELIVERED">Entregado con Éxito</option>
+            <option value="FAILED">Entrega Fallida / Reprogramar</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Ubicación / Punto de Control:</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="newEventLocation" placeholder="Ej. 4to Anillo Av. Cristo Redentor">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Descripción del Hito:</label>
+          <textarea class="form-control form-control-sm" [(ngModel)]="newEventDescription" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer bg-light rounded-bottom-4">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeEventModal()">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-success fw-bold" [disabled]="eventProcessing" (click)="executeAddEvent()">
+          <span *ngIf="eventProcessing" class="spinner-border spinner-border-sm me-1"></span>
+          Asentar Hito
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL / DRAWER TRAZABILIDAD [CU30] -->
+<div class="modal fade show d-block" tabindex="-1" *ngIf="viewingShipment" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-light rounded-top-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="bi bi-geo-alt-fill text-danger me-2"></i>Línea de Tiempo de Rastreo
+          </h5>
+          <small class="text-muted font-monospace">{{ viewingShipment.tracking_number }}</small>
+        </div>
+        <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="p-3 rounded-3 border mb-3 d-flex gap-3 align-items-center" *ngIf="viewingShipment.delivery_photo_url">
+          <a [href]="viewingShipment.delivery_photo_url" target="_blank">
+            <img [src]="viewingShipment.delivery_photo_url" alt="Evidencia de entrega" class="rounded" style="width: 110px; height: 110px; object-fit: cover;">
+          </a>
+          <div class="small">
+            <div class="fw-bold text-success"><i class="bi bi-camera-fill"></i> Evidencia de entrega</div>
+            <div>Repartidor: <strong>{{ viewingShipment.delivery_person_name || viewingShipment.carrier_name }}</strong></div>
+            <div>Recibió: <strong>{{ viewingShipment.received_by_name }}</strong></div>
+            <div class="text-muted">{{ viewingShipment.delivered_at | date:'dd/MM/yyyy HH:mm' }}</div>
+          </div>
+        </div>
+        <div class="timeline">
+          <div *ngFor="let ev of viewingShipment.events" class="timeline-item">
+            <div class="timeline-badge bg-primary"></div>
+            <div class="timeline-content">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="badge bg-light text-dark border">{{ ev.status }}</span>
+                <small class="text-muted">{{ ev.created_at | date:'dd/MM HH:mm' }}</small>
+              </div>
+              <div class="fw-semibold text-dark small">{{ ev.location }}</div>
+              <p class="text-muted small mb-0">{{ ev.description }}</p>
+              <img *ngIf="ev.photo_url" [src]="ev.photo_url" alt="Evidencia" class="rounded mt-1" style="height: 64px;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light rounded-bottom-4">
+        <button type="button" class="btn btn-sm btn-secondary" (click)="closeDetail()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

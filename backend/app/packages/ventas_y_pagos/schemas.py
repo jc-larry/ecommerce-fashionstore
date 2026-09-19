@@ -55,18 +55,36 @@ class QRPaymentData(BaseModel):
     qr_reference: Optional[str] = None
 
 
+class PayPalPaymentData(BaseModel):
+    paypal_order_id: str
+    paypal_payer_id: Optional[str] = None
+    paypal_payer_email: Optional[str] = None
+    capture_id: Optional[str] = None
+
+
 class CreditoPaymentData(BaseModel):
     credit_due_date: date
+
+
+class PayPalOrderCreateRequest(BaseModel):
+    amount_bob: float = Field(..., gt=0, description="Monto total en Bolivianos")
+    description: Optional[str] = "Pago en FashionStore"
+    reference_id: Optional[str] = None
+
+
+class PayPalOrderCaptureRequest(BaseModel):
+    paypal_order_id: str = Field(..., description="ID de la orden aprobada en PayPal")
 
 
 class CheckoutRequest(BaseModel):
     branch_id: int
     channel: str = Field("ONLINE", pattern="^(ONLINE|POS)$")
-    payment_type: str = Field(..., pattern="^(EFECTIVO|TARJETA|QR|CREDITO)$")
+    payment_type: str = Field(..., pattern="^(EFECTIVO|TARJETA|QR|CREDITO|PAYPAL)$")
     coupon_code: Optional[str] = None
     cash_payment: Optional[EfectivoPaymentData] = None
     card_payment: Optional[TarjetaPaymentData] = None
     qr_payment: Optional[QRPaymentData] = None
+    paypal_payment: Optional[PayPalPaymentData] = None
     credit_payment: Optional[CreditoPaymentData] = None
     doc_type: str = Field("FACTURA", pattern="^(FACTURA|NOTA_ENTREGA)$")
     customer_nit: Optional[str] = None
@@ -100,7 +118,10 @@ class PaymentResponse(BaseModel):
     cash_change: Optional[float] = None
     card_brand: Optional[str] = None
     card_last4: Optional[str] = None
+    gateway_reference: Optional[str] = None
     qr_reference: Optional[str] = None
+    paypal_payer_id: Optional[str] = None
+    paypal_payer_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -171,9 +192,19 @@ class CashShiftResponse(BaseModel):
     notes: Optional[str] = None
     total_sales_count: int = 0
     total_cash_sales: float = 0.0
+    total_card_sales: float = 0.0
+    total_qr_sales: float = 0.0
+    total_reservation_sales: float = 0.0
+    total_delivery_sales: float = 0.0
+    total_presencial_sales: float = 0.0
 
     class Config:
         from_attributes = True
+
+
+class BranchOrderFulfillmentUpdate(BaseModel):
+    status: str = Field(..., description="'PREPARANDO' | 'LISTO_PARA_ENTREGA' | 'ENTREGADO' | 'CANCELADO'")
+    notes: Optional[str] = None
 
 
 # ===================================================================
@@ -243,3 +274,20 @@ class OrderReturnResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CustomerReturnItemResponse(BaseModel):
+    """Prenda devuelta (y la de reemplazo si fue un cambio), vista por el cliente."""
+    product_name: str
+    size: str
+    color: str
+    quantity: int
+    replacement_product_name: Optional[str] = None
+    replacement_size: Optional[str] = None
+    replacement_color: Optional[str] = None
+
+
+class CustomerReturnResponse(OrderReturnResponse):
+    """[CU22 / CU24] Devolución o cambio de una compra del cliente en sesión."""
+    order_number: str
+    items: List[CustomerReturnItemResponse] = []

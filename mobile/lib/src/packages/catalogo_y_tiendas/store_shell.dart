@@ -3,9 +3,15 @@ import '../seguridad_y_usuarios/auth_service.dart';
 import '../seguridad_y_usuarios/login_view.dart';
 import '../seguridad_y_usuarios/register_view.dart';
 import 'catalogo_view.dart';
+import 'home_view.dart';
 import 'wishlist_view.dart';
 import '../ventas_y_pagos/cart_view.dart';
 import '../ventas_y_pagos/customer_orders_view.dart';
+import '../reservas_y_citas/reservations_view.dart';
+import '../envios_y_logistica/tracking_view.dart';
+import '../inteligente_y_analitica/virtual_tryon_view.dart';
+import '../inteligente_y_analitica/chatbot_view.dart';
+import '../notificaciones/notifications_view.dart';
 
 const _brand = Color(0xFFC66F5C);
 const _ink = Color(0xFF2B1F1D);
@@ -20,13 +26,27 @@ class StoreShell extends StatefulWidget {
 }
 
 class _StoreShellState extends State<StoreShell> {
-  int _index = 1; // arranca en Catálogo
+  int _index = 0; // arranca en Inicio (accesos directos a todas las funciones)
+
+  /// Cada incremento pide al catálogo que abra la búsqueda por voz (CU34).
+  final ValueNotifier<int> _voiceTrigger = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _voiceTrigger.dispose();
+    super.dispose();
+  }
+
+  void _openCatalog({bool voice = false}) {
+    setState(() => _index = 1);
+    if (voice) _voiceTrigger.value++;
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      const CatalogoView(),          // Inicio (mismo catálogo)
-      const CatalogoView(),          // Catálogo
+      HomeView(onOpenCatalog: _openCatalog), // Inicio
+      CatalogoView(voiceTrigger: _voiceTrigger), // Catálogo
       const CartView(),              // Carrito Digital (CU17)
       const WishlistView(),          // Favoritos
       const _ProfileTab(),           // Perfil
@@ -34,6 +54,15 @@ class _StoreShellState extends State<StoreShell> {
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: _brand,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text('Asistente IA', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotView()));
+        },
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) {
@@ -107,9 +136,34 @@ class _ProfileTab extends StatelessWidget {
                   ),
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined, color: _muted),
-                    title: const Text('Mis pedidos y compras (CU24)'),
+                    title: const Text('Mis compras y devoluciones (CU24/CU22)'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerOrdersView())),
                   ),
+                  ListTile(
+                    leading: const Icon(Icons.calendar_today_outlined, color: _muted),
+                    title: const Text('Mis reservas en tienda (CU26)'),
+                    subtitle: const Text('Apartado con bloqueo de stock por 48h'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReservationsView())),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.local_shipping_outlined, color: _muted),
+                    title: const Text('Rastreo de envíos en vivo (CU30)'),
+                    subtitle: const Text('Seguimiento de guías en tiempo real'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackingView())),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.accessibility_new_outlined, color: _muted),
+                    title: const Text('Probador Virtual RA & Tallas (CU32)'),
+                    subtitle: const Text('Cálculo anatómico y simulación de silueta'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VirtualTryonView())),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_none_outlined, color: _muted),
+                    title: const Text('Centro de Notificaciones (CU40)'),
+                    subtitle: const Text('Avisos de pedidos, reservas y despachos'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsView())),
+                  ),
+                  const Divider(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: _brand),
                     title: const Text('Cerrar sesión', style: TextStyle(color: _brand)),

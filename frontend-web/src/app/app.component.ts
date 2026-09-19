@@ -29,6 +29,26 @@ export class AppComponent implements OnInit, OnDestroy {
 
   activeBranchKey: string = 'central';
 
+  /** Menú lateral de los portales externos: cada ítem abre una pestaña vía ?tab= */
+  readonly supplierNav = [
+    { tab: 'pedidos', label: 'Pedidos de Reposición', icon: 'bi-arrow-repeat' },
+    { tab: 'ofertar', label: 'Ofertar Nuevos Modelos', icon: 'bi-plus-square' },
+    { tab: 'productos', label: 'Mis Productos', icon: 'bi-box-seam' },
+    { tab: 'compras', label: 'Mis Compras', icon: 'bi-receipt' },
+    { tab: 'perfil', label: 'Mi Perfil', icon: 'bi-person-vcard' },
+  ];
+  readonly deliveryNav = [
+    { tab: 'activos', label: 'Mis Entregas', icon: 'bi-bicycle' },
+    { tab: 'disponibles', label: 'Pedidos Disponibles', icon: 'bi-inbox' },
+    { tab: 'historial', label: 'Historial de Envíos', icon: 'bi-clock-history' },
+  ];
+  portalTab = '';
+
+  get portalTitle(): string {
+    const items = this.authService.isProveedorUser() ? this.supplierNav : this.deliveryNav;
+    return items.find((i) => i.tab === this.portalTab)?.label ?? items[0].label;
+  }
+
   constructor(
     public authService: AuthService,
     public branchContext: BranchContextService,
@@ -74,6 +94,9 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {
         this.routeTitle = this.routeTitles[e.urlAfterRedirects] ?? 'Panel Administrativo';
+        const tree = this.router.parseUrl(e.urlAfterRedirects);
+        const defaultTab = this.authService.isProveedorUser() ? 'pedidos' : 'activos';
+        this.portalTab = tree.queryParams['tab'] || defaultTab;
       });
   }
 

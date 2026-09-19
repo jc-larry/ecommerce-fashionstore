@@ -69,7 +69,10 @@
                 </div>
               </td>
               <td class="text-muted">{{ u.email }}</td>
-              <td><span class="pill" [ngClass]="roleClass(u)">{{ rolesLabel(u) }}</span></td>
+              <td>
+                <span class="pill" [ngClass]="roleClass(u)">{{ rolesLabel(u) }}</span>
+                <small class="d-block text-muted mt-1" *ngIf="u.branch_name"><i class="bi bi-geo-alt"></i> {{ u.branch_name }}</small>
+              </td>
               <td>
                 <span class="pill" [ngClass]="u.is_active ? 'pill-ok' : 'pill-off'">
                   <span class="pill-dot"></span>{{ u.is_active ? 'Activo' : 'Inactivo' }}
@@ -167,6 +170,17 @@
           </div>
           <div class="invalid-feedback d-block" *ngIf="validationErrors['roles']">
             <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['roles'] }}
+          </div>
+        </div>
+        <div class="col-12" *ngIf="needsBranch">
+          <label class="form-label small fw-bold">Sucursal asignada <span class="text-danger">*</span></label>
+          <select class="form-select" [(ngModel)]="form.branch_id" [class.is-invalid]="validationErrors['branch_id']">
+            <option [ngValue]="null">Selecciona la sucursal…</option>
+            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+          </select>
+          <small class="text-muted">El encargado y el cajero solo pueden operar en esta sucursal.</small>
+          <div class="invalid-feedback d-block" *ngIf="validationErrors['branch_id']">
+            <i class="bi bi-exclamation-circle me-1"></i> {{ validationErrors['branch_id'] }}
           </div>
         </div>
         <div class="col-12" *ngIf="editingId">

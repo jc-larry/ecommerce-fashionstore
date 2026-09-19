@@ -64,6 +64,75 @@ export class InventarioService {
     return this.http.get<any[]>(`${this.api}/merchandise/purchase-orders`, { params: query });
   }
 
+  // ---------- CATÁLOGO DE OFERTAS Y REÓRDENES DE PROVEEDOR (CU08 / CU10) ----------
+  getSupplierOffers(params?: { supplier_id?: number; status_filter?: string }): Observable<any[]> {
+    const query: any = {};
+    if (params?.supplier_id) query.supplier_id = params.supplier_id;
+    if (params?.status_filter) query.status_filter = params.status_filter;
+    return this.http.get<any[]>(`${this.api}/suppliers/offers`, { params: query });
+  }
+
+  createSupplierOffer(payload: any): Observable<any> {
+    return this.http.post<any>(`${this.api}/suppliers/offers`, payload);
+  }
+
+  reviewSupplierOffer(offerId: number, payload: { status: string; admin_notes?: string; target_branch_id?: number | null; product_id?: number | null }): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/offers/${offerId}/review`, payload);
+  }
+
+  /** [Rol PROVEEDOR] Declara si todavía trae una prenda del catálogo. */
+  updateMyProductStatus(productId: number, status: 'DISPONIBLE' | 'AGOTADO' | 'DESCONTINUADO'): Observable<any> {
+    return this.http.put<any>(`${this.api}/suppliers/me/products/${productId}/status`, { status });
+  }
+
+  /** Casa Matriz: ¿el proveedor todavía trae esta prenda? (DISPONIBLE / AGOTADO / DESCONTINUADO) */
+  getSupplierProductStatus(supplierId: number, productId: number): Observable<{ status: string }> {
+    return this.http.get<{ status: string }>(`${this.api}/suppliers/product-status`, {
+      params: { supplier_id: supplierId, product_id: productId },
+    });
+  }
+
+  updateOfferStatus(offerId: number, payload: { status: string; available_quantity?: number; admin_notes?: string }): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/offers/${offerId}/status`, payload);
+  }
+
+  getReorderRequests(params?: { supplier_id?: number; branch_id?: number; status_filter?: string }): Observable<any[]> {
+    const query: any = {};
+    if (params?.supplier_id) query.supplier_id = params.supplier_id;
+    if (params?.branch_id) query.branch_id = params.branch_id;
+    if (params?.status_filter) query.status_filter = params.status_filter;
+    return this.http.get<any[]>(`${this.api}/suppliers/reorder-requests`, { params: query });
+  }
+
+  createReorderRequest(payload: { supplier_id: number; variant_id: number; requested_quantity: number; target_branch_id: number; unit_cost: number }): Observable<any> {
+    return this.http.post<any>(`${this.api}/suppliers/reorder-requests`, payload);
+  }
+
+  cancelReorderRequest(requestId: number): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/reorder-requests/${requestId}/cancel`, {});
+  }
+
+  markReorderShipped(requestId: number): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/reorder-requests/${requestId}/mark-shipped`, {});
+  }
+
+  markReorderReceived(requestId: number): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/reorder-requests/${requestId}/mark-received`, {});
+  }
+
+  // ---------- Bandeja del proveedor (rol PROVEEDOR, scoped en el backend) ----------
+  getMyReorderRequests(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/suppliers/reorder-requests/my`);
+  }
+
+  respondReorderRequest(requestId: number, payload: { status: 'ACCEPTED' | 'REJECTED'; estimated_delivery?: string | null; supplier_notes?: string | null }): Observable<any> {
+    return this.http.patch<any>(`${this.api}/suppliers/reorder-requests/${requestId}/respond`, payload);
+  }
+
+  getMyOffers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/suppliers/offers/my`);
+  }
+
   // ---------- MERCADERÍA / INGRESOS (CU10) ----------
   registerIntake(intake: any): Observable<any> {
     return this.http.post<any>(`${this.api}/merchandise/intake`, intake);

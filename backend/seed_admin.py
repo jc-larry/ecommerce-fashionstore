@@ -26,9 +26,12 @@ from app.packages.ventas_y_pagos import models as sales_models
 # Roles base del sistema (RF06)
 BASE_ROLES = {
     "SUPERADMIN": "Administrador principal del sistema",
+    "ADMINISTRADOR": "Administrador general de operaciones",
     "ENCARGADO": "Encargado de sucursal",
     "CAJERO": "Cajero de punto de venta",
     "CLIENTE": "Cliente final de la tienda",
+    "PROVEEDOR": "Proveedor textil y confeccionista",
+    "REPARTIDOR": "Repartidor de logística y delivery de última milla",
 }
 
 ADMIN_EMAIL = "admin@fashionstore.com"
@@ -72,6 +75,74 @@ def seed():
                 user.roles.append(roles["SUPERADMIN"])
                 db.commit()
             print("[INFO] El usuario administrador ya existe.")
+
+        # 3. Asegurar sucursales distribuidas exclusivamente en Santa Cruz de la Sierra (CU06)
+        from app.packages.catalogo_y_tiendas.branches.models import Branch
+        branches_data = [
+            {
+                "name": "FashionStore Equipetrol",
+                "code": "SUC-EQP",
+                "city": "Santa Cruz",
+                "zone": "Equipetrol",
+                "address": "Av. San Martín esquina Calle 8",
+                "reference": "Frente a Starbucks Equipetrol",
+                "phone": "33445566",
+                "whatsapp": "77011223",
+                "opening_time": "09:00",
+                "closing_time": "21:00",
+                "days_open": "Lunes a Domingo",
+                "has_fitting_room": True,
+            },
+            {
+                "name": "FashionStore Plan 3000",
+                "code": "SUC-P3K",
+                "city": "Santa Cruz",
+                "zone": "Plan 3000",
+                "address": "Av. Paurito casi Rotonda Principal",
+                "reference": "A dos cuadras del Obelisco Plan 3000",
+                "phone": "33889900",
+                "whatsapp": "77022334",
+                "opening_time": "08:30",
+                "closing_time": "20:30",
+                "days_open": "Lunes a Sábado",
+                "has_fitting_room": True,
+            },
+            {
+                "name": "FashionStore Ventura Mall",
+                "code": "SUC-VTR",
+                "city": "Santa Cruz",
+                "zone": "Ventura Mall",
+                "address": "4to Anillo y Av. San Martín - Nivel 2",
+                "reference": "Pasillo de Modas frente al patio de comidas",
+                "phone": "33112233",
+                "whatsapp": "77033445",
+                "opening_time": "10:00",
+                "closing_time": "22:00",
+                "days_open": "Lunes a Domingo",
+                "has_fitting_room": True,
+            },
+            {
+                "name": "FashionStore Centro",
+                "code": "SUC-CEN",
+                "city": "Santa Cruz",
+                "zone": "Centro",
+                "address": "Calle Junín #145",
+                "reference": "A media cuadra de la Plaza 24 de Septiembre",
+                "phone": "33221100",
+                "whatsapp": "77044556",
+                "opening_time": "08:30",
+                "closing_time": "20:00",
+                "days_open": "Lunes a Sábado",
+                "has_fitting_room": True,
+            },
+        ]
+        for b_data in branches_data:
+            b_exist = db.query(Branch).filter(Branch.name == b_data["name"]).first()
+            if not b_exist:
+                new_b = Branch(**b_data)
+                db.add(new_b)
+                print(f"[OK] Sucursal Santa Cruz creada: {b_data['name']}")
+        db.commit()
 
         print(f"       Correo: {ADMIN_EMAIL}")
         print(f"       Contrasena: {ADMIN_PASSWORD}")

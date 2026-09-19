@@ -42,11 +42,14 @@ export class CashShiftComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.branchSub = this.branchContext.activeBranch$.subscribe((activeBranch) => {
       if (!activeBranch) {
-        this.isCentral = true;
+        // Solo Casa Matriz elige sucursal; un cajero/encargado siempre opera en la suya.
+        this.isCentral = this.branchContext.isCentral();
         this.selectedBranchId = null;
-        this.activeBranchName = 'Casa Matriz (Consolidado)';
+        this.activeBranchName = this.isCentral ? 'Casa Matriz (Consolidado)' : 'Sin sucursal asignada';
         this.currentShift = null;
-        this.loadShiftsHistory(); // Todos los turnos de la cadena
+        if (this.isCentral) {
+          this.loadShiftsHistory(); // Todos los turnos de la cadena
+        }
       } else {
         this.isCentral = false;
         this.selectedBranchId = activeBranch.id;

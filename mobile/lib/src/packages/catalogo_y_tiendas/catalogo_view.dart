@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:speech_to_text/speech_to_text.dart';
 import '../seguridad_y_usuarios/auth_service.dart';
+import '../inteligente_y_analitica/virtual_tryon_view.dart';
 import 'catalog_api.dart';
 import 'product_detail_view.dart';
 
@@ -8,9 +13,11 @@ const _ink = Color(0xFF2B1F1D);
 const _muted = Color(0xFF706361);
 
 /// [CU11] Catálogo de la tienda (móvil): categorías, grilla lookbook con
-/// foto/precio/oferta/★/♥. [CU14] toggle de favorito.
+/// foto/precio/oferta/★/♥. [CU14] toggle de favorito. [CU34] búsqueda por voz (NLP).
 class CatalogoView extends StatefulWidget {
-  const CatalogoView({super.key});
+  /// Si se incrementa desde fuera (botón de voz del Inicio), se abre el micrófono.
+  final ValueListenable<int>? voiceTrigger;
+  const CatalogoView({super.key, this.voiceTrigger});
 
   @override
   State<CatalogoView> createState() => _CatalogoViewState();
@@ -25,10 +32,22 @@ class _CatalogoViewState extends State<CatalogoView> {
   String _search = '';
   int? _catFilter;
 
+  // [CU34] Búsqueda por voz: transcripción en el teléfono + extracción de entidades en el backend.
+  final SpeechToText _speech = SpeechToText();
+  final _searchCtrl = TextEditingController();
+  bool _listening = false;
+  String? _voiceQuery; // frase dictada que originó el filtro por voz
+  Set<int>? _voiceIds; // productos que el backend reconoció para esa frase
+
   @override
   void initState() {
     super.initState();
     _load();
+    widget.voiceTrigger?.addListener(_onVoiceTrigger);
+  }
+
+  void _onVoiceTrigger() {
+    if (!_listening) _voiceSearch();
   }
 
   Future<void> _load() async {
@@ -56,9 +75,107 @@ class _CatalogoViewState extends State<CatalogoView> {
     }
   }
 
+  @override
+  void dispose() {
+    widget.voiceTrigger?.removeListener(_onVoiceTrigger);
+    _speech.stop();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  /// [CU34] Escucha al cliente, envía la transcripción a /analytics/search/voice-nlp y filtra
+  /// el catálogo con las prendas que el backend reconoció (prenda, color, precio máximo).
+  Future<void> _voiceSearch() async {
+    if (_listening) {
+      await _speech.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final available = await _speech.initialize(
+      onStatus: (st) {
+        if ((st == 'done' || st == 'notListening') && mounted) setState(() => _listening = false);
+      },
+      onError: (_) {
+        if (mounted) setState(() => _listening = false);
+      },
+    );
+    if (!available) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('El reconocimiento de voz no está disponible o falta el permiso del micrófono.'),
+      ));
+      return;
+    }
+    // Preferir un idioma español instalado en el teléfono.
+    String? localeId;
+    try {
+      final locales = await _speech.locales();
+      final es = locales.where((l) => l.localeId.toLowerCase().startsWith('es')).toList();
+      if (es.isNotEmpty) localeId = es.first.localeId;
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() => _listening = true);
+    await _speech.listen(
+      listenOptions: SpeechListenOptions(
+        localeId: localeId,
+        listenFor: const Duration(seconds: 12),
+        pauseFor: const Duration(seconds: 3),
+        listenMode: ListenMode.search,
+      ),
+      onResult: (r) {
+        if (!mounted) return;
+        setState(() => _searchCtrl.text = r.recognizedWords);
+        if (r.finalResult && r.recognizedWords.trim().isNotEmpty) {
+          _applyVoiceQuery(r.recognizedWords.trim());
+        }
+      },
+    );
+  }
+
+  Future<void> _applyVoiceQuery(String text) async {
+    setState(() {
+      _listening = false;
+      _voiceQuery = text;
+      _voiceIds = null;
+      _search = '';
+    });
+    try {
+      final r = await http
+          .post(
+            Uri.parse('${AuthService.apiBaseUrl}/analytics/search/voice-nlp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'query_text': text}),
+          )
+          .timeout(const Duration(seconds: 12));
+      if (!mounted) return;
+      if (r.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(r.bodyBytes));
+        final entities = (data['extracted_entities'] as Map?) ?? const {};
+        final understood = entities['garment'] != null || entities['max_price'] != null;
+        if (understood) {
+          setState(() => _voiceIds = ((data['products'] as List?) ?? const []).map<int>((p) => p['id'] as int).toSet());
+          return;
+        }
+      }
+    } catch (_) {}
+    // Sin entidades reconocidas: se usa la frase como búsqueda de texto normal.
+    if (mounted) setState(() => _search = text);
+  }
+
+  void _clearVoice() {
+    setState(() {
+      _voiceQuery = null;
+      _voiceIds = null;
+      _search = '';
+      _searchCtrl.clear();
+    });
+  }
+
   List<dynamic> get _filtered {
     final t = _search.trim().toLowerCase();
     return _products.where((p) {
+      if (_voiceIds != null && !_voiceIds!.contains(p['id'])) return false;
       final txt = t.isEmpty || '${p['name']} ${p['description'] ?? ''}'.toLowerCase().contains(t);
       final catId = p['category']?['id'] ?? p['category_id'];
       final cat = _catFilter == null || catId == _catFilter;
@@ -211,14 +328,40 @@ class _CatalogoViewState extends State<CatalogoView> {
                 children: [
                   // Buscador
                   TextField(
-                    onChanged: (v) => setState(() => _search = v),
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() {
+                      _search = v;
+                      _voiceQuery = null;
+                      _voiceIds = null;
+                    }),
                     decoration: InputDecoration(
-                      hintText: 'Buscar colecciones…',
+                      hintText: _listening ? 'Escuchando… di p. ej. "vestido rojo hasta 200"' : 'Buscar colecciones…',
                       prefixIcon: const Icon(Icons.search, color: _muted),
+                      suffixIcon: IconButton(
+                        tooltip: 'Buscar por voz',
+                        icon: Icon(_listening ? Icons.mic : Icons.mic_none, color: _listening ? Colors.red : _brand),
+                        onPressed: _voiceSearch,
+                      ),
                       filled: true, fillColor: Colors.white, isDense: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                     ),
                   ),
+                  if (_voiceQuery != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InputChip(
+                        avatar: const Icon(Icons.record_voice_over, size: 16, color: _brand),
+                        label: Text(
+                          _voiceIds != null
+                              ? 'Voz: "$_voiceQuery" · ${_voiceIds!.length} resultados'
+                              : 'Voz: "$_voiceQuery"',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onDeleted: _clearVoice,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Categorías
@@ -394,6 +537,36 @@ class _CatalogoViewState extends State<CatalogoView> {
                   width: 28, height: 28,
                   decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white70),
                   child: Icon(wished ? Icons.favorite : Icons.favorite_border, size: 15, color: wished ? _brand : _muted),
+                ),
+              )),
+              Positioned(bottom: 6, right: 6, child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VirtualTryonView(
+                      initialProductId: p['id'] as int,
+                      initialProductName: p['name'] as String,
+                      initialProduct: p,
+                    ),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 11, color: Color(0xFFF6C28B)),
+                      SizedBox(width: 3),
+                      Text('Probar', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               )),
             ]),

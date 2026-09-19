@@ -63,6 +63,9 @@ class InventoryResponse(BaseModel):
 # --- Portal de Proveedor: disponibilidad de sus productos (solo lectura, sin costo/precio) ---
 class SupplierProductAvailability(BaseModel):
     variant_id: int
+    product_id: Optional[int] = None
+    image_url: Optional[str] = None
+    supplier_status: str = "DISPONIBLE"
     sku: Optional[str] = None
     product_name: Optional[str] = None
     color_name: Optional[str] = None

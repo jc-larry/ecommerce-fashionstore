@@ -31,7 +31,22 @@ import { QuotationsReturnsComponent } from './packages/ventas_y_pagos/quotations
 import { CustomerOrdersComponent } from './packages/ventas_y_pagos/orders/customer-orders.component';
 import { CartModalComponent } from './packages/ventas_y_pagos/cart/cart-modal.component';
 import { SupplierPortalComponent } from './packages/inventario_y_proveedores/supplier-portal/supplier-portal.component';
+import { SupplierRequestsComponent } from './packages/inventario_y_proveedores/supplier-requests/supplier-requests.component';
 import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.interceptor';
+
+// Ciclo 3 Components
+import { ReservationsBoardComponent } from './packages/reservas_y_citas/reservations-board/reservations-board.component';
+import { CustomerReservationsComponent } from './packages/reservas_y_citas/customer-reservations/customer-reservations.component';
+import { ShipmentsComponent } from './packages/envios_y_logistica/shipments/shipments.component';
+import { DeliveryZonesComponent } from './packages/envios_y_logistica/delivery-zones/delivery-zones.component';
+import { TrackingViewComponent } from './packages/envios_y_logistica/tracking-view/tracking-view.component';
+import { DeliveryPortalComponent } from './packages/envios_y_logistica/delivery-portal/delivery-portal.component';
+import { VirtualTryonComponent } from './packages/inteligente_y_analitica/virtual-tryon/virtual-tryon.component';
+import { ChatbotWidgetComponent } from './packages/inteligente_y_analitica/chatbot-widget/chatbot-widget.component';
+import { VoiceSearchComponent } from './packages/inteligente_y_analitica/voice-search/voice-search.component';
+import { ManagerReportsComponent } from './packages/inteligente_y_analitica/manager-reports/manager-reports.component';
+import { AnalyticsDashboardComponent } from './packages/inteligente_y_analitica/analytics-dashboard/analytics-dashboard.component';
+import { NotificationsDropdownComponent } from './packages/notificaciones/notifications-dropdown/notifications-dropdown.component';
 
 @NgModule({
   declarations: [
@@ -61,7 +76,21 @@ import { AuthInterceptor } from './packages/seguridad_y_usuarios/auth.intercepto
     QuotationsReturnsComponent,
     CustomerOrdersComponent,
     CartModalComponent,
-    SupplierPortalComponent
+    SupplierPortalComponent,
+    SupplierRequestsComponent,
+    // Ciclo 3
+    ReservationsBoardComponent,
+    CustomerReservationsComponent,
+    ShipmentsComponent,
+    DeliveryZonesComponent,
+    TrackingViewComponent,
+    DeliveryPortalComponent,
+    VirtualTryonComponent,
+    ChatbotWidgetComponent,
+    VoiceSearchComponent,
+    ManagerReportsComponent,
+    AnalyticsDashboardComponent,
+    NotificationsDropdownComponent
   ],
   imports: [
     BrowserModule,

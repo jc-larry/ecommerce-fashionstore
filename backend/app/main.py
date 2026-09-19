@@ -9,18 +9,33 @@ from app.packages.seguridad_y_usuarios import models as security_models
 from app.packages.catalogo_y_tiendas import models as catalog_models
 from app.packages.catalogo_y_tiendas.branches import models as branches_models
 from app.packages.inventario_y_proveedores.suppliers import models as suppliers_models
+from app.packages.inventario_y_proveedores.suppliers import offer_models as supplier_offer_models
 from app.packages.inventario_y_proveedores.merchandise import models as merchandise_models
 # Ventas y Pagos: solo modelos en el Ciclo 1 (tablas orders/order_items/payments/invoices;
 # jerarquías MedioDePago y Comprobante). Los routers llegan en el Ciclo 2 (CU17-CU24).
 from app.packages.ventas_y_pagos import models as sales_models
+# Ciclo 3: Reservas, Envíos, Inteligente/Analítica, Notificaciones
+from app.packages.reservas_y_citas import models as reservation_models
+from app.packages.envios_y_logistica import models as logistics_models
+from app.packages.envios_y_logistica.delivery_persons import models as delivery_persons_models
+from app.packages.inteligente_y_analitica import models as analytics_models
+from app.packages.notificaciones import models as notification_models
 
 # Importar routers de cada paquete
 from app.packages.seguridad_y_usuarios.routers import router as security_router
 from app.packages.catalogo_y_tiendas.routers import router as catalog_router
 from app.packages.catalogo_y_tiendas.branches.routers import router as branches_router
 from app.packages.inventario_y_proveedores.suppliers.routers import router as suppliers_router
+from app.packages.inventario_y_proveedores.suppliers.offer_routers import router as supplier_offers_router
 from app.packages.inventario_y_proveedores.merchandise.routers import router as merchandise_router
 from app.packages.ventas_y_pagos.routers import router as sales_router
+from app.packages.ventas_y_pagos.paypal_routers import router as paypal_router
+from app.packages.reservas_y_citas.routers import router as reservations_router
+from app.packages.envios_y_logistica.routers import router as logistics_router
+from app.packages.envios_y_logistica.delivery_persons.routers import router as delivery_persons_router
+from app.packages.inteligente_y_analitica.routers import router as analytics_router
+from app.packages.notificaciones.routers import router as notifications_router
+
 
 # Crear tablas automáticamente al arrancar.
 # Si la conexión a PostgreSQL falla, mostramos una guía clara y detenemos el arranque.
@@ -76,6 +91,45 @@ _COLUMN_UPGRADES = [
     "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS previous_avg_cost NUMERIC(10, 2) DEFAULT 0",
     "ALTER TABLE purchase_details ADD COLUMN IF NOT EXISTS new_avg_cost NUMERIC(10, 2) DEFAULT 0",
     "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0",
+    "ALTER TABLE virtual_tryon_captures ALTER COLUMN photo_url TYPE TEXT",
+    "ALTER TABLE virtual_tryon_captures ADD COLUMN IF NOT EXISTS session_id INTEGER REFERENCES virtual_tryon_sessions(id) ON DELETE SET NULL",
+    "ALTER TABLE virtual_tryon_captures ADD COLUMN IF NOT EXISTS original_photo_url TEXT",
+    "ALTER TABLE virtual_tryon_captures ADD COLUMN IF NOT EXISTS generation_model VARCHAR(100) DEFAULT 'IDM-VTON'",
+    "ALTER TABLE virtual_tryon_captures ADD COLUMN IF NOT EXISTS confidence_score FLOAT DEFAULT 0.92",
+    # Migraciones para Shipments y Repartidores (CU29, CU30)
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS delivery_person_id INTEGER REFERENCES delivery_persons(id) ON DELETE SET NULL",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP WITH TIME ZONE",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS delivery_date DATE",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS delivery_time VARCHAR(20)",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS delivery_attempts INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS failed_reason VARCHAR(255)",
+    # Evidencia fotográfica de entrega del repartidor
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS delivery_photo_url TEXT",
+    "ALTER TABLE shipments ADD COLUMN IF NOT EXISTS received_by_name VARCHAR(100)",
+    "ALTER TABLE shipment_tracking_events ADD COLUMN IF NOT EXISTS photo_url TEXT",
+    # Galería de fotos de ofertas de proveedores y vínculo con el catálogo
+    "ALTER TABLE supplier_offers ALTER COLUMN image_url TYPE TEXT",
+    "ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS image_urls TEXT",
+    "ALTER TABLE supplier_offers ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id) ON DELETE SET NULL",
+    # Migraciones para Proveedores (CU08, CU10)
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)",
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city VARCHAR(50) DEFAULT 'Santa Cruz'",
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS rating NUMERIC(3, 2) DEFAULT 5.0",
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS delivery_time_days INTEGER DEFAULT 7",
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS notes VARCHAR(255)",
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS specialty VARCHAR(100)",
+    # Migraciones para Reservas y Citas (CU26, CU27, CU28)
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS appointment_date DATE",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS appointment_time VARCHAR(10)",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS reschedule_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS grace_period_notified BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'TARJETA'",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100)",
+    "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS deposit_paid BOOLEAN NOT NULL DEFAULT TRUE",
+    # Migraciones para Pagos y Pasarela PayPal (CU18, CU19)
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS paypal_payer_id VARCHAR(50)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS paypal_payer_email VARCHAR(100)",
 ]
 
 # Normalización de datos: el correo es único e insensible a mayúsculas. Se pasan a
@@ -140,10 +194,22 @@ app.include_router(catalog_router)
 app.include_router(branches_router)
 # PKG Inventario y Proveedores  → CU08 (proveedores)
 app.include_router(suppliers_router)
+app.include_router(supplier_offers_router)
 # PKG Inventario y Proveedores  → CU10 (ingresos), CU37 (valoración), CU38 (ajustes)
 app.include_router(merchandise_router)
 # PKG Ventas y Pagos            → CU17 a CU24 (Carrito, Checkout, POS, Facturación, Cotización, Devolución, Arqueo)
 app.include_router(sales_router)
+app.include_router(paypal_router, prefix="/api/v1")
+# PKG Reservas y Citas          → CU26 (agendar), CU27 (Kanban), CU28 (cancelar/liberar), CU25 (conversión POS)
+app.include_router(reservations_router)
+# PKG Envíos y Logística        → CU29 (despachos), CU30 (tracking), CU31 (zonas y tarifas)
+app.include_router(delivery_persons_router)
+app.include_router(logistics_router)
+# PKG Inteligente y Analítica   → CU32 (vestidor RA), CU33 (chatbot IA), CU34 (voz NLP), CU35 (reportes), CU39 (dashboard)
+app.include_router(analytics_router)
+# PKG Notificaciones            → CU40 (in-app y confirmaciones email)
+app.include_router(notifications_router)
+
 
 
 @app.get("/")

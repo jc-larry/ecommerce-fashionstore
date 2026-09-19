@@ -294,6 +294,14 @@ export class StoreHomeComponent implements OnInit {
     });
   }
 
+  handleVoiceSearchResult(event: any): void {
+    const text = event?.original_query || event?.transcript || event?.query_text || '';
+    if (text) {
+      this.search = text;
+      this.onSearchChange(text);
+    }
+  }
+
   logout(): void {
     this.auth.logout().subscribe({
       next: () => this.router.navigate(['/login']),
@@ -304,3 +312,4 @@ export class StoreHomeComponent implements OnInit {
     });
   }
 }
+

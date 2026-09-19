@@ -37,7 +37,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Mis Pedidos'), findsOneWidget);
+      expect(find.text('Mis compras'), findsOneWidget);
+      expect(find.textContaining('Devoluciones'), findsOneWidget);
     });
   });
 }

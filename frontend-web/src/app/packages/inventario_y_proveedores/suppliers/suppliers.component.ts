@@ -52,6 +52,12 @@ export class SuppliersComponent implements OnInit {
       email: '',
       phone: '',
       address: '',
+      city: 'Santa Cruz',
+      specialty: '',
+      delivery_time_days: 3,
+      rating: 5.0,
+      logo_url: '',
+      notes: '',
       is_active: true
     };
   }
@@ -73,7 +79,7 @@ export class SuppliersComponent implements OnInit {
   get filtered(): any[] {
     const t = this.search.trim().toLowerCase();
     return this.suppliers.filter((s) => {
-      const matchesSearch = !t || `${s.name} ${s.nit} ${s.email} ${s.contact_name || ''} ${s.category || ''}`.toLowerCase().includes(t);
+      const matchesSearch = !t || `${s.name} ${s.nit} ${s.email} ${s.contact_name || ''} ${s.category || ''} ${s.city || ''} ${s.specialty || ''}`.toLowerCase().includes(t);
       const matchesCat = !this.categoryFilter || (s.category || 'Telas y Textiles') === this.categoryFilter;
       return matchesSearch && matchesCat;
     });
@@ -97,6 +103,12 @@ export class SuppliersComponent implements OnInit {
       email: s.email || '',
       phone: s.phone || '',
       address: s.address || '',
+      city: s.city || 'Santa Cruz',
+      specialty: s.specialty || '',
+      delivery_time_days: s.delivery_time_days ?? 3,
+      rating: s.rating ?? 5.0,
+      logo_url: s.logo_url || '',
+      notes: s.notes || '',
       is_active: s.is_active !== undefined ? s.is_active : true
     };
     this.validationErrors = {};

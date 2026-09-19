@@ -1,0 +1,10 @@
+<div class="voice-search-btn-wrapper position-relative d-inline-block">
+  <button type="button" 
+          class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+          [ngClass]="isListening ? 'btn-danger pulse-listening' : 'btn-outline-secondary'"
+          style="width: 38px; height: 38px;"
+          (click)="toggleListening()"
+          [title]="speechSupported ? 'Búsqueda por voz (Web Speech NLP)' : 'Búsqueda por lenguaje natural'">
+    <i class="bi" [ngClass]="isListening ? 'bi-mic-fill' : 'bi-mic'"></i>
+  </button>
+</div>

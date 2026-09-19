@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Permisos de sistema (iOS los exige o la app se cierra al usar el recurso) -->
+	<key>NSCameraUsageDescription</key>
+	<string>FashionStore usa la cámara para el vestidor virtual y para la foto de evidencia de entrega.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FashionStore necesita acceder a tus fotos para probarte prendas en el vestidor virtual.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FashionStore usa el micrófono para buscar prendas por voz.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>FashionStore convierte tu voz en texto para buscar prendas en el catálogo.</string>
 </dict>
 </plist>

@@ -3,6 +3,7 @@ import 'auth_service.dart';
 import 'register_view.dart';
 import 'recover_view.dart';
 import '../catalogo_y_tiendas/store_shell.dart';
+import '../envios_y_logistica/delivery_dashboard_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -21,7 +22,7 @@ class _LoginViewState extends State<LoginView> {
     // [CU01] Inicio de sesión conectado a la API REST.
     // El correo va en minúsculas y sin espacios; la contraseña se recorta de espacios
     // al inicio/fin (el teclado de Android suele añadir uno).
-    final email = _emailController.text.trim().toLowerCase();
+    final email = _emailController.text.replaceAll(RegExp(r'\s+'), '').toLowerCase();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
@@ -53,16 +54,7 @@ class _LoginViewState extends State<LoginView> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Sesión iniciada con éxito!'),
-          backgroundColor: Color(0xFF4CAF50),
-        ),
-      );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const StoreShell()),
-      );
+      await _routeByRole();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -71,6 +63,49 @@ class _LoginViewState extends State<LoginView> {
         ),
       );
     }
+  }
+
+  /// [CU01 - Paso 7] Enruta según el actor, igual que la web: el repartidor va a su panel de
+  /// entregas; el personal interno y el proveedor operan desde el panel web; el cliente, a la tienda.
+  Future<void> _routeByRole() async {
+    final nav = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (await AuthService.isRepartidor()) {
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const DeliveryDashboardView()),
+        (r) => false,
+      );
+      return;
+    }
+
+    if (await AuthService.isWebOnlyUser()) {
+      await AuthService.logout();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Usa el panel web'),
+          content: const Text(
+            'Tu cuenta es de personal de FashionStore o de proveedor. La app móvil es para '
+            'clientes y repartidores; tu panel de trabajo está en la versión web.',
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido'))],
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('¡Sesión iniciada con éxito!'),
+        backgroundColor: Color(0xFF4CAF50),
+      ),
+    );
+    nav.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const StoreShell()),
+      (r) => false,
+    );
   }
 
   void _showServerConfigDialog() {

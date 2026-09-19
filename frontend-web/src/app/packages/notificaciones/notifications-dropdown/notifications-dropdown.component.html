@@ -1,0 +1,45 @@
+<div class="notifications-dropdown-wrapper position-relative d-inline-block">
+  <!-- Botón Campana con Insignia -->
+  <button type="button" class="btn btn-link text-dark position-relative p-2" (click)="toggleDropdown()" title="Notificaciones">
+    <i class="bi bi-bell fs-5"></i>
+    <span *ngIf="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+      {{ unreadCount }}
+    </span>
+  </button>
+
+  <!-- Menú Popover Desplegable -->
+  <div *ngIf="isOpen" class="notif-menu shadow-xl border-0 rounded-4 overflow-hidden position-absolute end-0 mt-2 bg-white">
+    <div class="notif-header p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+      <div class="fw-bold text-dark small">
+        <i class="bi bi-bell-fill text-primary me-1"></i> Notificaciones ({{ unreadCount }})
+      </div>
+      <button *ngIf="unreadCount > 0" class="btn btn-link btn-sm text-primary text-decoration-none p-0" style="font-size: 0.72rem;" (click)="markAllRead()">
+        Marcar leídas
+      </button>
+    </div>
+
+    <div class="notif-body overflow-y-auto" style="max-height: 320px;">
+      <div *ngIf="loading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      </div>
+
+      <div *ngFor="let n of notifications" 
+           class="notif-item p-3 border-bottom d-flex align-items-start gap-2"
+           [ngClass]="n.is_read ? 'bg-white' : 'bg-primary bg-opacity-10'"
+           (click)="markRead(n, $event)">
+        <i class="bi fs-5 mt-1" [ngClass]="getIcon(n.notification_type)"></i>
+        <div class="flex-grow-1 overflow-hidden">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-bold small text-dark text-truncate">{{ n.title }}</span>
+            <small class="text-muted" style="font-size: 0.65rem;">{{ n.created_at | date:'dd/MM HH:mm' }}</small>
+          </div>
+          <p class="text-muted small mb-0 lh-sm">{{ n.message }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="!loading && notifications.length === 0" class="text-center py-4 text-muted small">
+        No tienes notificaciones pendientes.
+      </div>
+    </div>
+  </div>
+</div>

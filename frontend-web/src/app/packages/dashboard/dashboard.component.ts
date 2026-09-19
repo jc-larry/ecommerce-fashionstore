@@ -47,6 +47,16 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.branchContext.activeBranch$.subscribe((active) => {
+      if (!active && !this.auth.isCentralUser()) {
+        // Personal de sucursal aún sin sucursal asignada: nunca ve datos consolidados.
+        this.isCentral = false;
+        this.activeBranchName = 'Sin sucursal asignada';
+        this.activeBranchCity = '';
+        this.stats = [];
+        this.recentLogs = [];
+        this.loading = false;
+        return;
+      }
       if (!active) {
         this.isCentral = true;
         this.activeBranchName = 'Casa Matriz (Consolidado)';

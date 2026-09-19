@@ -8,6 +8,10 @@ Este archivo contiene las directrices de codificación, comandos frecuentes y la
 - **Instalar dependencias:** `pip install -r requirements.txt` o `uv pip install -r requirements.txt`
 - **Configurar entorno:** copiar `.env.example` a `.env` y ajustar `DATABASE_URL` de PostgreSQL
 - **Sembrar datos base (roles + admin):** `python seed_admin.py` (desde `backend/`)
+- **Precargar modelos de IA del vestidor (CU32):** `python preload_models.py` (desde `backend/`).
+  Baja rembg `u2net_human_seg` + `isnet-general-use` y el `pose_landmarker` (~360 MB en total).
+  En Render va en el **Build Command**, no en el Start: sin esto la primera prueba de prendas
+  tarda varios minutos y la descarga se repite en cada deploy.
 - **Iniciar servidor de desarrollo:** `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` (desde `backend/`; `--host 0.0.0.0` es necesario para que la app móvil en un teléfono físico pueda conectarse)
 - **Ejecutar pruebas unitarias:** `pytest`
 

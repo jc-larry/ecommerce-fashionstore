@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { VentasService, OrderResponse } from '../ventas.service';
+import { VentasService, OrderResponse, CustomerReturn } from '../ventas.service';
 
 @Component({
   selector: 'app-customer-orders',
@@ -8,6 +8,8 @@ import { VentasService, OrderResponse } from '../ventas.service';
 })
 export class CustomerOrdersComponent implements OnInit {
   orders: OrderResponse[] = [];
+  returns: CustomerReturn[] = [];
+  activeTab: 'PEDIDOS' | 'DEVOLUCIONES' = 'PEDIDOS';
   selectedOrder: OrderResponse | null = null;
   loading: boolean = true;
   errorMessage: string | null = null;
@@ -16,6 +18,15 @@ export class CustomerOrdersComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadOrders();
+    this.loadReturns();
+  }
+
+  /** [CU22] Devoluciones y cambios que la sucursal registró sobre mis compras. */
+  loadReturns(): void {
+    this.ventasService.getMyReturns().subscribe({
+      next: (data) => (this.returns = data),
+      error: () => (this.returns = []),
+    });
   }
 
   loadOrders(): void {

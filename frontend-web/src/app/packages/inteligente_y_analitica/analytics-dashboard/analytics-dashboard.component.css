@@ -1,0 +1,8 @@
+.bar-fill {
+  transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 4px;
+}
+
+.chart-bars-container {
+  overflow-x: auto;
+}

@@ -80,6 +80,18 @@
               </td>
               <td>
                 <strong class="d-block text-dark">{{ s.name }}</strong>
+                <div class="d-flex align-items-center gap-1 mt-0.5">
+                  <span class="badge bg-light text-secondary border extra-small" *ngIf="s.city">
+                    <i class="bi bi-geo-alt me-0.5"></i>{{ s.city }}
+                  </span>
+                  <span class="badge bg-info-subtle text-info border border-info-subtle extra-small" *ngIf="s.specialty">
+                    {{ s.specialty }}
+                  </span>
+                </div>
+                <div class="small text-warning mt-1" *ngIf="s.rating">
+                  <i class="bi bi-star-fill me-1"></i><span class="fw-bold">{{ s.rating }}</span>
+                  <span class="text-muted extra-small ms-1">· {{ s.delivery_time_days || 3 }}d entrega</span>
+                </div>
                 <small class="text-muted" *ngIf="s.contact_name">
                   <i class="bi bi-person me-1"></i>{{ s.contact_name }}
                 </small>
@@ -260,6 +272,36 @@
         <input class="form-control"
                [(ngModel)]="form.address"
                placeholder="Ej. Parque Industrial Mza 12, Santa Cruz">
+      </div>
+
+      <!-- Ciudad y Especialidad -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold text-dark">Ciudad</label>
+          <input class="form-control" [(ngModel)]="form.city" placeholder="Santa Cruz">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold text-dark">Especialidad</label>
+          <input class="form-control" [(ngModel)]="form.specialty" placeholder="Ej. Denim, Seda, Botonería">
+        </div>
+      </div>
+
+      <!-- Plazo de Entrega y Calificación -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label small fw-bold text-dark">Días de Entrega</label>
+          <input type="number" min="1" max="60" class="form-control" [(ngModel)]="form.delivery_time_days">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold text-dark">Calificación (1 - 5)</label>
+          <input type="number" min="1" max="5" step="0.5" class="form-control" [(ngModel)]="form.rating">
+        </div>
+      </div>
+
+      <!-- Notas / Observaciones -->
+      <div class="mb-3">
+        <label class="form-label small fw-bold text-dark">Notas / Observaciones</label>
+        <textarea class="form-control" rows="2" [(ngModel)]="form.notes" placeholder="Condiciones de pago, horarios de despacho, etc."></textarea>
       </div>
     </div>
 

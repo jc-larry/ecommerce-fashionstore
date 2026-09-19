@@ -2,10 +2,11 @@
 from app.packages.seguridad_y_usuarios.models import User, Role, SessionToken, AuditLog
 from app.packages.seguridad_y_usuarios.routers import (
     router, get_current_user, RoleChecker, log_event, get_branch_scope, BranchScope,
-    get_supplier_scope, SupplierScope,
+    get_supplier_scope, SupplierScope, assign_user_to_branch,
 )
 
 __all__ = [
     "User", "Role", "SessionToken", "AuditLog", "router", "get_current_user", "RoleChecker",
     "log_event", "get_branch_scope", "BranchScope", "get_supplier_scope", "SupplierScope",
+    "assign_user_to_branch",
 ]

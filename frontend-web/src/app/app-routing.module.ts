@@ -25,7 +25,24 @@ import { CashShiftComponent } from './packages/ventas_y_pagos/cash-shift/cash-sh
 import { QuotationsReturnsComponent } from './packages/ventas_y_pagos/quotations-returns/quotations-returns.component';
 import { CustomerOrdersComponent } from './packages/ventas_y_pagos/orders/customer-orders.component';
 import { SupplierPortalComponent } from './packages/inventario_y_proveedores/supplier-portal/supplier-portal.component';
-import { AuthGuard, SessionGuard, CentralOnlyGuard, ProveedorGuard } from './packages/seguridad_y_usuarios/auth.guard';
+import { SupplierRequestsComponent } from './packages/inventario_y_proveedores/supplier-requests/supplier-requests.component';
+import { AuthGuard, SessionGuard, CentralOnlyGuard, ProveedorGuard, RepartidorGuard, RoleGuard } from './packages/seguridad_y_usuarios/auth.guard';
+
+// Ciclo 3 Components
+import { ReservationsBoardComponent } from './packages/reservas_y_citas/reservations-board/reservations-board.component';
+import { CustomerReservationsComponent } from './packages/reservas_y_citas/customer-reservations/customer-reservations.component';
+import { ShipmentsComponent } from './packages/envios_y_logistica/shipments/shipments.component';
+import { DeliveryZonesComponent } from './packages/envios_y_logistica/delivery-zones/delivery-zones.component';
+import { TrackingViewComponent } from './packages/envios_y_logistica/tracking-view/tracking-view.component';
+import { DeliveryPortalComponent } from './packages/envios_y_logistica/delivery-portal/delivery-portal.component';
+import { VirtualTryonComponent } from './packages/inteligente_y_analitica/virtual-tryon/virtual-tryon.component';
+import { ManagerReportsComponent } from './packages/inteligente_y_analitica/manager-reports/manager-reports.component';
+import { AnalyticsDashboardComponent } from './packages/inteligente_y_analitica/analytics-dashboard/analytics-dashboard.component';
+
+// Roles permitidos por ruta (RoleGuard). SUPERADMIN siempre tiene acceso.
+const BRANCH_STAFF = { roles: ['SUPERADMIN', 'ENCARGADO', 'CAJERO'] };
+const BRANCH_MANAGER = { roles: ['SUPERADMIN', 'ENCARGADO'] };
+const CENTRAL_ONLY = { roles: ['SUPERADMIN'] };
 
 const routes: Routes = [
   // Autenticación (CU01, CU03, CU04)
@@ -41,28 +58,42 @@ const routes: Routes = [
   { path: 'tienda/pedidos', component: CustomerOrdersComponent, canActivate: [SessionGuard], title: 'Mis Pedidos' },
   { path: 'tienda/producto/:id', component: ProductDetailComponent, title: 'Prenda' },
 
+  // Ciclo 3 Cliente: Reservas (CU26), Tracking (CU30), Vestidor Virtual RA (CU32)
+  { path: 'tienda/reservas', component: CustomerReservationsComponent, canActivate: [SessionGuard], title: 'Mis Reservas de Probador' },
+  { path: 'tienda/rastreo', component: TrackingViewComponent, title: 'Rastreo Satelital de Envíos' },
+  { path: 'tienda/vestidor', component: VirtualTryonComponent, title: 'Vestidor Virtual (RA)' },
+
   // Panel administrativo (protegido por AuthGuard; los módulos exclusivos de Casa Matriz
   // además exigen CentralOnlyGuard, que redirige a /admin/dashboard si no es SUPERADMIN)
   { path: 'admin/dashboard', component: DashboardComponent, canActivate: [AuthGuard], title: 'Dashboard' },
+  { path: 'admin/analytics-dashboard', component: AnalyticsDashboardComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Dashboard Analítico BI' },
+  { path: 'admin/reservations', component: ReservationsBoardComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Bandeja Kanban de Reservas' },
+  { path: 'admin/shipments', component: ShipmentsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Gestión de Despachos' },
+  { path: 'admin/delivery-zones', component: DeliveryZonesComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Zonas y Tarifas de Entrega' },
+  { path: 'admin/reports', component: ManagerReportsComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Reportes Gerenciales y Voz' },
   { path: 'admin/usuarios', component: UsuariosRolesComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Usuarios y Roles' },
   { path: 'admin/branches', component: BranchesComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Sucursales' },
-  { path: 'admin/products', component: ProductsComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Catálogo' },
+  { path: 'admin/products', component: ProductsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_STAFF, title: 'Catálogo' },
   { path: 'admin/promotions', component: PromotionsComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Promociones y Cupones' },
   { path: 'admin/reviews', component: ReviewsModerationComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Moderación de Reseñas' },
   { path: 'admin/suppliers', component: SuppliersComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Proveedores' },
-  { path: 'admin/purchases', component: MerchandiseComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Mercadería' },
-  { path: 'admin/transfers', component: TransfersComponent, canActivate: [AuthGuard], title: 'Transferencias' },
-  { path: 'admin/alerts', component: StockAlertsComponent, canActivate: [AuthGuard], title: 'Alertas de Stock' },
+  { path: 'admin/supplier-requests', component: SupplierRequestsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Pedidos a Proveedores' },
+  { path: 'admin/purchases', component: MerchandiseComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Mercadería' },
+  { path: 'admin/transfers', component: TransfersComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Transferencias' },
+  { path: 'admin/alerts', component: StockAlertsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Alertas de Stock' },
   { path: 'admin/valuation', component: ValuationComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Valoración de inventario' },
-  { path: 'admin/adjustments', component: AdjustmentsComponent, canActivate: [AuthGuard], title: 'Ajustes de inventario' },
+  { path: 'admin/adjustments', component: AdjustmentsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Ajustes de inventario' },
   { path: 'admin/pos', component: PosComponent, canActivate: [AuthGuard], title: 'Punto de Venta POS' },
   { path: 'admin/shifts', component: CashShiftComponent, canActivate: [AuthGuard], title: 'Arqueo de Caja' },
-  { path: 'admin/quotations-returns', component: QuotationsReturnsComponent, canActivate: [AuthGuard], title: 'Cotizaciones y Devoluciones' },
-  { path: 'admin/employees', component: EmployeesComponent, canActivate: [AuthGuard], title: 'Empleados' },
+  { path: 'admin/quotations-returns', component: QuotationsReturnsComponent, canActivate: [AuthGuard, RoleGuard], data: BRANCH_MANAGER, title: 'Cotizaciones y Devoluciones' },
+  { path: 'admin/employees', component: EmployeesComponent, canActivate: [AuthGuard, RoleGuard], data: CENTRAL_ONLY, title: 'Empleados' },
   { path: 'admin/audit', component: AuditComponent, canActivate: [AuthGuard, CentralOnlyGuard], title: 'Auditoría' },
 
   // [Rol PROVEEDOR] Portal de autoservicio, fuera del panel admin y de la tienda
   { path: 'proveedor', component: SupplierPortalComponent, canActivate: [ProveedorGuard], title: 'Portal de Proveedor' },
+
+  // [Actor REPARTIDOR / DELIVERY] Portal de rutas y despachos para el conductor
+  { path: 'repartidor', component: DeliveryPortalComponent, canActivate: [RepartidorGuard], title: 'Portal de Repartidor' },
 
   { path: '**', redirectTo: 'login' }
 ];

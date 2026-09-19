@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.packages.catalogo_y_tiendas.branches.models import Branch
 from app.packages.catalogo_y_tiendas.branches.schemas import BranchCreate, BranchUpdate, BranchResponse, AssignEmployee
 # Importar control de roles, usuario y logueo de auditoría del paquete de Seguridad
-from app.packages.seguridad_y_usuarios import User, RoleChecker, log_event
+from app.packages.seguridad_y_usuarios import User, RoleChecker, log_event, assign_user_to_branch
 
 router = APIRouter(prefix="/api/v1/branches", tags=["branches"])
 
@@ -27,21 +27,27 @@ def create_branch(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_check)
 ):
-    """[CU06] Registra una nueva sucursal física"""
-    # [CU06 - Paso 3] / [DSC006 - Paso 3] +check_exists(nombre)
+    """[CU06] Registra una nueva sucursal física (restringida a Santa Cruz de la Sierra)."""
+    # Restricción geográfica: solo Santa Cruz
+    if branch_data.city and "santa cruz" not in branch_data.city.lower():
+        raise HTTPException(
+            status_code=400,
+            detail="La plataforma FashionStore opera exclusivamente con sucursales físicas en Santa Cruz de la Sierra."
+        )
+
     existing = db.query(Branch).filter(Branch.name == branch_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="El nombre de la sucursal ya existe.")
         
-    # [CU06 - Paso 4] / [DSC006 - Paso 4] +insert_branch(datos)
-    branch = Branch(**branch_data.model_dump())
+    data_dict = branch_data.model_dump()
+    data_dict["city"] = "Santa Cruz"
+    branch = Branch(**data_dict)
     db.add(branch)
     db.commit()
     db.refresh(branch)
 
     # Auditar creación de sucursal (CU36)
     log_event(db, current_user.id, "INSERT", "branches", branch.id, {"name": branch.name}, request.client.host)
-    # [CU06 - Paso 6] / [DSC006 - Paso 6] +Sucursal Creada
     return branch
 
 @router.put("/{branch_id}", response_model=BranchResponse)
@@ -52,14 +58,23 @@ def update_branch(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_check)
 ):
-    """[CU06] Actualiza los datos de una sucursal existente"""
+    """[CU06] Actualiza los datos de una sucursal existente (restringida a Santa Cruz)."""
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada.")
 
+    # Restricción geográfica en edición
+    if branch_data.city and "santa cruz" not in branch_data.city.lower():
+        raise HTTPException(
+            status_code=400,
+            detail="La ciudad no puede modificarse fuera de Santa Cruz de la Sierra."
+        )
+
     old_vals = {"name": branch.name, "is_active": branch.is_active}
 
     for key, value in branch_data.model_dump(exclude_unset=True).items():
+        if key == "city":
+            value = "Santa Cruz"
         setattr(branch, key, value)
 
     db.commit()
@@ -143,7 +158,8 @@ def assign_employee_to_branch(
     if user in branch.employees:
         raise HTTPException(status_code=400, detail="El empleado ya se encuentra asignado a esta sucursal.")
     # [CU09 - Paso 4] / [DSC009 - Paso 4] +insert_assign(sucursal_id, usuario_id)
-    branch.employees.append(user)
+    # Un empleado pertenece a una sola sucursal: si estaba en otra, se traslada.
+    assign_user_to_branch(db, user, branch.id)
     db.commit()
     db.refresh(branch)
 

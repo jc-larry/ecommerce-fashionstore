@@ -1,0 +1,148 @@
+<div class="container-fluid p-4">
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Reportes Gerenciales y Síntesis por Voz
+      </h3>
+      <p class="text-muted small mb-0">
+        [CU35] Kardex físico-valorado, prendas top en ventas, exportación Excel/CSV e informes ejecutivos leídos por IA.
+      </p>
+    </div>
+
+    <!-- Navegación por pestañas -->
+    <div class="btn-group p-1 bg-light border rounded-pill" role="group">
+      <button class="btn btn-sm rounded-pill fw-semibold px-3" 
+              [ngClass]="activeTab === 'kardex' ? 'btn-primary' : 'btn-light'"
+              (click)="activeTab = 'kardex'">
+        <i class="bi bi-journal-text me-1"></i> Kardex Inventario
+      </button>
+      <button class="btn btn-sm rounded-pill fw-semibold px-3" 
+              [ngClass]="activeTab === 'top' ? 'btn-primary' : 'btn-light'"
+              (click)="activeTab = 'top'">
+        <i class="bi bi-trophy me-1"></i> Top Más Vendidos
+      </button>
+      <button class="btn btn-sm rounded-pill fw-semibold px-3" 
+              [ngClass]="activeTab === 'voice' ? 'btn-primary' : 'btn-light'"
+              (click)="activeTab = 'voice'">
+        <i class="bi bi-soundwave me-1"></i> Resumen por Voz
+      </button>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 1: KARDEX FÍSICO-VALORADO -->
+  <div *ngIf="activeTab === 'kardex'" class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center py-3 px-4 gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-bold text-dark"><i class="bi bi-filter me-1"></i> Filtrar Sucursal:</span>
+        <select class="form-select form-select-sm" [(ngModel)]="selectedBranchId" (change)="loadKardex()" style="min-width: 200px;">
+          <option [ngValue]="undefined">Todas las Sucursales</option>
+          <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-xs" (click)="downloadKardexCsv()">
+          <i class="bi bi-file-earmark-excel me-1"></i> Exportar CSV para Excel
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light text-muted small text-uppercase">
+          <tr>
+            <th class="ps-4">Fecha / Hora</th>
+            <th>Sucursal</th>
+            <th>Prenda / SKU</th>
+            <th>Tipo Movimiento</th>
+            <th class="text-center">Cantidad</th>
+            <th class="text-end">Costo Unitario</th>
+            <th class="text-end">Costo Total</th>
+            <th class="pe-4 text-end">Ref Documento</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let k of kardexRecords">
+            <td class="ps-4 text-muted small">{{ k.date | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="fw-semibold text-dark">{{ k.branch_name }}</td>
+            <td>
+              <div class="fw-bold text-dark">{{ k.product_name }}</div>
+              <small class="text-muted font-monospace">{{ k.sku }}</small>
+            </td>
+            <td>
+              <span class="badge" [ngClass]="getMovementBadge(k.movement_type)">
+                {{ k.movement_type }}
+              </span>
+            </td>
+            <td class="text-center fw-bold" [ngClass]="k.quantity > 0 ? 'text-success' : 'text-danger'">
+              {{ k.quantity > 0 ? '+' : '' }}{{ k.quantity }}
+            </td>
+            <td class="text-end text-muted">Bs. {{ k.unit_cost | number:'1.2-2' }}</td>
+            <td class="text-end fw-bold text-dark">Bs. {{ k.total_cost | number:'1.2-2' }}</td>
+            <td class="pe-4 text-end font-monospace text-muted small">{{ k.reference_id || '-' }}</td>
+          </tr>
+          <tr *ngIf="!loadingKardex && kardexRecords.length === 0">
+            <td colspan="8" class="text-center py-5 text-muted">No hay movimientos registrados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 2: TOP MÁS VENDIDOS -->
+  <div *ngIf="activeTab === 'top'" class="card border-0 shadow-sm rounded-4 p-4">
+    <h5 class="fw-bold text-dark mb-3">Prendas Líderes en Ventas (Volumen e Ingresos)</h5>
+    <div class="row g-3">
+      <div *ngFor="let item of topProducts; let i = index" class="col-md-6 col-lg-4">
+        <div class="card border rounded-4 p-3 h-100 shadow-xs">
+          <div class="d-flex align-items-center gap-3">
+            <div class="position-relative">
+              <img [src]="item.image_url || '/assets/images/placeholder.png'" class="rounded-3" style="width: 64px; height: 64px; object-fit: cover;">
+              <span class="position-absolute top-0 start-0 translate-middle badge rounded-circle" [ngClass]="i === 0 ? 'bg-warning text-dark' : (i === 1 ? 'bg-secondary' : 'bg-dark')">
+                #{{ i + 1 }}
+              </span>
+            </div>
+            <div class="flex-grow-1 overflow-hidden">
+              <h6 class="fw-bold text-dark text-truncate mb-1">{{ item.product_name }}</h6>
+              <small class="text-muted d-block mb-1">{{ item.category_name }}</small>
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="badge bg-primary bg-opacity-10 text-primary fw-bold">{{ item.total_units_sold }} vendidos</span>
+                <span class="fw-bold text-success fs-6">Bs. {{ item.total_revenue | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 3: RESUMEN EJECUTIVO POR VOZ (TTS) -->
+  <div *ngIf="activeTab === 'voice'" class="card border-0 shadow-sm rounded-4 p-5 text-center mx-auto" style="max-width: 750px;">
+    <div class="mb-4">
+      <div class="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center p-4 mb-3" style="width: 84px; height: 84px;">
+        <i class="bi bi-volume-up-fill display-5"></i>
+      </div>
+      <h4 class="fw-bold text-dark mb-1">Informe Operativo y Financiero en Audio</h4>
+      <p class="text-muted small">
+        Generación automática de síntesis vocal ejecutiva con SpeechSynthesis de HTML5.
+      </p>
+    </div>
+
+    <div class="p-4 bg-light rounded-4 border mb-4 text-start">
+      <p class="fs-6 text-dark mb-0 lh-lg" style="font-style: italic;">
+        "{{ voiceSummary }}"
+      </p>
+    </div>
+
+    <div class="d-flex justify-content-center gap-3">
+      <button class="btn btn-lg rounded-pill px-4 fw-bold shadow-sm"
+              [ngClass]="isSpeaking ? 'btn-danger' : 'btn-primary'"
+              (click)="speakSummary()">
+        <i class="bi" [ngClass]="isSpeaking ? 'bi-stop-fill' : 'bi-play-fill'"></i>
+        {{ isSpeaking ? 'Detener Audio' : 'Escuchar Informe en Voz Alta' }}
+      </button>
+      <button class="btn btn-outline-secondary btn-lg rounded-pill px-3" (click)="loadVoiceSummary()">
+        <i class="bi bi-arrow-repeat"></i>
+      </button>
+    </div>
+  </div>
+</div>

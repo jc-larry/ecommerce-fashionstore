@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivate, Router, UrlTree } from '@angular/router';
 import { AuthService } from './auth.service';
 
 /**
@@ -20,6 +20,10 @@ export class AuthGuard implements CanActivate {
     // [Rol PROVEEDOR] no pertenece al panel admin ni a la tienda: tiene su propio portal
     if (this.auth.isProveedorUser()) {
       return this.router.createUrlTree(['/proveedor']);
+    }
+    // [Rol REPARTIDOR] portal propio de repartidor
+    if (this.auth.isRepartidorUser()) {
+      return this.router.createUrlTree(['/repartidor']);
     }
     // Sesión válida pero sin rol de panel → es cliente
     return this.router.createUrlTree(['/tienda']);
@@ -72,9 +76,54 @@ export class ProveedorGuard implements CanActivate {
     if (this.auth.isProveedorUser()) {
       return true;
     }
+    if (this.auth.isRepartidorUser()) {
+      return this.router.createUrlTree(['/repartidor']);
+    }
     if (this.auth.isAdminUser()) {
       return this.router.createUrlTree(['/admin/dashboard']);
     }
     return this.router.createUrlTree(['/tienda']);
+  }
+}
+
+/**
+ * [Rol REPARTIDOR] Protege el portal de rutas y despachos (/repartidor):
+ * exige sesión activa y rol REPARTIDOR o personal administrativo.
+ */
+@Injectable({ providedIn: 'root' })
+export class RepartidorGuard implements CanActivate {
+  constructor(private auth: AuthService, private router: Router) {}
+
+  canActivate(): boolean | UrlTree {
+    if (!this.auth.isLoggedIn()) {
+      return this.router.createUrlTree(['/login']);
+    }
+    if (this.auth.isRepartidorUser() || this.auth.isAdminUser()) {
+      return true;
+    }
+    if (this.auth.isProveedorUser()) {
+      return this.router.createUrlTree(['/proveedor']);
+    }
+    return this.router.createUrlTree(['/tienda']);
+  }
+}
+
+/**
+ * Control de acceso por rol a nivel de ruta: los roles permitidos se declaran en
+ * `data.roles`. Si el usuario no tiene ninguno, vuelve a su dashboard (SUPERADMIN siempre pasa).
+ */
+@Injectable({ providedIn: 'root' })
+export class RoleGuard implements CanActivate {
+  constructor(private auth: AuthService, private router: Router) {}
+
+  canActivate(route: ActivatedRouteSnapshot): boolean | UrlTree {
+    if (!this.auth.isLoggedIn()) {
+      return this.router.createUrlTree(['/login']);
+    }
+    const allowed: string[] = route.data?.['roles'] ?? [];
+    if (this.auth.isCentralUser() || allowed.length === 0 || allowed.some((r) => this.auth.hasRole(r))) {
+      return true;
+    }
+    return this.router.createUrlTree(['/admin/dashboard']);
   }
 }

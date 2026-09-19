@@ -1,0 +1,15 @@
+.notif-menu {
+  width: 320px;
+  z-index: 1060;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid #E2E8F0;
+}
+
+.notif-item {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.notif-item:hover {
+  background-color: #F8FAFC;
+}

@@ -1,0 +1,317 @@
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.btn-white {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #C66F5C;
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* MARCO DEL VESTIDOR VIRTUAL (SMART MIRROR 9:16) */
+.tryon-mirror-frame {
+  width: 100%;
+  max-width: 440px;
+  background: #141414;
+  border: 4px solid #2a2a2a;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(198, 111, 92, 0.15);
+}
+
+.tryon-mirror-topbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.mirror-canvas {
+  background: radial-gradient(circle at 50% 35%, #252221 0%, #121010 100%);
+}
+
+/* MANIQUÍ EDITORIAL */
+.mannequin-base-layer {
+  position: relative;
+  overflow: hidden;
+}
+
+.mannequin-svg {
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+}
+
+.real-person-stage-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.14));
+}
+
+.photo-vton-hint {
+  z-index: 11;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.88);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+/* PRENDA SUPERPUESTA RA */
+.ar-garment-layer {
+  z-index: 6;
+}
+
+/* PUNTOS ANATÓMICOS BIOMÉTRICOS */
+.biometric-landmarks-overlay {
+  z-index: 8;
+}
+
+.landmark-dot {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landmark-pulse {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #38BDF8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  animation: pulse-ring 2.2s infinite ease-out;
+}
+
+.pulse-blue {
+  border-color: #60A5FA;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+.pulse-green {
+  border-color: #34D399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.85); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.8; }
+}
+
+.landmark-tag {
+  margin-top: 3px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #E2E8F0;
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+}
+
+.tag-blue {
+  color: #93C5FD;
+}
+
+.tag-green {
+  color: #86EFAC;
+}
+
+/* RETÍCULA HOLOGRÁFICA */
+.ar-grid-lines .grid-line {
+  position: absolute;
+  width: 100%;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 10px;
+}
+
+.grid-label {
+  background: rgba(0, 0, 0, 0.7);
+  color: #C66F5C;
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  transform: translateY(-50%);
+}
+
+/* CALIBRADOR FLOTANTE */
+.ar-calibration-pill {
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+/* OVERLAY DE INFERENCIA VTON */
+.vton-inference-overlay {
+  background: rgba(15, 15, 15, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 25;
+}
+
+/* SELECTOR DE COLOR CON UN TOQUE (RF47) */
+.color-variant-btn {
+  border: 2px solid #ffffff;
+  outline: none;
+}
+
+.color-variant-btn:hover {
+  transform: scale(1.15);
+}
+
+.ring-active {
+  box-shadow: 0 0 0 2px #C66F5C !important;
+  transform: scale(1.12);
+}
+
+/* BANDEJA DEL CATÁLOGO & HISTORIAL */
+.tray-item {
+  transition: all 0.2s;
+}
+
+.tray-item:hover, .active-garment {
+  border-color: #C66F5C !important;
+  transform: translateY(-2px);
+}
+
+.tested-item-pill {
+  transition: all 0.2s;
+}
+
+.tested-item-pill:hover {
+  border-color: #C66F5C !important;
+  background-color: #FFFFFF !important;
+  transform: translateY(-1px);
+}
+
+.source-subpanel {
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* TARJETA DE PRENDA AISLADA (FONDO BLANCO PURO) */
+.garment-white-stage {
+  border: 1px solid #EAEAEA;
+  transition: all 0.3s ease;
+}
+
+.garment-white-stage:hover {
+  border-color: #D1D5DB;
+}
+
+/* FICHA DEL MODELO EDITORIAL (KRISTINE / MI SILUETA) */
+.model-reference-tag {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px 14px;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* CHIPS DE ARTÍCULOS EN EL VESTIDOR... */
+.tested-item-reference-chip {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  transition: all 0.2s ease-in-out;
+}
+
+.tested-item-reference-chip:hover {
+  border-color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ───── SELECTOR DE MODELOS REALES ───── */
+.real-model-thumb {
+  transition: all 0.2s ease-in-out;
+}
+.real-model-thumb:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-color: #6366f1 !important;
+}
+.real-model-thumb img {
+  border: 1px solid #e2e8f0;
+}
+
+/* ───── LANDMARK DOT: CADERA (AMBER) ───── */
+.dot-hip { position: relative; }
+.pulse-amber {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #F59E0B;
+  box-shadow: 0 0 6px #F59E0B;
+  animation: pulse-amber-anim 2.2s infinite;
+}
+.tag-amber {
+  background: rgba(245, 158, 11, 0.90);
+  color: #FFF;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.60rem;
+  font-weight: 600;
+  white-space: nowrap;
+  position: absolute;
+  left: 16px;
+  top: -2px;
+}
+@keyframes pulse-amber-anim {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.6); opacity: 0.3; }
+}
+
+/* ───── BG REMOVAL LOADING SHIMMER ───── */
+.bg-removal-loading {
+  background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9);
+  background-size: 200% auto;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+  padding: 1rem;
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to { background-position: 200% center; }
+}

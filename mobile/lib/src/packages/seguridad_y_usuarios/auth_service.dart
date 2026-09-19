@@ -227,4 +227,34 @@ class AuthService {
     final token = await getToken();
     return token != null;
   }
+
+  /// Roles del usuario autenticado (guardados al iniciar sesión).
+  static Future<List<String>> getRoles() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('roles') ?? const [];
+  }
+
+  /// Datos básicos del usuario autenticado (nombre, correo) o null.
+  static Future<Map<String, dynamic>?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('user');
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Roles que operan desde el panel web (Casa Matriz, sucursal y proveedor), no desde la app.
+  static const List<String> webOnlyRoles = ['SUPERADMIN', 'ADMINISTRADOR', 'ENCARGADO', 'CAJERO', 'PROVEEDOR'];
+
+  /// [Rol REPARTIDOR] La app abre su panel de entregas en lugar de la tienda.
+  static Future<bool> isRepartidor() async => (await getRoles()).contains('REPARTIDOR');
+
+  /// True si el usuario es personal interno o proveedor (su portal es la web).
+  static Future<bool> isWebOnlyUser() async {
+    final roles = await getRoles();
+    return !roles.contains('CLIENTE') && roles.any(webOnlyRoles.contains);
+  }
 }

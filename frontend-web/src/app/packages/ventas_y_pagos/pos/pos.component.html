@@ -98,8 +98,41 @@
     </div>
   </div>
 
-  <!-- CUERPO PRINCIPAL DEL POS (ACTIVO CUANDO HAY SUCURSAL Y TURNO ABIERTO) -->
-  <div *ngIf="!isCentral && currentShift" class="row g-4">
+  <!-- PESTAÑAS DE OPERACIÓN DEL CAJERO (CUANDO HAY CAJA ABIERTA) -->
+  <div *ngIf="!isCentral && currentShift" class="mb-4">
+    <ul class="nav nav-pills gap-2 bg-white p-2 rounded-4 shadow-sm border">
+      <li class="nav-item">
+        <button class="nav-link fw-bold d-flex align-items-center gap-2"
+                [class.active]="activeTab === 'POS'"
+                (click)="setTab('POS')">
+          <i class="bi bi-cart-check-fill"></i> Venta Directa en Caja (POS)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold d-flex align-items-center gap-2"
+                [class.active]="activeTab === 'RESERVAS'"
+                (click)="setTab('RESERVAS')">
+          <i class="bi bi-person-check-fill"></i> Cobro de Reservas de Probador
+          <span *ngIf="branchReservations.length > 0" class="badge bg-danger rounded-pill">
+            {{ branchReservations.length }}
+          </span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold d-flex align-items-center gap-2"
+                [class.active]="activeTab === 'ALISTADO'"
+                (click)="setTab('ALISTADO')">
+          <i class="bi bi-box-seam-fill"></i> Alistado y Despacho de Pedidos
+          <span *ngIf="fulfillmentOrders.length > 0" class="badge bg-primary rounded-pill">
+            {{ fulfillmentOrders.length }}
+          </span>
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <!-- TAB 1: CUERPO PRINCIPAL DEL POS (VENTA DIRECTA) -->
+  <div *ngIf="!isCentral && currentShift && activeTab === 'POS'" class="row g-4">
 
     <!-- COLUMNA IZQUIERDA: Búsqueda y Productos de la Sucursal -->
     <div class="col-lg-7">
@@ -138,38 +171,51 @@
           </div>
         </div>
 
-        <!-- Catálogo Rápido con Existencias Físicas en esta Sucursal -->
+        <!-- Listado visual de existencias de la sucursal activa -->
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="fw-bold small text-muted text-uppercase">
-            <i class="bi bi-boxes me-1"></i> Stock en Tienda ({{ selectedBranchName }})
+          <span class="small fw-bold text-muted text-uppercase tracking-wider">
+            Prendas en Stock en {{ selectedBranchName }} ({{ branchInventory.length }})
           </span>
-          <span class="badge bg-light text-muted border">{{ branchInventory.length }} variantes disponibles</span>
+          <button class="btn btn-link btn-sm text-decoration-none p-0" (click)="loadBranchInventory(selectedBranchId!)">
+            <i class="bi bi-arrow-clockwise"></i> Actualizar existencias
+          </button>
         </div>
 
-        <!-- Mensaje si la sucursal no tiene stock -->
-        <div *ngIf="branchInventory.length === 0 && !loadingInventory" class="text-center py-5 text-muted border rounded-3 bg-light">
-          <i class="bi bi-box-seam display-4 d-block opacity-25 mb-2"></i>
-          <p class="mb-1 fw-bold">Sin existencias registradas en {{ selectedBranchName }}</p>
-          <small>Registra ingresos de mercadería o traslada prendas desde otra sucursal para vender aquí.</small>
+        <div *ngIf="loadingInventory" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2 small">Cargando existencias reales...</p>
         </div>
 
-        <div *ngIf="branchInventory.length > 0" class="pos-catalog-grid overflow-auto pe-1" style="max-height: 520px;">
+        <div *ngIf="!loadingInventory && branchInventory.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-box-seam display-4 d-block mb-2 text-secondary opacity-50"></i>
+          Esta sucursal no tiene existencias físicas disponibles en este momento.
+        </div>
+
+        <div *ngIf="!loadingInventory && branchInventory.length > 0"
+             class="pos-grid"
+             style="max-height: 520px; overflow-y: auto;">
           <div class="row g-2">
-            <div *ngFor="let it of branchInventory" class="col-6 col-md-4 col-xl-3">
-              <div class="product-tile p-2 border rounded-3 text-center bg-light h-100 d-flex flex-column justify-content-between"
-                   style="cursor: pointer; transition: border-color 0.15s ease;"
-                   (click)="addItemToTicket(it)">
-                <div class="tile-img mb-2 position-relative">
-                  <img [src]="it.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=200'"
-                       class="img-fluid rounded" style="height: 80px; width: 100%; object-fit: cover;">
-                  <span class="position-absolute bottom-0 end-0 badge bg-dark opacity-75 m-1 font-monospace" style="font-size: 0.65rem;">
-                    {{ it.stock_actual }} un.
+            <div *ngFor="let item of branchInventory" class="col-sm-6 col-md-4">
+              <div class="card h-100 border p-2 rounded-3 pos-product-card shadow-xs"
+                   (click)="addItemToTicket(item)">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <span class="badge bg-light text-dark font-monospace" style="font-size: 0.65rem;">
+                    {{ item.sku || 'SKU' }}
+                  </span>
+                  <span class="badge bg-success-subtle text-success" style="font-size: 0.7rem;">
+                    {{ item.stock_actual }} un.
                   </span>
                 </div>
-                <div class="fw-bold small text-truncate mb-1" [title]="it.product_name">{{ it.product_name }}</div>
-                <small class="text-muted d-block" style="font-size: 0.7rem;">{{ it.color_name }} &bull; {{ it.size_name }}</small>
-                <div class="text-primary fw-bold mt-1">Bs. {{ it.sale_price | number:'1.2-2' }}</div>
-                <small class="text-muted font-monospace" style="font-size: 0.65rem;">{{ it.sku }}</small>
+                <h6 class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.85rem;" [title]="item.product_name">
+                  {{ item.product_name }}
+                </h6>
+                <div class="small text-muted mb-2" style="font-size: 0.75rem;">
+                  {{ item.size_name }} &bull; {{ item.color_name }}
+                </div>
+                <div class="mt-auto d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-primary">Bs. {{ item.sale_price | number:'1.2-2' }}</span>
+                  <i class="bi bi-plus-circle-fill text-primary fs-5"></i>
+                </div>
               </div>
             </div>
           </div>
@@ -178,42 +224,54 @@
       </div>
     </div>
 
-    <!-- COLUMNA DERECHA: Ticket de Venta, Cobro Polimórfico y Facturación -->
+    <!-- COLUMNA DERECHA: Ticket de Venta, Totales y Cobro -->
     <div class="col-lg-5">
-      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white ticket-card">
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column">
 
-        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-          <h5 class="fw-bold mb-0">Ticket de Venta</h5>
-          <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none" (click)="clearTicket()" *ngIf="ticketItems.length > 0">
+        <!-- Encabezado del ticket -->
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
+          <div>
+            <h5 class="fw-bold mb-0 text-dark">Ticket de Venta</h5>
+            <small class="text-muted">{{ ticketItems.length }} ítem(s) en caja</small>
+          </div>
+          <button class="btn btn-outline-danger btn-sm"
+                  *ngIf="ticketItems.length > 0"
+                  (click)="clearTicket()">
             <i class="bi bi-trash"></i> Vaciar
           </button>
         </div>
 
-        <!-- Tabla de ítems agregados -->
-        <div class="ticket-items-list overflow-auto mb-3" style="max-height: 240px;">
+        <!-- Alerta de validación / error -->
+        <div *ngIf="errorMessage" class="validation-card validation-card-error mb-3">
+          <i class="bi bi-exclamation-octagon-fill val-icon"></i>
+          <div class="val-content">
+            <div class="val-title">No se puede completar la venta</div>
+            <p class="val-desc">{{ errorMessage }}</p>
+          </div>
+        </div>
+
+        <!-- Lista de ítems en el ticket -->
+        <div class="ticket-items-list flex-grow-1 mb-3" style="max-height: 240px; overflow-y: auto;">
           <div *ngIf="ticketItems.length === 0" class="text-center py-5 text-muted">
-            <i class="bi bi-bag display-4 opacity-25 d-block mb-2"></i>
-            Ticket vacío. Escanea o selecciona prendas.
+            <i class="bi bi-cart3 display-4 text-secondary opacity-50 d-block mb-2"></i>
+            Ticket vacío. Selecciona prendas del catálogo para facturar.
           </div>
 
-          <div *ngFor="let it of ticketItems" class="ticket-row p-2 border-bottom d-flex justify-content-between align-items-center">
-            <div style="max-width: 55%;">
-              <strong class="d-block small text-truncate">{{ it.product_name }}</strong>
-              <small class="text-muted d-block" style="font-size: 0.72rem;">{{ it.size }} / {{ it.color }} &bull; {{ it.sku }}</small>
-              <span class="text-muted small">Bs. {{ it.unit_price | number:'1.2-2' }}</span>
+          <div *ngFor="let it of ticketItems"
+               class="ticket-row d-flex justify-content-between align-items-center py-2 border-bottom">
+            <div class="flex-grow-1 pe-2">
+              <strong class="d-block text-dark text-truncate" style="max-width: 200px;">{{ it.product_name }}</strong>
+              <small class="text-muted">{{ it.size }} &bull; {{ it.color }} &bull; Bs. {{ it.unit_price | number:'1.2-2' }} c/u</small>
             </div>
-
-            <!-- Cantidad con botones +/- -->
             <div class="d-flex align-items-center gap-1">
-              <button class="btn btn-sm btn-light border p-0 px-2" (click)="updateQuantity(it, -1)">-</button>
+              <button class="btn btn-sm btn-outline-secondary py-0 px-2" (click)="updateQuantity(it, -1)">-</button>
               <span class="fw-bold px-1">{{ it.quantity }}</span>
-              <button class="btn btn-sm btn-light border p-0 px-2" (click)="updateQuantity(it, 1)">+</button>
+              <button class="btn btn-sm btn-outline-secondary py-0 px-2" (click)="updateQuantity(it, 1)">+</button>
             </div>
-
-            <div class="text-end">
-              <div class="fw-bold text-dark">Bs. {{ it.subtotal | number:'1.2-2' }}</div>
-              <button class="btn btn-sm btn-link text-danger p-0" (click)="removeItem(it)" style="font-size: 0.75rem;">
-                <i class="bi bi-x"></i>
+            <div class="text-end ps-3" style="min-width: 80px;">
+              <span class="fw-bold text-dark d-block">Bs. {{ it.subtotal | number:'1.2-2' }}</span>
+              <button class="btn btn-link btn-sm text-danger p-0" style="font-size: 0.75rem;" (click)="removeItem(it)">
+                Quitar
               </button>
             </div>
           </div>
@@ -225,95 +283,100 @@
           <input type="text" class="form-control" placeholder="Cupón de descuento (opcional)" [(ngModel)]="couponCode">
         </div>
 
-        <!-- Sección de Datos del Cliente y Facturación IVA 13% (CU20) -->
-        <div class="bg-light p-2 rounded-3 mb-3">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="fw-bold small text-uppercase">Comprobante Fiscal</span>
-            <div class="btn-group btn-group-sm">
-              <button class="btn" [class.btn-primary]="docType === 'FACTURA'" [class.btn-light]="docType !== 'FACTURA'" (click)="docType = 'FACTURA'">Factura (13%)</button>
-              <button class="btn" [class.btn-primary]="docType === 'NOTA_ENTREGA'" [class.btn-light]="docType !== 'NOTA_ENTREGA'" (click)="docType = 'NOTA_ENTREGA'">Nota Entrega</button>
-            </div>
+        <!-- Resumen financiero del ticket -->
+        <div class="ticket-summary bg-light rounded-3 p-3 mb-3 border">
+          <div class="d-flex justify-content-between mb-1 small text-muted">
+            <span>Subtotal:</span>
+            <span>Bs. {{ ticketSubtotal | number:'1.2-2' }}</span>
           </div>
-
-          <div class="row g-2 mt-1">
-            <div class="col-5">
-              <input type="text" class="form-control form-control-sm" placeholder="NIT / CI" [(ngModel)]="customerNit">
-            </div>
-            <div class="col-7">
-              <input type="text" class="form-control form-control-sm" placeholder="Razón Social / Nombre" [(ngModel)]="customerName">
-            </div>
+          <div *ngIf="discountAmount > 0" class="d-flex justify-content-between mb-1 small text-success">
+            <span>Descuento cupón:</span>
+            <span>- Bs. {{ discountAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1 small text-muted" *ngIf="docType === 'FACTURA'">
+            <span>IVA Débito Fiscal (13%)</span>
+            <span>Bs. {{ (ticketTotal * 0.13) | number:'1.2-2' }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <span class="fw-bold fs-5 text-dark">TOTAL A COBRAR:</span>
+            <span class="fw-bold fs-4 text-primary">Bs. {{ ticketTotal | number:'1.2-2' }}</span>
           </div>
         </div>
 
-        <!-- Selección de Método de Pago Polimórfico (CU18) -->
-        <div class="payment-tabs mb-3">
-          <label class="form-label small fw-bold text-uppercase d-block mb-1">Método de Pago</label>
-          <div class="row g-1">
-            <div class="col-3">
-              <button class="btn btn-sm w-100 border text-truncate"
-                      [class.btn-primary]="paymentType === 'EFECTIVO'"
-                      [class.btn-light]="paymentType !== 'EFECTIVO'"
-                      (click)="paymentType = 'EFECTIVO'; recalculateCash()">
-                <i class="bi bi-cash d-block fs-5"></i> Efectivo
-              </button>
+        <!-- Forma de Pago -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-muted text-uppercase mb-2">Medio de Pago</label>
+          <div class="btn-group w-100 mb-2" role="group">
+            <button type="button"
+                    class="btn btn-sm"
+                    [ngClass]="paymentType === 'EFECTIVO' ? 'btn-primary' : 'btn-outline-secondary'"
+                    (click)="paymentType = 'EFECTIVO'; recalculateCash()">
+              <i class="bi bi-cash me-1"></i> Efectivo
+            </button>
+            <button type="button"
+                    class="btn btn-sm"
+                    [ngClass]="paymentType === 'TARJETA' ? 'btn-primary' : 'btn-outline-secondary'"
+                    (click)="paymentType = 'TARJETA'">
+              <i class="bi bi-credit-card me-1"></i> Tarjeta
+            </button>
+            <button type="button"
+                    class="btn btn-sm"
+                    [ngClass]="paymentType === 'QR' ? 'btn-primary' : 'btn-outline-secondary'"
+                    (click)="paymentType = 'QR'">
+              <i class="bi bi-qr-code me-1"></i> QR
+            </button>
+            <button type="button"
+                    class="btn btn-sm"
+                    [ngClass]="paymentType === 'CREDITO' ? 'btn-primary' : 'btn-outline-secondary'"
+                    (click)="paymentType = 'CREDITO'">
+              <i class="bi bi-calendar-check me-1"></i> Crédito
+            </button>
+          </div>
+
+          <!-- Campos condicionales según el medio de pago -->
+          <div *ngIf="paymentType === 'EFECTIVO'" class="row g-2 bg-light p-2 rounded-2 border">
+            <div class="col-6">
+              <label class="form-label small mb-0 text-muted">Efectivo Recibido (Bs.)</label>
+              <input type="number" class="form-control form-control-sm" [(ngModel)]="cashReceived" [min]="ticketTotal" step="5">
             </div>
-            <div class="col-3">
-              <button class="btn btn-sm w-100 border text-truncate"
-                      [class.btn-primary]="paymentType === 'TARJETA'"
-                      [class.btn-light]="paymentType !== 'TARJETA'"
-                      (click)="paymentType = 'TARJETA'">
-                <i class="bi bi-credit-card d-block fs-5"></i> Tarjeta
-              </button>
-            </div>
-            <div class="col-3">
-              <button class="btn btn-sm w-100 border text-truncate"
-                      [class.btn-primary]="paymentType === 'QR'"
-                      [class.btn-light]="paymentType !== 'QR'"
-                      (click)="paymentType = 'QR'">
-                <i class="bi bi-qr-code d-block fs-5"></i> QR
-              </button>
-            </div>
-            <div class="col-3">
-              <button class="btn btn-sm w-100 border text-truncate"
-                      [class.btn-primary]="paymentType === 'CREDITO'"
-                      [class.btn-light]="paymentType !== 'CREDITO'"
-                      (click)="paymentType = 'CREDITO'">
-                <i class="bi bi-calendar-check d-block fs-5"></i> Crédito
-              </button>
+            <div class="col-6 text-end">
+              <label class="form-label small mb-0 text-muted">Cambio a entregar</label>
+              <span class="d-block fw-bold text-success fs-6 mt-1">Bs. {{ cashChange | number:'1.2-2' }}</span>
             </div>
           </div>
 
-          <!-- Campos condicionales según pago -->
-          <div *ngIf="paymentType === 'EFECTIVO'" class="mt-2 p-2 bg-success-subtle rounded-3 border border-success-subtle">
-            <div class="row g-2 align-items-center">
-              <div class="col-6">
-                <label class="small text-muted fw-bold">Efectivo Recibido (Bs.)</label>
-                <input type="number" class="form-control form-control-sm" [(ngModel)]="cashReceived" step="1">
-              </div>
-              <div class="col-6 text-end">
-                <span class="small text-muted d-block">Cambio a entregar:</span>
-                <span class="fs-5 fw-bold text-success">Bs. {{ cashChange | number:'1.2-2' }}</span>
-              </div>
+          <div *ngIf="paymentType === 'TARJETA'" class="row g-2 bg-light p-2 rounded-2 border">
+            <div class="col-6">
+              <label class="form-label small mb-0 text-muted">Marca</label>
+              <select class="form-select form-select-sm" [(ngModel)]="cardBrand">
+                <option value="VISA">VISA</option>
+                <option value="MASTERCARD">Mastercard</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small mb-0 text-muted">Últimos 4 dígitos</label>
+              <input type="text" class="form-control form-control-sm" [(ngModel)]="cardLast4" placeholder="4 dígitos" maxlength="4">
             </div>
           </div>
 
-          <div *ngIf="paymentType === 'TARJETA'" class="mt-2 p-2 bg-light rounded-3">
-            <div class="row g-2">
-              <div class="col-6">
-                <select class="form-select form-select-sm" [(ngModel)]="cardBrand">
-                  <option value="VISA">VISA</option>
-                  <option value="MASTERCARD">MasterCard</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <input type="text" class="form-control form-control-sm" placeholder="Últimos 4 dígitos" maxlength="4" [(ngModel)]="cardLast4">
-              </div>
+          <div *ngIf="paymentType === 'QR'" class="mt-2 p-3 bg-white border border-primary border-2 rounded-3 text-center shadow-xs">
+            <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
+              <span class="badge bg-primary text-white font-monospace" style="font-size: 10px;">
+                <i class="bi bi-qr-code me-1"></i> QR SIMPLE INTEROPERABLE
+              </span>
+              <span class="extra-small text-muted" style="font-size: 11px;">Banca Móvil Bolivia</span>
             </div>
-          </div>
-
-          <div *ngIf="paymentType === 'QR'" class="mt-2 p-2 bg-info-subtle rounded-3 text-center small text-info-emphasis">
-            <i class="bi bi-qr-code-scan fs-4 d-block mb-1"></i>
-            Escanee el QR en la terminal POS para confirmar el cobro inmediato.
+            <div class="p-2 bg-light d-inline-block rounded-3 border shadow-xs my-1">
+              <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=FASHIONSTORE-POS-TICKET-' + ticketTotal"
+                   alt="Código QR POS" style="width: 140px; height: 140px; display: block;">
+            </div>
+            <div class="fw-bold text-dark fs-6 mt-1">Total: Bs. {{ ticketTotal | number:'1.2-2' }}</div>
+            <div class="extra-small text-muted mb-1" style="font-size: 10.5px;">
+              Acepta transferencias QR desde cualquier banco de Bolivia (BNB, BCP, Unión, Mercantil, Bisa, Soli, Yape).
+            </div>
+            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 10px;">
+              <i class="bi bi-shield-check me-1"></i> Listo para Escanear por el Cliente
+            </span>
           </div>
         </div>
 
@@ -362,6 +425,296 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- TAB 2: ATENCIÓN Y COBRO DE RESERVAS DE PROBADOR VIRTUAL -->
+  <div *ngIf="!isCentral && currentShift && activeTab === 'RESERVAS'" class="row g-4">
+
+    <!-- Lista de Reservas Activas de la Sucursal -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-person-lines-fill text-primary me-1"></i> Reservas de Probador
+          </h5>
+          <button class="btn btn-outline-secondary btn-sm" (click)="loadBranchReservations()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+
+        <div *ngIf="resSuccessMessage" class="alert alert-success alert-dismissible fade show p-3 small mb-3">
+          <i class="bi bi-check-circle-fill me-1"></i> {{ resSuccessMessage }}
+        </div>
+
+        <div *ngIf="loadingReservations" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2 small">Cargando citas de probador...</p>
+        </div>
+
+        <div *ngIf="!loadingReservations && branchReservations.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-calendar-x display-4 text-secondary opacity-50 d-block mb-2"></i>
+          No hay reservas de probador pendientes en esta sucursal.
+        </div>
+
+        <div *ngIf="!loadingReservations && branchReservations.length > 0" class="d-flex flex-column gap-2" style="max-height: 520px; overflow-y: auto;">
+          <div *ngFor="let res of branchReservations"
+               class="card border p-3 rounded-3 shadow-xs"
+               [ngClass]="selectedReservation?.id === res.id ? 'border-primary bg-primary-subtle' : 'bg-white'"
+               style="cursor: pointer; transition: all 0.15s ease;"
+               (click)="selectReservation(res)">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <strong class="text-dark">{{ res.customer_name || 'Cliente' }}</strong>
+              <span class="badge" [ngClass]="res.status === 'READY' ? 'bg-success' : 'bg-warning text-dark'">
+                {{ res.status }}
+              </span>
+            </div>
+            <div class="small text-muted mb-2">
+              <i class="bi bi-upc me-1"></i> {{ res.reservation_code }} &bull;
+              <i class="bi bi-clock me-1"></i> {{ res.appointment_date || (res.reserved_at | date:'short') }}
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="small text-muted">{{ res.items.length || 0 }} prendas apartadas</span>
+              <span class="fw-bold text-primary">Seña 50%: Bs. {{ res.deposit_amount || 0 | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detalle de Liquidación y Facturación de la Reserva -->
+    <div class="col-lg-7">
+      <div *ngIf="!selectedReservation" class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white h-100 justify-content-center">
+        <i class="bi bi-arrow-left-circle display-4 text-primary opacity-50 mb-3"></i>
+        <h5 class="fw-bold text-dark">Selecciona una Reserva para Liquidar</h5>
+        <p class="text-muted small">
+          Elige una cita del panel izquierdo para marcar qué prendas decide comprar el cliente tras probarse y cuáles se devuelven al rack.
+        </p>
+      </div>
+
+      <div *ngIf="selectedReservation" class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-3">
+          <div>
+            <h5 class="fw-bold mb-0 text-dark">Atención de Reserva: {{ selectedReservation.reservation_code }}</h5>
+            <small class="text-muted">Cliente: {{ selectedReservation.customer_name }} &bull; Tel: {{ selectedReservation.customer_phone || 'N/A' }}</small>
+          </div>
+          <span class="badge bg-info-subtle text-info border border-info px-3 py-2">
+            Seña 50% abonada: Bs. {{ selectedReservation.deposit_amount || 0 | number:'1.2-2' }}
+          </span>
+        </div>
+
+        <div *ngIf="resErrorMessage" class="validation-card validation-card-error mb-3">
+          <i class="bi bi-exclamation-octagon-fill val-icon"></i>
+          <div class="val-content">
+            <div class="val-title">Error al cobrar reserva</div>
+            <p class="val-desc">{{ resErrorMessage }}</p>
+          </div>
+        </div>
+
+        <!-- Selección de prendas que compra vs devuelve -->
+        <label class="form-label small fw-bold text-muted text-uppercase mb-2">
+          Prendas en Probador (Marca las prendas que el cliente compra):
+        </label>
+        <div class="table-responsive mb-3 border rounded-3">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 40px;" class="text-center">Comprar</th>
+                <th>Prenda</th>
+                <th>Talla / Color</th>
+                <th class="text-end">Precio</th>
+                <th class="text-center">Destino</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let it of selectedReservation.items" [ngClass]="isResItemSelected(it.id) ? 'table-success-subtle' : 'table-light'">
+                <td class="text-center">
+                  <input type="checkbox"
+                         class="form-check-input"
+                         [checked]="isResItemSelected(it.id)"
+                         (change)="toggleResItem(it.id)">
+                </td>
+                <td>
+                  <strong class="d-block">{{ it.product_name || 'Prenda' }}</strong>
+                  <small class="text-muted">{{ it.sku }}</small>
+                </td>
+                <td>{{ it.size_name }} &bull; {{ it.color_name }}</td>
+                <td class="text-end fw-bold">Bs. {{ it.unit_price | number:'1.2-2' }}</td>
+                <td class="text-center">
+                  <span *ngIf="isResItemSelected(it.id)" class="badge bg-success">
+                    <i class="bi bi-bag-check-fill me-1"></i> Facturar
+                  </span>
+                  <span *ngIf="!isResItemSelected(it.id)" class="badge bg-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reponer Stock
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Resumen de liquidación -->
+        <div class="bg-light p-3 rounded-3 border mb-3">
+          <div class="row g-2">
+            <div class="col-sm-4">
+              <small class="text-muted d-block">Subtotal prendas compradas:</small>
+              <span class="fw-bold text-dark">Bs. {{ resSelectedSubtotal | number:'1.2-2' }}</span>
+            </div>
+            <div class="col-sm-4">
+              <small class="text-muted d-block">Crédito seña 50% aplicada:</small>
+              <span class="fw-bold text-success">- Bs. {{ resDepositCredited | number:'1.2-2' }}</span>
+            </div>
+            <div class="col-sm-4 text-end">
+              <small class="text-muted d-block">SALDO NETO A COBRAR:</small>
+              <span class="fw-bold text-primary fs-5">Bs. {{ resBalanceToPay | number:'1.2-2' }}</span>
+            </div>
+          </div>
+          <div *ngIf="resReturnedItems.length > 0" class="mt-2 pt-2 border-top small text-muted">
+            <i class="bi bi-info-circle-fill text-info me-1"></i>
+            {{ resReturnedItems.length }} prenda(s) se reintegrarán automáticamente al stock físico de <strong>{{ selectedBranchName }}</strong>.
+          </div>
+        </div>
+
+        <!-- Forma de Pago y Facturación del Saldo -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Medio de Pago</label>
+            <select class="form-select form-select-sm" [(ngModel)]="resPaymentMethod">
+              <option value="EFECTIVO">💵 Efectivo en Caja</option>
+              <option value="TARJETA">💳 Tarjeta Débito/Crédito</option>
+              <option value="QR">📱 QR Simple</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">NIT / CI Factura</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="resCustomerNit" placeholder="0">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Razón Social</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="resCustomerName" placeholder="Nombre cliente">
+          </div>
+          <div class="col-md-4" *ngIf="resPaymentMethod === 'EFECTIVO'">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Efectivo recibido</label>
+            <input type="number" min="0" step="0.5" class="form-control form-control-sm" [(ngModel)]="resCashReceived" [placeholder]="resBalanceToPay">
+          </div>
+          <div class="col-md-4" *ngIf="resPaymentMethod === 'EFECTIVO'">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Cambio</label>
+            <div class="form-control form-control-sm bg-light fw-bold">Bs. {{ resChange | number:'1.2-2' }}</div>
+          </div>
+          <div class="col-md-4" *ngIf="resPaymentMethod === 'TARJETA'">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Últimos 4 dígitos</label>
+            <input type="text" maxlength="4" class="form-control form-control-sm" [(ngModel)]="resCardLast4" placeholder="0000">
+          </div>
+          <div class="col-md-4" *ngIf="resPaymentMethod !== 'EFECTIVO'">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">{{ resPaymentMethod === 'QR' ? 'Referencia del QR' : 'N° de voucher' }}</label>
+            <input type="text" class="form-control form-control-sm" [(ngModel)]="resPaymentReference">
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-lg w-100 fw-bold py-3 mt-auto shadow-sm"
+                (click)="checkoutReservation()"
+                [disabled]="resLoading || resSelectedItems.length === 0">
+          <i class="bi bi-receipt-cutoff me-1"></i>
+          {{ resLoading ? 'Facturando y liquidando...' : 'Cobrar Saldo Bs. ' + (resBalanceToPay | number:'1.2-2') + ' y Emitir Factura' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: ALISTADO Y DESPACHO DE PEDIDOS DE LA SUCURSAL -->
+  <div *ngIf="!isCentral && currentShift && activeTab === 'ALISTADO'" class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <h5 class="fw-bold mb-1 text-dark">
+          <i class="bi bi-box-seam-fill text-primary me-1"></i> Alistado y Despacho de Pedidos
+        </h5>
+        <p class="text-muted small mb-0">
+          Pedidos asignados a <strong>{{ selectedBranchName }}</strong> que requieren picking, empaque o entrega al cliente/repartidor.
+        </p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <select class="form-select form-select-sm" [(ngModel)]="fulfillmentStatusFilter" (change)="loadFulfillmentOrders()">
+          <option value="">Todos los pendientes</option>
+          <option value="PAGADA">PAGADA (Por Alistar)</option>
+          <option value="PREPARANDO">PREPARANDO (En Picking)</option>
+          <option value="LISTO_PARA_ENTREGA">LISTO_PARA_ENTREGA</option>
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadFulfillmentOrders()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="fulfillmentSuccessMsg" class="alert alert-success alert-dismissible fade show p-3 small mb-3">
+      <i class="bi bi-check-circle-fill me-1"></i> {{ fulfillmentSuccessMsg }}
+    </div>
+
+    <div *ngIf="fulfillmentErrorMsg" class="alert alert-danger p-3 small mb-3">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ fulfillmentErrorMsg }}
+    </div>
+
+    <div *ngIf="loadingFulfillment" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2 small">Cargando pedidos para alistado...</p>
+    </div>
+
+    <div *ngIf="!loadingFulfillment && fulfillmentOrders.length === 0" class="text-center py-5 text-muted">
+      <i class="bi bi-check-all display-4 text-success opacity-50 d-block mb-2"></i>
+      ¡Excelente! No hay pedidos pendientes de alistado en esta sucursal.
+    </div>
+
+    <div *ngIf="!loadingFulfillment && fulfillmentOrders.length > 0" class="row g-3">
+      <div *ngFor="let ord of fulfillmentOrders" class="col-lg-6">
+        <div class="card h-100 border p-3 rounded-3 shadow-xs">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <strong class="text-dark fs-6">{{ ord.order_number }}</strong>
+              <span class="badge bg-light text-muted ms-2">{{ ord.channel }}</span>
+            </div>
+            <span class="badge"
+                  [ngClass]="{
+                    'bg-warning text-dark': ord.status === 'PAGADA',
+                    'bg-info text-dark': ord.status === 'PREPARANDO',
+                    'bg-primary': ord.status === 'LISTO_PARA_ENTREGA',
+                    'bg-success': ord.status === 'ENTREGADO'
+                  }">
+              {{ ord.status }}
+            </span>
+          </div>
+
+          <div class="small text-muted mb-2">
+            <i class="bi bi-calendar me-1"></i> {{ ord.created_at | date:'dd/MM/yyyy HH:mm' }} &bull;
+            <strong>Total: Bs. {{ ord.total_amount | number:'1.2-2' }}</strong>
+          </div>
+
+          <!-- Ítems a alistar -->
+          <div class="bg-light p-2 rounded-2 mb-3 small">
+            <div *ngFor="let it of ord.items" class="d-flex justify-content-between py-1 border-bottom border-white">
+              <span><strong>{{ it.quantity }}x</strong> {{ it.product_name }} ({{ it.size }}, {{ it.color }})</span>
+              <span class="text-muted">{{ it.sku }}</span>
+            </div>
+          </div>
+
+          <!-- Botones de Acción según estado -->
+          <div class="mt-auto d-flex gap-2">
+            <button *ngIf="ord.status === 'PAGADA'"
+                    class="btn btn-warning btn-sm w-100 fw-bold"
+                    (click)="updateOrderStatus(ord, 'PREPARANDO')">
+              <i class="bi bi-play-fill me-1"></i> Comenzar Alistado (Picking)
+            </button>
+            <button *ngIf="ord.status === 'PREPARANDO'"
+                    class="btn btn-primary btn-sm w-100 fw-bold"
+                    (click)="updateOrderStatus(ord, 'LISTO_PARA_ENTREGA')">
+              <i class="bi bi-box-seam me-1"></i> Marcar Empacado / Listo
+            </button>
+            <button *ngIf="ord.status === 'LISTO_PARA_ENTREGA'"
+                    class="btn btn-success btn-sm w-100 fw-bold"
+                    (click)="updateOrderStatus(ord, 'ENTREGADO')">
+              <i class="bi bi-check2-all me-1"></i> Despachar / Entregar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL DE RECIBO / FACTURA EMITIDA TRAS VENTA EXITOSA -->

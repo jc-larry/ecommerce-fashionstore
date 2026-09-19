@@ -4,6 +4,7 @@ import { VentasService, CashShiftResponse, OrderResponse } from '../ventas.servi
 import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
 import { InventarioService, InventoryValuationItem } from '../../inventario_y_proveedores/inventario.service';
 import { BranchContextService } from '../../catalogo_y_tiendas/branches/branch-context.service';
+import { ReservasService, Reservation, ReservationItem } from '../../reservas_y_citas/reservas.service';
 
 interface PosItem {
   variant_id: number;
@@ -23,6 +24,8 @@ interface PosItem {
   styleUrls: ['./pos.component.css']
 })
 export class PosComponent implements OnInit, OnDestroy {
+  activeTab: 'POS' | 'RESERVAS' | 'ALISTADO' = 'POS';
+
   currentShift: CashShiftResponse | null = null;
   branches: any[] = [];
   selectedBranchId: number | null = null;
@@ -56,7 +59,29 @@ export class PosComponent implements OnInit, OnDestroy {
   customerNit: string = '0';
   customerName: string = 'Cliente de Paso';
 
-  // Estado
+  // Reservas de Probador Virtual en Sucursal
+  branchReservations: Reservation[] = [];
+  loadingReservations: boolean = false;
+  selectedReservation: Reservation | null = null;
+  reservationSelectedItems: { [itemId: number]: boolean } = {};
+  resPaymentMethod: 'EFECTIVO' | 'TARJETA' | 'QR' = 'EFECTIVO';
+  resCustomerNit: string = '0';
+  resCustomerName: string = '';
+  resCashReceived: number | null = null;
+  resCardLast4 = '';
+  resPaymentReference = '';
+  resLoading: boolean = false;
+  resSuccessMessage: string | null = null;
+  resErrorMessage: string | null = null;
+
+  // Alistado y Despacho de Pedidos
+  fulfillmentOrders: OrderResponse[] = [];
+  fulfillmentStatusFilter: string = '';
+  loadingFulfillment: boolean = false;
+  fulfillmentSuccessMsg: string | null = null;
+  fulfillmentErrorMsg: string | null = null;
+
+  // Estado general
   loading: boolean = false;
   errorMessage: string | null = null;
   lastOrderSuccess: OrderResponse | null = null;
@@ -65,15 +90,17 @@ export class PosComponent implements OnInit, OnDestroy {
     private ventasService: VentasService,
     private catalogoService: CatalogoService,
     private inventarioService: InventarioService,
+    private reservasService: ReservasService,
     public branchContext: BranchContextService
   ) {}
 
   ngOnInit(): void {
     this.branchSub = this.branchContext.activeBranch$.subscribe((activeBranch) => {
       if (!activeBranch) {
-        this.isCentral = true;
+        // Solo Casa Matriz elige sucursal; un cajero/encargado siempre opera en la suya.
+        this.isCentral = this.branchContext.isCentral();
         this.selectedBranchId = null;
-        this.selectedBranchName = 'Casa Matriz (Consolidado)';
+        this.selectedBranchName = this.isCentral ? 'Casa Matriz (Consolidado)' : 'Sin sucursal asignada';
         this.currentShift = null;
         this.branchInventory = [];
         this.ticketItems = [];
@@ -330,5 +357,171 @@ export class PosComponent implements OnInit, OnDestroy {
 
   printReceipt(): void {
     window.print();
+  }
+
+  // --- MÉTODOS PARA ATENCIÓN Y COBRO DE RESERVAS DE PROBADOR VIRTUAL ---
+  setTab(tab: 'POS' | 'RESERVAS' | 'ALISTADO'): void {
+    this.activeTab = tab;
+    this.errorMessage = null;
+    if (tab === 'RESERVAS') {
+      this.loadBranchReservations();
+    } else if (tab === 'ALISTADO') {
+      this.loadFulfillmentOrders();
+    }
+  }
+
+  loadBranchReservations(): void {
+    if (!this.selectedBranchId) return;
+    this.loadingReservations = true;
+    this.reservasService.getReservations(this.selectedBranchId).subscribe({
+      next: (resList) => {
+        // Filtrar reservas que están listas para atenderse o pendientes de liquidación
+        this.branchReservations = resList.filter(r => r.status === 'READY' || r.status === 'PREPARING' || r.status === 'PENDING');
+        this.loadingReservations = false;
+      },
+      error: () => {
+        this.branchReservations = [];
+        this.loadingReservations = false;
+      }
+    });
+  }
+
+  selectReservation(res: Reservation): void {
+    this.selectedReservation = res;
+    this.resCustomerName = res.customer_name || 'Cliente';
+    this.resCustomerNit = '0';
+    this.resSuccessMessage = null;
+    this.resErrorMessage = null;
+    this.reservationSelectedItems = {};
+    if (res.items) {
+      res.items.forEach(it => {
+        this.reservationSelectedItems[it.id] = true;
+      });
+    }
+  }
+
+  toggleResItem(itemId: number): void {
+    this.reservationSelectedItems[itemId] = !this.reservationSelectedItems[itemId];
+  }
+
+  isResItemSelected(itemId: number): boolean {
+    return !!this.reservationSelectedItems[itemId];
+  }
+
+  get resSelectedItems(): ReservationItem[] {
+    if (!this.selectedReservation || !this.selectedReservation.items) return [];
+    return this.selectedReservation.items.filter(it => this.reservationSelectedItems[it.id]);
+  }
+
+  get resReturnedItems(): ReservationItem[] {
+    if (!this.selectedReservation || !this.selectedReservation.items) return [];
+    return this.selectedReservation.items.filter(it => !this.reservationSelectedItems[it.id]);
+  }
+
+  get resSelectedSubtotal(): number {
+    return Math.round(this.resSelectedItems.reduce((acc, it) => acc + (it.unit_price * it.quantity), 0) * 100) / 100;
+  }
+
+  get resDepositCredited(): number {
+    return Math.round(this.resSelectedSubtotal * 0.50 * 100) / 100;
+  }
+
+  get resBalanceToPay(): number {
+    return Math.max(0, Math.round((this.resSelectedSubtotal - this.resDepositCredited) * 100) / 100);
+  }
+
+  get resChange(): number {
+    if (this.resPaymentMethod !== 'EFECTIVO' || this.resCashReceived == null) return 0;
+    return Math.max(0, Math.round((this.resCashReceived - this.resBalanceToPay) * 100) / 100);
+  }
+
+  checkoutReservation(): void {
+    if (!this.currentShift) {
+      this.resErrorMessage = 'Debes tener una caja abierta para realizar el cobro de la reserva.';
+      return;
+    }
+    if (!this.selectedReservation) {
+      this.resErrorMessage = 'No se ha seleccionado ninguna reserva.';
+      return;
+    }
+    if (this.resPaymentMethod === 'EFECTIVO' && this.resCashReceived != null && this.resCashReceived < this.resBalanceToPay) {
+      this.resErrorMessage = `El efectivo recibido no cubre el saldo de Bs. ${this.resBalanceToPay.toFixed(2)}.`;
+      return;
+    }
+    if (this.resPaymentMethod === 'TARJETA' && this.resCardLast4 && !/^\d{4}$/.test(this.resCardLast4)) {
+      this.resErrorMessage = 'Ingresa los 4 últimos dígitos de la tarjeta.';
+      return;
+    }
+    const selectedIds = this.resSelectedItems.map(it => it.id);
+    if (selectedIds.length === 0) {
+      this.resErrorMessage = 'Debes seleccionar al menos una prenda que el cliente compre. Si rechaza todas, cancele la reserva para retornar todas las prendas al stock.';
+      return;
+    }
+
+    this.resLoading = true;
+    this.resErrorMessage = null;
+    this.resSuccessMessage = null;
+
+    this.reservasService.convertToPos(this.selectedReservation.id, {
+      cash_shift_id: this.currentShift.id,
+      payment_method: this.resPaymentMethod,
+      cash_received: this.resPaymentMethod === 'EFECTIVO' ? this.resCashReceived : null,
+      card_last4: this.resPaymentMethod === 'TARJETA' ? (this.resCardLast4 || null) : null,
+      payment_reference: this.resPaymentMethod !== 'EFECTIVO' ? (this.resPaymentReference || null) : null,
+      nit_ruc: this.resCustomerNit,
+      business_name: this.resCustomerName,
+      selected_item_ids: selectedIds
+    }).subscribe({
+      next: (completedRes) => {
+        this.resLoading = false;
+        const boughtCount = this.resSelectedItems.length;
+        const returnedCount = this.resReturnedItems.length;
+        this.resSuccessMessage = `¡Venta de reserva ${completedRes.reservation_code} cobrada exitosamente! Factura emitida. Prendas compradas: ${boughtCount}. Prendas devueltas al stock: ${returnedCount}.`;
+        this.selectedReservation = null;
+        if (this.selectedBranchId) {
+          this.loadShiftForBranch(this.selectedBranchId);
+          this.loadBranchInventory(this.selectedBranchId);
+          this.loadBranchReservations();
+        }
+      },
+      error: (err) => {
+        this.resLoading = false;
+        this.resErrorMessage = err?.error?.detail || 'Error al liquidar la reserva en caja.';
+      }
+    });
+  }
+
+  // --- MÉTODOS PARA ALISTADO Y DESPACHO DE PEDIDOS DE LA SUCURSAL ---
+  loadFulfillmentOrders(): void {
+    this.loadingFulfillment = true;
+    this.fulfillmentSuccessMsg = null;
+    this.fulfillmentErrorMsg = null;
+    this.ventasService.getBranchFulfillmentOrders(this.fulfillmentStatusFilter || undefined).subscribe({
+      next: (orders) => {
+        this.fulfillmentOrders = orders;
+        this.loadingFulfillment = false;
+      },
+      error: (err) => {
+        this.fulfillmentErrorMsg = 'Error al cargar los pedidos de la sucursal.';
+        this.loadingFulfillment = false;
+      }
+    });
+  }
+
+  updateOrderStatus(order: OrderResponse, newStatus: string): void {
+    this.loading = true;
+    this.fulfillmentSuccessMsg = null;
+    this.fulfillmentErrorMsg = null;
+    this.ventasService.updateOrderFulfillment(order.id, newStatus).subscribe({
+      next: (updatedOrder) => {
+        this.loading = false;
+        this.fulfillmentSuccessMsg = `Pedido ${updatedOrder.order_number} actualizado a estado: ${updatedOrder.status}`;
+        this.loadFulfillmentOrders();
+      },
+      error: (err) => {
+        this.loading = false;
+        this.fulfillmentErrorMsg = err?.error?.detail || 'Error al actualizar el estado del pedido.';
+      }
+    });
   }
 }

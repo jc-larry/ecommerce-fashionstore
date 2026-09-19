@@ -1,0 +1,255 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+      <h3 class="fw-bold mb-1">{{ isCentral ? 'Pedidos a Proveedores' : 'Recepción de Proveedores' }}</h3>
+      <p class="text-muted small mb-0" *ngIf="isCentral">Casa Matriz solicita reposición indicando la sucursal que la necesita, y revisa los nuevos modelos que ofrecen los proveedores.</p>
+      <p class="text-muted small mb-0" *ngIf="!isCentral">Reposiciones que Casa Matriz pidió para tu sucursal. Cuando el proveedor entregue, confirma la recepción para ingresar el stock.</p>
+    </div>
+    <button class="btn btn-primary btn-sm fw-bold" *ngIf="isCentral && activeTab === 'reposicion'" (click)="openNew()">
+      <i class="bi bi-plus-lg me-1"></i> Nueva solicitud de reposición
+    </button>
+  </div>
+
+  <div class="alert alert-danger py-2 small d-flex justify-content-between" *ngIf="error">
+    <span>{{ error }}</span><button class="btn-close" (click)="error = ''"></button>
+  </div>
+  <div class="alert alert-success py-2 small d-flex justify-content-between" *ngIf="success">
+    <span>{{ success }}</span><button class="btn-close" (click)="success = ''"></button>
+  </div>
+
+  <ul class="nav nav-tabs mb-4" *ngIf="isCentral">
+    <li class="nav-item">
+      <a class="nav-link" [class.active]="activeTab === 'reposicion'" (click)="setTab('reposicion')" style="cursor:pointer;">
+        <i class="bi bi-arrow-repeat me-1"></i> Solicitudes de reposición
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" [class.active]="activeTab === 'ofertas'" (click)="setTab('ofertas')" style="cursor:pointer;">
+        <i class="bi bi-megaphone me-1"></i> Ofertas de proveedores
+        <span class="badge bg-danger ms-1" *ngIf="pendingOffers > 0">{{ pendingOffers }}</span>
+      </a>
+    </li>
+  </ul>
+
+  <!-- SOLICITUDES DE REPOSICIÓN -->
+  <div *ngIf="activeTab === 'reposicion'">
+    <div class="d-flex justify-content-end mb-2">
+      <select class="form-select form-select-sm" style="width: 230px;" [(ngModel)]="statusFilter" (change)="loadReorders()">
+        <option value="">Todos los estados</option>
+        <option *ngFor="let s of reorderStatusLabels | keyvalue" [value]="s.key">{{ s.value }}</option>
+      </select>
+    </div>
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="table-responsive">
+        <table class="table table-hover admin-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Proveedor</th>
+              <th>Prenda</th>
+              <th class="text-end">Cant.</th>
+              <th *ngIf="isCentral">Sucursal destino</th>
+              <th>Estado</th>
+              <th>Entrega est.</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="reorders.length === 0"><td colspan="8" class="text-center text-muted py-4">No hay solicitudes registradas.</td></tr>
+            <tr *ngFor="let r of reorders">
+              <td class="font-monospace fw-bold">{{ r.code }}<div class="text-muted fw-normal small">{{ r.created_at | date:'dd/MM/yy' }}</div></td>
+              <td>{{ r.supplier_name }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <img *ngIf="r.product_image_url" [src]="r.product_image_url" alt="" class="rounded border"
+                       style="width: 40px; height: 48px; object-fit: cover; cursor: zoom-in;" (click)="photoPreview = r.product_image_url">
+                  <div>{{ r.product_name }}<div class="small text-muted">{{ r.variant_label }} · {{ r.sku }}</div></div>
+                </div>
+              </td>
+              <td class="text-end fw-bold">{{ r.requested_quantity }}</td>
+              <td *ngIf="isCentral"><i class="bi bi-geo-alt-fill text-danger"></i> {{ r.target_branch_name }}</td>
+              <td>
+                <span class="badge rounded-pill"
+                      [ngClass]="{
+                        'bg-warning text-dark': r.status === 'PENDING',
+                        'bg-info text-dark': r.status === 'ACCEPTED',
+                        'bg-primary': r.status === 'SHIPPED',
+                        'bg-success': r.status === 'RECEIVED',
+                        'bg-secondary': r.status === 'REJECTED' || r.status === 'CANCELLED'
+                      }">{{ reorderStatusLabels[r.status] || r.status }}</span>
+                <div class="small text-muted fst-italic" *ngIf="r.supplier_notes">"{{ r.supplier_notes }}"</div>
+              </td>
+              <td>{{ r.estimated_delivery ? (r.estimated_delivery | date:'dd/MM/yyyy') : '—' }}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-danger" *ngIf="isCentral && (r.status === 'PENDING' || r.status === 'ACCEPTED')" (click)="cancelReorder(r)">Anular</button>
+                <button class="btn btn-sm btn-success fw-bold" *ngIf="r.status === 'SHIPPED'" (click)="receive(r)"><i class="bi bi-box-arrow-in-down"></i> Confirmar recepción</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFERTAS DE PROVEEDORES -->
+  <div *ngIf="activeTab === 'ofertas'">
+    <div class="d-flex justify-content-end mb-2">
+      <select class="form-select form-select-sm" style="width: 200px;" [(ngModel)]="offerStatusFilter">
+        <option value="PENDING">Pendientes de revisión</option>
+        <option value="APPROVED">Aprobadas</option>
+        <option value="REJECTED">Rechazadas</option>
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="text-muted small" *ngIf="visibleOffers.length === 0">No hay ofertas en este estado.</div>
+    <div class="row g-3">
+      <div class="col-md-6 col-xl-4" *ngFor="let o of visibleOffers">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+          <img *ngIf="o.image_url" [src]="o.image_url" class="card-img-top" style="height: 200px; object-fit: cover; cursor: zoom-in;" alt=""
+               (click)="photoPreview = o.image_url">
+          <div class="d-flex flex-wrap gap-1 px-3 pt-2" *ngIf="offerPhotos(o).length > 1">
+            <img *ngFor="let p of offerPhotos(o)" [src]="p" alt="" class="rounded border"
+                 style="width: 38px; height: 46px; object-fit: cover; cursor: zoom-in;" (click)="photoPreview = p">
+          </div>
+          <div class="card-body small">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="fw-bold">{{ o.product_name }}</span>
+              <span class="badge bg-light text-dark border">{{ o.category }}</span>
+            </div>
+            <div class="text-muted mb-2">{{ o.supplier_name }} · {{ o.created_at | date:'dd/MM/yyyy' }}</div>
+            <p class="mb-2">{{ o.description }}</p>
+            <div>Costo: <strong>Bs. {{ o.unit_cost | number:'1.2-2' }}</strong> · PVP sugerido: <strong>Bs. {{ o.suggested_retail_price | number:'1.2-2' }}</strong></div>
+            <div>Mín. {{ o.min_order_quantity }} un. · Disponibles {{ o.available_quantity }} un.</div>
+            <div>Tallas: {{ o.sizes_available }} · Colores: {{ o.colors_available }}</div>
+            <div class="mt-2" *ngIf="o.status !== 'PENDING'">
+              <span class="badge" [ngClass]="o.status === 'APPROVED' ? 'bg-success' : 'bg-secondary'">{{ o.status === 'APPROVED' ? 'Aprobada' : 'Rechazada' }}</span>
+              <span *ngIf="o.target_branch_name"> → {{ o.target_branch_name }}</span>
+              <div class="fst-italic" *ngIf="o.admin_notes">"{{ o.admin_notes }}"</div>
+            </div>
+            <button class="btn btn-sm btn-primary fw-bold mt-2" *ngIf="o.status === 'PENDING'" (click)="startReview(o)">Revisar oferta</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel: nueva solicitud de reposición -->
+<ng-container *ngIf="showForm">
+  <div class="slide-overlay" (click)="showForm = false"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">Solicitud de reposición</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="showForm = false"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label small fw-bold">Sucursal que necesita la reposición *</label>
+          <select class="form-select" [(ngModel)]="form.target_branch_id" (ngModelChange)="onBranchChange()">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+          </select>
+        </div>
+
+        <div class="col-12" *ngIf="lowStockItems.length > 0">
+          <div class="p-2 rounded-3 border small" style="background: #FFFBEB;">
+            <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle text-warning"></i> Prendas con stock bajo en esta sucursal</div>
+            <div class="d-flex justify-content-between align-items-center py-1 border-top" *ngFor="let i of lowStockItems">
+              <span>{{ i.product_name }} · {{ i.size_name }}/{{ i.color_name }} — <strong>{{ i.stock_actual }}</strong> un. (mín. {{ i.stock_minimo }})</span>
+              <button class="btn btn-xs btn-outline-primary py-0 px-2" (click)="pickLowStock(i)">Pedir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label small fw-bold">Proveedor *</label>
+          <select class="form-select" [(ngModel)]="form.supplier_id" (ngModelChange)="onSupplierChange()">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let s of suppliers" [ngValue]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-bold">Prenda *</label>
+          <select class="form-select" [(ngModel)]="form.product_id" (ngModelChange)="onProductChange()">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let p of products" [ngValue]="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+
+        <!-- Alerta si la prenda fue descontinuada por el proveedor -->
+        <div class="col-12" *ngIf="discontinuedWarning">
+          <div class="alert alert-danger py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-x-octagon-fill fs-5"></i>
+            <div>{{ discontinuedWarning }}</div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label small fw-bold">Talla / color *</label>
+          <select class="form-select" [(ngModel)]="form.variant_id" (ngModelChange)="onVariantChange()" [disabled]="!form.product_id">
+            <option [ngValue]="null">Selecciona…</option>
+            <option *ngFor="let v of selectedProductVariants" [ngValue]="v.id">{{ v.size?.name }} / {{ v.color?.name }} · {{ v.sku }}</option>
+          </select>
+          <small class="text-muted" *ngIf="stockAtBranch !== null">Stock actual en la sucursal: <strong>{{ stockAtBranch }}</strong> un.</small>
+          <img *ngIf="selectedProductImage" [src]="selectedProductImage" alt="" class="rounded border mt-2 d-block" style="width: 90px; height: 110px; object-fit: cover;">
+          </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold">Cantidad *</label>
+          <input type="number" min="1" class="form-control" [(ngModel)]="form.requested_quantity">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold">Costo unitario (Bs.)</label>
+          <input type="number" min="0" step="0.01" class="form-control" [(ngModel)]="form.unit_cost">
+        </div>
+      </div>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-light border" (click)="showForm = false">Cancelar</button>
+      <button class="btn btn-primary fw-bold" [disabled]="saving || !!discontinuedWarning" (click)="saveReorder()">{{ saving ? 'Enviando…' : 'Enviar al proveedor' }}</button>
+    </div>
+  </div>
+</ng-container>
+
+<!-- Panel: revisar oferta -->
+<ng-container *ngIf="reviewingOffer">
+  <div class="slide-overlay" (click)="reviewingOffer = null"></div>
+  <div class="slide-panel">
+    <div class="slide-panel-header d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0">Revisar: {{ reviewingOffer.product_name }}</h5>
+      <button class="btn btn-sm btn-light border-0" (click)="reviewingOffer = null"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="slide-panel-body">
+      <p class="small text-muted">{{ reviewingOffer.supplier_name }} ofrece {{ reviewingOffer.available_quantity }} unidades a Bs. {{ reviewingOffer.unit_cost | number:'1.2-2' }} c/u.</p>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Sucursal destino (si se aprueba)</label>
+        <select class="form-select" [(ngModel)]="reviewForm.target_branch_id">
+          <option [ngValue]="null">Casa Matriz decide luego</option>
+          <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Prenda del catálogo (si ya la registraste)</label>
+        <select class="form-select" [(ngModel)]="reviewForm.product_id">
+          <option [ngValue]="null">Aún no está en el catálogo</option>
+          <option *ngFor="let p of products" [ngValue]="p.id">{{ p.name }}</option>
+        </select>
+        <small class="text-muted">Así, si el proveedor deja de traerla, no podrás pedirle reposición por error.</small>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Nota para el proveedor</label>
+        <textarea class="form-control" rows="3" [(ngModel)]="reviewForm.admin_notes"></textarea>
+      </div>
+    </div>
+    <div class="slide-panel-footer d-flex gap-2 justify-content-end">
+      <button class="btn btn-outline-danger" (click)="review('REJECTED')">Rechazar</button>
+      <button class="btn btn-success fw-bold" (click)="review('APPROVED')">Aprobar</button>
+    </div>
+  </div>
+</ng-container>
+
+<!-- Visor de fotos -->
+<div *ngIf="photoPreview" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+     style="background: rgba(43,31,29,0.8); z-index: 2100;" (click)="photoPreview = null">
+  <img [src]="photoPreview" alt="Foto de la prenda" style="max-width: 92vw; max-height: 88vh;" class="rounded-4 shadow">
+</div>

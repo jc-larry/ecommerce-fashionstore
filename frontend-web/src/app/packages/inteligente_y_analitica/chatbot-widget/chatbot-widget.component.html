@@ -1,0 +1,75 @@
+<!-- Botón Flotante del Chatbot Asistente -->
+<div class="chatbot-wrapper">
+  <!-- Botón Trigger circular -->
+  <button *ngIf="!isOpen" class="btn btn-primary btn-chat-trigger shadow-lg d-flex align-items-center justify-content-center" (click)="toggleChat()">
+    <i class="bi bi-chat-dots-fill fs-4"></i>
+    <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle">
+      <span class="visually-hidden">Nuevo mensaje</span>
+    </span>
+  </button>
+
+  <!-- Ventana del Chatbot (CU33) -->
+  <div *ngIf="isOpen" class="chat-window shadow-xl border-0 rounded-4 overflow-hidden d-flex flex-column">
+    <!-- Header del Chat -->
+    <div class="chat-header p-3 bg-primary text-white d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <div class="avatar bg-white text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px;">
+          <i class="bi bi-robot"></i>
+        </div>
+        <div>
+          <div class="fw-bold small mb-0">Estilista Virtual IA</div>
+          <small class="text-white-50" style="font-size: 0.7rem;">● En línea • FashionStore</small>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-link text-white text-decoration-none p-0" (click)="toggleChat()">
+        <i class="bi bi-x-lg fs-5"></i>
+      </button>
+    </div>
+
+    <!-- Cuerpo de mensajes -->
+    <div class="chat-body p-3 flex-grow-1 overflow-y-auto d-flex flex-column gap-3">
+      <div *ngFor="let m of messages" [ngClass]="m.sender === 'USER' ? 'msg-user' : 'msg-bot'">
+        <div class="bubble p-3 rounded-4" [ngClass]="m.sender === 'USER' ? 'bg-primary text-white' : 'bg-light text-dark border'">
+          <p class="mb-1 small" style="white-space: pre-line;">{{ m.text }}</p>
+          <small class="d-block text-end" [ngClass]="m.sender === 'USER' ? 'text-white-50' : 'text-muted'" style="font-size: 0.65rem;">
+            {{ m.time }}
+          </small>
+        </div>
+
+        <!-- Prendas sugeridas dentro del bot -->
+        <div *ngIf="m.suggested_products && m.suggested_products.length > 0" class="mt-2 d-flex flex-column gap-2">
+          <div *ngFor="let p of m.suggested_products" class="p-2 bg-white rounded-3 border d-flex align-items-center gap-2 shadow-xs cursor-pointer" (click)="viewProduct(p.id)">
+            <img [src]="p.image_url || '/assets/images/placeholder.png'" class="rounded-2" style="width: 36px; height: 36px; object-fit: cover;">
+            <div class="flex-grow-1 overflow-hidden">
+              <div class="small fw-semibold text-truncate text-dark">{{ p.name }}</div>
+              <small class="text-primary fw-bold">Bs. {{ p.price | number:'1.2-2' }}</small>
+            </div>
+            <i class="bi bi-chevron-right text-muted small"></i>
+          </div>
+        </div>
+
+        <!-- Acciones sugeridas -->
+        <div *ngIf="m.suggested_actions && m.suggested_actions.length > 0" class="mt-2 d-flex flex-wrap gap-1">
+          <button *ngFor="let a of m.suggested_actions" class="btn btn-sm btn-outline-secondary rounded-pill py-0 px-2 small" style="font-size: 0.72rem;" (click)="handleActionClick(a)">
+            {{ a }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Indicador escribiendo -->
+      <div *ngIf="sending" class="msg-bot">
+        <div class="bubble p-2 bg-light border rounded-4 small text-muted">
+          <span class="spinner-grow spinner-grow-sm me-1"></span> Pensando...
+        </div>
+      </div>
+    </div>
+
+    <!-- Input footer -->
+    <div class="chat-footer p-2 bg-light border-top d-flex align-items-center gap-2">
+      <input type="text" class="form-control form-control-sm border-0 shadow-none" [(ngModel)]="inputMessage" (keyup.enter)="sendMessage()" placeholder="Pregunta sobre ropa, pedidos, tiendas...">
+      <button class="btn btn-sm btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" [disabled]="sending || !inputMessage.trim()" (click)="sendMessage()">
+        <i class="bi bi-send-fill" style="font-size: 0.75rem;"></i>
+      </button>
+    </div>
+  </div>
+</div>

@@ -105,12 +105,27 @@ class VentasApi {
 
   /// [CU24] Historial de compras y pedidos del cliente.
   static Future<List<dynamic>> fetchMyOrders() async {
-    final r = await http
-        .get(Uri.parse('${AuthService.apiBaseUrl}/sales/orders/my-orders'), headers: await _headers())
-        .timeout(_timeout);
-    if (r.statusCode == 200) {
-      return jsonDecode(r.body) as List<dynamic>;
-    }
+    try {
+      final r = await http
+          .get(Uri.parse('${AuthService.apiBaseUrl}/sales/orders/my-orders'), headers: await _headers())
+          .timeout(_timeout);
+      if (r.statusCode == 200) {
+        return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// [CU22 / CU24] Devoluciones y cambios registrados sobre las compras del cliente.
+  static Future<List<dynamic>> fetchMyReturns() async {
+    try {
+      final r = await http
+          .get(Uri.parse('${AuthService.apiBaseUrl}/sales/returns/my'), headers: await _headers())
+          .timeout(_timeout);
+      if (r.statusCode == 200) {
+        return jsonDecode(utf8.decode(r.bodyBytes)) as List<dynamic>;
+      }
+    } catch (_) {}
     return [];
   }
 

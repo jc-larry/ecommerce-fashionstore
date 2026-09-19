@@ -1,0 +1,189 @@
+<div class="container-fluid p-4">
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-graph-up-arrow text-primary me-2"></i>Dashboard Global Analítico (BI)
+      </h3>
+      <p class="text-muted small mb-0">
+        [CU39] Inteligencia de negocios, gráficos comparativos y KPIs consolidados en tiempo real.
+      </p>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" (click)="loadMetrics()">
+      <i class="bi bi-arrow-clockwise me-1"></i> Actualizar Métricas
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+
+  <div *ngIf="!loading && metrics">
+    <!-- 4 TARJETAS DE KPIS PRINCIPALES -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-primary">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Facturación Total</span>
+            <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-3 p-2">
+              <i class="bi bi-currency-dollar fs-5"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold text-dark mb-0">Bs. {{ metrics.total_sales_revenue | number:'1.2-2' }}</h3>
+          <small class="text-success fw-semibold"><i class="bi bi-arrow-up-short"></i>Ventas acumuladas</small>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-success">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Pedidos Concretados</span>
+            <div class="icon-box bg-success bg-opacity-10 text-success rounded-3 p-2">
+              <i class="bi bi-bag-check fs-5"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold text-dark mb-0">{{ metrics.total_orders_count }}</h3>
+          <small class="text-muted">Órdenes cobradas con éxito</small>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-info">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Ticket Promedio</span>
+            <div class="icon-box bg-info bg-opacity-10 text-info rounded-3 p-2">
+              <i class="bi bi-receipt fs-5"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold text-dark mb-0">Bs. {{ metrics.average_ticket | number:'1.2-2' }}</h3>
+          <small class="text-muted">Por compra realizada</small>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-warning">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Alertas Stock Crítico</span>
+            <div class="icon-box bg-warning bg-opacity-10 text-warning rounded-3 p-2">
+              <i class="bi bi-exclamation-triangle fs-5"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold text-dark mb-0">{{ metrics.low_stock_items_count }}</h3>
+          <small class="text-danger fw-semibold">Prendas bajo stock mínimo</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILA DE GRÁFICOS: TENDENCIA 7 DÍAS + CANALES DE VENTA -->
+    <div class="row g-4 mb-4">
+      <!-- Gráfico 1: Tendencia últimos 7 días -->
+      <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0">
+              <i class="bi bi-bar-chart-line text-primary me-2"></i>Evolución de Ventas Diarias (Última Semana)
+            </h5>
+            <span class="badge bg-light text-dark border">Valores en Bs.</span>
+          </div>
+
+          <!-- Gráfico de Barras SVG Dinámico -->
+          <div class="chart-bars-container d-flex align-items-end justify-content-around pt-4 pb-2" style="height: 220px; border-bottom: 2px solid #E2E8F0;">
+            <div *ngFor="let day of metrics.daily_sales_last_7_days" class="d-flex flex-column align-items-center gap-2" style="width: 12%;">
+              <small class="fw-bold text-primary" style="font-size: 0.75rem;">
+                Bs. {{ day.revenue | number:'1.0-0' }}
+              </small>
+              <div class="bar-fill rounded-top-3 w-100" 
+                   [style.height.px]="(day.revenue / getMaxDailyRevenue()) * 140 + 8"
+                   [ngClass]="day.revenue > 0 ? 'bg-primary' : 'bg-light'"
+                   [title]="day.date + ': Bs. ' + day.revenue">
+              </div>
+              <small class="text-muted fw-bold" style="font-size: 0.72rem;">{{ day.date }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico 2: Ventas por Canal (ONLINE vs POS) -->
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+          <h5 class="fw-bold text-dark mb-3">
+            <i class="bi bi-pie-chart text-success me-2"></i>Distribución por Canal
+          </h5>
+          <div class="p-3 bg-light rounded-4 mb-3 text-center">
+            <div class="d-flex justify-content-around align-items-center mb-3">
+              <div>
+                <span class="fs-4 fw-bold text-primary">{{ getChannelOnlinePercent() }}%</span>
+                <small class="d-block text-muted">🌐 Tienda Online</small>
+                <span class="fw-bold small text-dark">Bs. {{ metrics.sales_by_channel['ONLINE'] | number:'1.2-2' }}</span>
+              </div>
+              <div class="vr"></div>
+              <div>
+                <span class="fs-4 fw-bold text-success">{{ getChannelPosPercent() }}%</span>
+                <small class="d-block text-muted">🏬 Tienda POS</small>
+                <span class="fw-bold small text-dark">Bs. {{ metrics.sales_by_channel['POS'] | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <!-- Barra segmentada de progreso -->
+            <div class="progress" style="height: 12px; border-radius: 6px;">
+              <div class="progress-bar bg-primary" role="progressbar" [style.width.%]="getChannelOnlinePercent()"></div>
+              <div class="progress-bar bg-success" role="progressbar" [style.width.%]="getChannelPosPercent()"></div>
+            </div>
+          </div>
+          <small class="text-muted text-center d-block">
+            Métricas transaccionales consolidadas omnicanal.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILA DE CATEGORÍAS Y SUCURSALES -->
+    <div class="row g-4">
+      <!-- Ventas por Categoría -->
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+          <h5 class="fw-bold text-dark mb-3">
+            <i class="bi bi-tags-fill text-warning me-2"></i>Ventas por Categoría de Moda
+          </h5>
+          <div class="d-flex flex-column gap-3">
+            <div *ngFor="let cat of metrics.sales_by_category">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>{{ cat.name }}</span>
+                <span class="text-primary">Bs. {{ cat.value | number:'1.2-2' }}</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-warning" role="progressbar" [style.width.%]="(cat.value / (metrics.total_sales_revenue || 1)) * 100"></div>
+              </div>
+            </div>
+            <div *ngIf="metrics.sales_by_category.length === 0" class="text-muted small text-center py-3">
+              Sin datos de categorías aún.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ventas por Sucursal -->
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+          <h5 class="fw-bold text-dark mb-3">
+            <i class="bi bi-shop text-info me-2"></i>Desempeño por Sucursal Física
+          </h5>
+          <div class="d-flex flex-column gap-3">
+            <div *ngFor="let b of metrics.sales_by_branch">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>{{ b.name }}</span>
+                <span class="text-success">Bs. {{ b.value | number:'1.2-2' }}</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-info" role="progressbar" [style.width.%]="(b.value / (metrics.total_sales_revenue || 1)) * 100"></div>
+              </div>
+            </div>
+            <div *ngIf="metrics.sales_by_branch.length === 0" class="text-muted small text-center py-3">
+              Sin datos de sucursales aún.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

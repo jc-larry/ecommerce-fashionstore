@@ -111,9 +111,9 @@
           </select>
         </div>
         <div class="col-6">
-          <label class="form-label small fw-bold">Sucursal</label>
+          <label class="form-label small fw-bold">Sucursal <span class="text-danger">*</span></label>
           <select class="form-select" [(ngModel)]="form.branch_id">
-            <option [ngValue]="null">Sin asignar</option>
+            <option [ngValue]="null">Selecciona…</option>
             <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
           </select>
         </div>

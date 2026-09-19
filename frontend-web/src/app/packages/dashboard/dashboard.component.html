@@ -9,7 +9,7 @@
                 [ngClass]="isCentral ? 'bg-dark bg-opacity-25 text-white' : 'bg-white text-dark shadow-sm'"
                 style="font-size: 0.75rem;">
             <i class="bi" [ngClass]="isCentral ? 'bi-building' : 'bi-geo-alt-fill text-danger'"></i>
-            {{ isCentral ? 'Modo Casa Matriz (Consolidado)' : 'Sucursal: ' + activeBranchName + ' (' + activeBranchCity + ')' }}
+            {{ isCentral ? 'Modo Casa Matriz (Consolidado)' : 'Sucursal: ' + activeBranchName + (activeBranchCity ? ' (' + activeBranchCity + ')' : '') }}
           </span>
         </div>
         <h4 class="fw-bold mb-1 text-white">¡Bienvenid&#64;, {{ userName }}!</h4>
@@ -30,6 +30,11 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <div class="alert alert-warning d-flex align-items-center gap-2" *ngIf="branchContext.hasNoAssignedBranch()">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>Tu usuario todavía no está asignado a ninguna sucursal. El administrador de Casa Matriz debe asignarte desde <strong>Empleados</strong> para que puedas operar.</span>
   </div>
 
   <!-- Métricas Clave (KPIs) con diseño armónico -->

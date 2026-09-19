@@ -1,131 +1,354 @@
-<div class="supplier-portal-page">
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+<div class="admin-page">
+  <!-- Encabezado de la empresa proveedora -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
-      <h3 class="fw-bold mb-1">
-        <i class="bi bi-truck me-2 text-primary"></i>
-        {{ profile?.name || 'Portal de Proveedor' }}
-      </h3>
-      <p class="text-muted small mb-0">NIT: {{ profile?.nit || '—' }} · {{ profile?.category || '' }}</p>
+      <h3 class="fw-bold mb-1">{{ profile?.name || 'Portal de Proveedor' }}</h3>
+      <p class="text-muted small mb-0">
+        NIT: <strong>{{ profile?.nit || '—' }}</strong>
+        <span *ngIf="profile?.category"> · Categoría: <strong>{{ profile?.category }}</strong></span>
+      </p>
     </div>
   </div>
 
-  <div class="validation-card validation-card-error mb-3" *ngIf="error">
-    <div class="val-content">{{ error }}</div>
-    <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
+  <div class="alert alert-danger py-2 small d-flex justify-content-between align-items-center" *ngIf="error">
+    <span><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ error }}</span>
+    <button class="btn-close" (click)="error = ''"></button>
   </div>
-  <div class="validation-card validation-card-success mb-3" *ngIf="success">
-    <div class="val-content">{{ success }}</div>
-    <button class="val-close" (click)="success = ''" title="Cerrar">&times;</button>
+  <div class="alert alert-success py-2 small d-flex justify-content-between align-items-center" *ngIf="success">
+    <span><i class="bi bi-check-circle-fill me-1"></i>{{ success }}</span>
+    <button class="btn-close" (click)="success = ''"></button>
   </div>
 
   <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-      <a class="nav-link" [class.active]="activeTab === 'perfil'" (click)="setTab('perfil')" style="cursor:pointer;">
-        <i class="bi bi-person-vcard me-1"></i> Mi Perfil
+      <a class="nav-link" [class.active]="activeTab === 'pedidos'" (click)="setTab('pedidos')" role="button">
+        Pedidos de Reposición <span class="badge rounded-pill bg-danger ms-1" *ngIf="pendingCount > 0">{{ pendingCount }}</span>
       </a>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" [class.active]="activeTab === 'productos'" (click)="setTab('productos')" style="cursor:pointer;">
-        <i class="bi bi-box-seam me-1"></i> Mis Productos
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" [class.active]="activeTab === 'compras'" (click)="setTab('compras')" style="cursor:pointer;">
-        <i class="bi bi-clipboard-data me-1"></i> Mis Compras
-      </a>
-    </li>
+    <li class="nav-item"><a class="nav-link" [class.active]="activeTab === 'ofertar'" (click)="setTab('ofertar')" role="button">Ofertar Nuevos Modelos</a></li>
+    <li class="nav-item"><a class="nav-link" [class.active]="activeTab === 'productos'" (click)="setTab('productos')" role="button">Mis Productos</a></li>
+    <li class="nav-item"><a class="nav-link" [class.active]="activeTab === 'compras'" (click)="setTab('compras')" role="button">Mis Compras</a></li>
+    <li class="nav-item"><a class="nav-link" [class.active]="activeTab === 'perfil'" (click)="setTab('perfil')" role="button">Mi Perfil</a></li>
   </ul>
 
-  <!-- MI PERFIL -->
-  <div *ngIf="activeTab === 'perfil'" class="card border-0 shadow-sm rounded-4 p-4" style="max-width: 560px;">
-    <p class="text-muted small">
-      Solo puedes actualizar tus datos de contacto. El NIT, la razón social y la categoría son
-      administrados por FashionStore.
-    </p>
-    <div class="mb-3">
-      <label class="form-label small fw-bold">Nombre de contacto</label>
-      <input class="form-control" [(ngModel)]="contactForm.contact_name" name="contact_name">
+  <!-- ================= PEDIDOS DE REPOSICIÓN ================= -->
+  <div *ngIf="activeTab === 'pedidos'">
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 d-flex flex-row flex-wrap justify-content-between align-items-center gap-2">
+      <p class="text-muted small mb-0" style="max-width: 680px;">
+        Casa Matriz te solicita reposición de prendas indicando la <strong>sucursal que la necesita</strong>.
+        Acepta con una fecha estimada, despacha la mercadería a esa sucursal y márcalo como enviado; la sucursal confirmará la recepción.
+      </p>
+      <div class="btn-group btn-group-sm">
+        <button class="btn" [ngClass]="reorderFilter === 'ACTIVOS' ? 'btn-primary' : 'btn-outline-primary'" (click)="reorderFilter = 'ACTIVOS'">En curso</button>
+        <button class="btn" [ngClass]="reorderFilter === 'TODOS' ? 'btn-primary' : 'btn-outline-primary'" (click)="reorderFilter = 'TODOS'">Historial completo</button>
+      </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label small fw-bold">Correo electrónico</label>
-      <input type="email" class="form-control" [(ngModel)]="contactForm.email" name="email">
-    </div>
-    <div class="mb-3">
-      <label class="form-label small fw-bold">Teléfono</label>
-      <input class="form-control" [(ngModel)]="contactForm.phone" name="phone">
-    </div>
-    <div class="mb-3">
-      <label class="form-label small fw-bold">Dirección</label>
-      <input class="form-control" [(ngModel)]="contactForm.address" name="address">
-    </div>
-    <button class="btn btn-primary fw-bold" (click)="saveContact()">Guardar cambios</button>
-  </div>
 
-  <!-- MIS PRODUCTOS -->
-  <div *ngIf="activeTab === 'productos'" class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>SKU</th>
-              <th>Prenda</th>
-              <th>Color</th>
-              <th>Talla</th>
-              <th>Sucursal</th>
-              <th class="text-end">Stock actual</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="loading"><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
-            <tr *ngIf="!loading && products.length === 0">
-              <td colspan="6" class="text-center text-muted py-4">
-                Todavía no registramos compras de prendas a tu proveedor.
-              </td>
-            </tr>
-            <tr *ngFor="let p of products">
-              <td class="font-monospace">{{ p.sku }}</td>
-              <td>{{ p.product_name }}</td>
-              <td>{{ p.color_name }}</td>
-              <td>{{ p.size_name }}</td>
-              <td>{{ p.branch_name }}</td>
-              <td class="text-end fw-bold">{{ p.stock_actual }}</td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center text-muted" *ngIf="visibleReorders.length === 0">
+      <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+      No tienes pedidos {{ reorderFilter === 'ACTIVOS' ? 'en curso' : 'registrados' }}.
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-3" *ngFor="let r of visibleReorders">
+      <div class="card-body p-4">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold fs-5">{{ r.code }}</span>
+            <span class="pill"
+                  [ngClass]="{
+                    'pill-warn': r.status === 'PENDING',
+                    'pill-ok': r.status === 'ACCEPTED' || r.status === 'SHIPPED' || r.status === 'RECEIVED',
+                    'pill-off': r.status === 'REJECTED' || r.status === 'CANCELLED'
+                  }"><span class="pill-dot"></span>{{ reorderStatusLabels[r.status] || r.status }}</span>
+          </div>
+          <small class="text-muted">Solicitado el {{ r.created_at | date:'dd/MM/yyyy HH:mm' }}<span *ngIf="r.requested_by_name"> por {{ r.requested_by_name }}</span></small>
+        </div>
+
+        <div class="row g-3 align-items-center small">
+          <div class="col-md-5 d-flex gap-3 align-items-center">
+            <img *ngIf="r.product_image_url; else noPhoto" [src]="r.product_image_url" [alt]="r.product_name"
+                 class="rounded-3 border" style="width: 72px; height: 88px; object-fit: cover; cursor: zoom-in;"
+                 (click)="photoPreview = r.product_image_url">
+            <ng-template #noPhoto>
+              <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 72px; height: 88px;"><i class="bi bi-image fs-4"></i></div>
+            </ng-template>
+            <div>
+              <div class="fw-bold fs-6 text-dark">{{ r.product_name }}</div>
+              <div class="text-muted">{{ r.variant_label }} · SKU {{ r.sku }}</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-2">
+            <div class="text-muted text-uppercase" style="font-size: 0.7rem;">Cantidad</div>
+            <div class="fw-bold fs-5">{{ r.requested_quantity }} un.</div>
+          </div>
+          <div class="col-6 col-md-2">
+            <div class="text-muted text-uppercase" style="font-size: 0.7rem;">Costo acordado</div>
+            <div class="fw-bold">Bs. {{ r.unit_cost | number:'1.2-2' }} c/u</div>
+            <div class="text-muted">Total Bs. {{ r.unit_cost * r.requested_quantity | number:'1.2-2' }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted text-uppercase" style="font-size: 0.7rem;">Entregar en</div>
+            <div class="fw-bold"><i class="bi bi-geo-alt-fill text-danger"></i> {{ r.target_branch_name }}</div>
+            <div *ngIf="r.estimated_delivery" class="text-muted">Entrega estimada: {{ r.estimated_delivery | date:'dd/MM/yyyy' }}</div>
+          </div>
+        </div>
+        <div class="small text-muted mt-2" *ngIf="r.supplier_notes"><i class="bi bi-chat-left-text"></i> {{ r.supplier_notes }}</div>
+
+        <div class="mt-3 d-flex gap-2" *ngIf="r.status === 'PENDING' && respondingId !== r.id">
+          <button class="btn btn-sm btn-success fw-bold" (click)="startAccept(r)"><i class="bi bi-check-lg"></i> Aceptar pedido</button>
+          <button class="btn btn-sm btn-outline-danger" (click)="reject(r)"><i class="bi bi-x-lg"></i> Rechazar</button>
+        </div>
+        <div class="mt-3 p-3 rounded-3" style="background:#F8F4F0;" *ngIf="respondingId === r.id">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Fecha estimada de entrega *</label>
+              <input type="date" class="form-control form-control-sm" [(ngModel)]="respondForm.estimated_delivery">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small fw-bold">Nota para Casa Matriz</label>
+              <input class="form-control form-control-sm" [(ngModel)]="respondForm.supplier_notes" placeholder="Ej. entrega en 2 bultos">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+              <button class="btn btn-sm btn-success fw-bold" (click)="confirmAccept(r)">Confirmar</button>
+              <button class="btn btn-sm btn-light border" (click)="respondingId = null">Cancelar</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3" *ngIf="r.status === 'ACCEPTED'">
+          <button class="btn btn-sm btn-primary fw-bold" (click)="markShipped(r)"><i class="bi bi-truck"></i> Marcar como enviado a {{ r.target_branch_name }}</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- MIS COMPRAS -->
+  <!-- ================= OFERTAR NUEVOS MODELOS ================= -->
+  <div *ngIf="activeTab === 'ofertar'" class="row g-4">
+    <div class="col-xl-6">
+      <div class="card border-0 shadow-sm rounded-4 p-4">
+        <h6 class="fw-bold mb-1">Nuevo modelo disponible</h6>
+        <p class="text-muted small">Informa a Casa Matriz sobre prendas nuevas que te están llegando. Sube sus fotos y elige cuál se mostrará como portada.</p>
+
+        <!-- Galería de fotos -->
+        <label class="form-label small fw-bold">Fotos de la prenda * <span class="text-muted fw-normal">({{ offerForm.image_urls.length }}/{{ maxPhotos }})</span></label>
+        <div class="d-flex flex-wrap gap-2 mb-1">
+          <div *ngFor="let url of offerForm.image_urls; let i = index" class="position-relative">
+            <img [src]="url" alt="Foto {{ i + 1 }}" class="rounded-3"
+                 style="width: 84px; height: 104px; object-fit: cover; cursor: pointer;"
+                 [style.outline]="url === offerForm.image_url ? '3px solid #C66F5C' : '1px solid #E6DFD9'"
+                 (click)="setCoverPhoto(url)" title="Usar como portada">
+            <span *ngIf="url === offerForm.image_url" class="badge position-absolute bottom-0 start-0 m-1" style="background:#C66F5C; font-size: 0.6rem;">Portada</span>
+            <button type="button" class="btn btn-sm btn-light border position-absolute top-0 end-0 m-1 py-0 px-1" (click)="removePhoto(i)" title="Quitar">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+          <label *ngIf="offerForm.image_urls.length < maxPhotos"
+                 class="rounded-3 border d-flex flex-column align-items-center justify-content-center text-muted"
+                 style="width: 84px; height: 104px; border-style: dashed !important; cursor: pointer;">
+            <i class="bi" [ngClass]="processingPhotos ? 'bi-hourglass-split' : 'bi-camera'"></i>
+            <small style="font-size: 0.68rem;">{{ processingPhotos ? 'Procesando' : 'Agregar' }}</small>
+            <input type="file" accept="image/*" multiple hidden (change)="onOfferPhotosSelected($event)" [disabled]="processingPhotos">
+          </label>
+        </div>
+        <small class="text-muted d-block mb-3">Toca una foto para elegirla como portada.</small>
+
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label small fw-bold">Nombre del modelo *</label>
+            <input class="form-control" [(ngModel)]="offerForm.product_name" placeholder="Ej. Blusa de lino manga 3/4">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-bold">Descripción *</label>
+            <textarea class="form-control" rows="2" [(ngModel)]="offerForm.description" placeholder="Material, temporada, colección…"></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Categoría</label>
+            <input class="form-control" [(ngModel)]="offerForm.category" placeholder="Ej. Blusas">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Colores *</label>
+            <input class="form-control" [(ngModel)]="offerForm.colors_available" placeholder="Ej. Beige, Negro">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Costo unitario (Bs.) *</label>
+            <input type="number" min="0" step="0.01" class="form-control" [(ngModel)]="offerForm.unit_cost">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Precio sugerido de venta (Bs.) *</label>
+            <input type="number" min="0" step="0.01" class="form-control" [(ngModel)]="offerForm.suggested_retail_price">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold">Tallas *</label>
+            <input class="form-control" [(ngModel)]="offerForm.sizes_available">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold">Pedido mínimo</label>
+            <input type="number" min="1" class="form-control" [(ngModel)]="offerForm.min_order_quantity">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold">Unidades disponibles</label>
+            <input type="number" min="1" class="form-control" [(ngModel)]="offerForm.available_quantity">
+          </div>
+        </div>
+        <button class="btn btn-primary fw-bold mt-3 w-100" [disabled]="sendingOffer || processingPhotos" (click)="submitOffer()">
+          <i class="bi bi-send me-1"></i> {{ sendingOffer ? 'Enviando…' : 'Enviar oferta a Casa Matriz' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="col-xl-6">
+      <h6 class="fw-bold mb-3">Mis ofertas enviadas</h6>
+      <div class="card border-0 shadow-sm rounded-4 p-4 text-center text-muted small" *ngIf="offers.length === 0">Aún no enviaste ofertas.</div>
+      <div class="card border-0 shadow-sm rounded-4 mb-3" *ngFor="let o of offers">
+        <div class="card-body p-3">
+          <div class="d-flex gap-3">
+            <div style="width: 104px;" class="flex-shrink-0">
+              <img *ngIf="shownPhoto(o) as photo; else noOfferPhoto" [src]="photo" alt="" class="rounded-3 border w-100"
+                   style="height: 128px; object-fit: cover; cursor: zoom-in;" (click)="photoPreview = photo">
+              <ng-template #noOfferPhoto>
+                <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="height: 128px;"><i class="bi bi-image fs-3"></i></div>
+              </ng-template>
+              <div class="d-flex flex-wrap gap-1 mt-1" *ngIf="offerPhotos(o).length > 1">
+                <img *ngFor="let p of offerPhotos(o); let i = index" [src]="p" alt="" class="rounded"
+                     style="width: 22px; height: 26px; object-fit: cover; cursor: pointer;"
+                     [style.outline]="shownPhoto(o) === p ? '2px solid #C66F5C' : 'none'"
+                     (click)="galleryIndex[o.id] = i">
+              </div>
+            </div>
+            <div class="flex-grow-1 small">
+              <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
+                <span class="fw-bold fs-6 text-dark">{{ o.product_name }}</span>
+                <span class="pill text-nowrap"
+                      [ngClass]="{
+                        'pill-warn': o.status === 'PENDING' || o.status === 'AGOTADO',
+                        'pill-ok': o.status === 'APPROVED' || o.status === 'DISPONIBLE',
+                        'pill-off': o.status === 'REJECTED' || o.status === 'DESCONTINUADO'
+                      }"><span class="pill-dot"></span>{{ offerStatusLabels[o.status] || o.status }}</span>
+              </div>
+              <div class="text-muted">Costo Bs. {{ o.unit_cost | number:'1.2-2' }} · PVP sugerido Bs. {{ o.suggested_retail_price | number:'1.2-2' }}</div>
+              <div class="text-muted">{{ o.sizes_available }} · {{ o.colors_available }} · {{ o.created_at | date:'dd/MM/yyyy' }}</div>
+              <div *ngIf="o.target_branch_name" class="mt-1" style="color:#A95848;"><i class="bi bi-geo-alt"></i> Destino: {{ o.target_branch_name }}</div>
+              <div class="fst-italic text-muted mt-1" *ngIf="o.admin_notes">"{{ o.admin_notes }}"</div>
+
+              <div class="pt-2 mt-2 border-top d-flex flex-wrap justify-content-between align-items-center gap-2" *ngIf="canChangeAvailability(o)">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn" [ngClass]="o.status === 'DISPONIBLE' || o.status === 'APPROVED' ? 'btn-success' : 'btn-outline-secondary'" (click)="toggleOfferAvailability(o, 'DISPONIBLE')">Disponible</button>
+                  <button type="button" class="btn" [ngClass]="o.status === 'AGOTADO' ? 'btn-warning' : 'btn-outline-secondary'" (click)="toggleOfferAvailability(o, 'AGOTADO')">Agotado</button>
+                  <button type="button" class="btn" [ngClass]="o.status === 'DESCONTINUADO' ? 'btn-danger' : 'btn-outline-secondary'" (click)="toggleOfferAvailability(o, 'DESCONTINUADO')">Ya no lo traigo</button>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <span class="text-muted">Stock:</span>
+                  <input type="number" #stockInput class="form-control form-control-sm text-center" style="width: 72px;"
+                         [value]="o.available_quantity" (change)="updateOfferAvailableQuantity(o, stockInput.value)">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MIS PRODUCTOS ================= -->
+  <div *ngIf="activeTab === 'productos'">
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 small text-muted">
+      Prendas que ya suministraste a FashionStore y su stock en cada sucursal. Si una prenda se agotó o ya no la traes,
+      márcalo aquí: Casa Matriz no podrá pedirte reposición de ella.
+    </div>
+    <div *ngIf="loading" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando…</div>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center text-muted" *ngIf="!loading && productCards.length === 0">
+      Todavía no registramos compras de prendas a tu empresa.
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6 col-xl-4" *ngFor="let card of productCards">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+          <img *ngIf="card.image_url; else noProductPhoto" [src]="card.image_url" [alt]="card.product_name"
+               style="height: 200px; object-fit: cover; cursor: zoom-in;" class="w-100" (click)="photoPreview = card.image_url">
+          <ng-template #noProductPhoto>
+            <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="height: 200px;"><i class="bi bi-image fs-1"></i></div>
+          </ng-template>
+          <div class="card-body p-3 small">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="fw-bold fs-6">{{ card.product_name }}</span>
+              <span class="fw-bold">{{ card.total_stock }} un.</span>
+            </div>
+            <div class="btn-group btn-group-sm w-100 mb-2">
+              <button *ngFor="let opt of productStatusOptions" type="button" class="btn"
+                      [ngClass]="card.supplier_status === opt.value
+                        ? (opt.value === 'DISPONIBLE' ? 'btn-success' : opt.value === 'AGOTADO' ? 'btn-warning' : 'btn-danger')
+                        : 'btn-outline-secondary'"
+                      (click)="setProductStatus(card, opt.value)">{{ opt.label }}</button>
+            </div>
+            <div class="d-flex justify-content-between text-muted border-top pt-1" *ngFor="let v of card.variants">
+              <span>{{ v.size_name }} / {{ v.color_name }} · {{ v.branch_name }}</span>
+              <strong class="text-dark">{{ v.stock_actual }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MIS COMPRAS ================= -->
   <div *ngIf="activeTab === 'compras'" class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Orden</th>
-              <th>Fecha</th>
-              <th>Estado</th>
-              <th>Factura</th>
-              <th class="text-end">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="loading"><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
-            <tr *ngIf="!loading && purchaseOrders.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">Todavía no tienes órdenes de compra registradas.</td>
-            </tr>
-            <tr *ngFor="let o of purchaseOrders">
-              <td class="fw-bold font-monospace">OC-{{ o.id }}</td>
-              <td>{{ o.created_at | date:'dd/MM/yyyy' }}</td>
-              <td><span class="badge bg-light text-dark border">{{ o.status }}</span></td>
-              <td>{{ o.invoice_number || '—' }}</td>
-              <td class="text-end fw-bold">Bs. {{ o.total_amount | number:'1.2-2' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="table-responsive">
+      <table class="table table-hover admin-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Orden</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Factura</th>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="loading"><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
+          <tr *ngIf="!loading && purchaseOrders.length === 0">
+            <td colspan="5" class="text-center text-muted py-4">Todavía no tienes órdenes de compra registradas.</td>
+          </tr>
+          <tr *ngFor="let o of purchaseOrders">
+            <td class="fw-bold">OC-{{ o.id }}</td>
+            <td>{{ o.created_at | date:'dd/MM/yyyy' }}</td>
+            <td><span class="pill pill-ok"><span class="pill-dot"></span>{{ o.status }}</span></td>
+            <td>{{ o.invoice_number || '—' }}</td>
+            <td class="text-end fw-bold">Bs. {{ o.total_amount | number:'1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
+
+  <!-- ================= MI PERFIL ================= -->
+  <div *ngIf="activeTab === 'perfil'">
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 small text-muted">
+      Solo puedes actualizar tus datos de contacto. El NIT, la razón social y la categoría los gestiona
+      <strong>FashionStore</strong> para resguardar la validez de los contratos.
+    </div>
+    <div class="card border-0 shadow-sm rounded-4 p-4" style="max-width: 560px;">
+      <h6 class="fw-bold mb-3">Datos de contacto del proveedor</h6>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Nombre de contacto</label>
+        <input class="form-control" [(ngModel)]="contactForm.contact_name" name="contact_name">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Correo electrónico</label>
+        <input type="email" class="form-control" [(ngModel)]="contactForm.email" name="email">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Teléfono</label>
+        <input class="form-control" [(ngModel)]="contactForm.phone" name="phone">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-bold">Dirección de despacho</label>
+        <input class="form-control" [(ngModel)]="contactForm.address" name="address">
+      </div>
+      <button class="btn btn-primary fw-bold w-100" (click)="saveContact()"><i class="bi bi-floppy me-1"></i> Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Visor de fotos ampliadas -->
+<div *ngIf="photoPreview" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+     style="background: rgba(43,31,29,0.8); z-index: 2000;" (click)="photoPreview = null">
+  <img [src]="photoPreview" alt="Foto de la prenda" style="max-width: 92vw; max-height: 88vh;" class="rounded-4 shadow">
 </div>

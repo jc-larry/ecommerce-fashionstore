@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'ventas_api.dart';
+import 'paypal_checkout.dart';
 import '../catalogo_y_tiendas/catalog_api.dart';
 import 'customer_orders_view.dart';
 
@@ -405,10 +406,17 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     }
   }
 
-  // Medio de pago (STI)
-  String _paymentType = 'TARJETA'; // TARJETA, QR, EFECTIVO
+  // Medio de pago (STI). Canal ONLINE: igual que la web, sin efectivo.
+  String _paymentType = 'TARJETA'; // TARJETA, PAYPAL, QR
   String _cardBrand = 'VISA';
-  final _cardLast4Ctrl = TextEditingController(text: '4242');
+  final _cardHolderCtrl = TextEditingController();
+  final _cardNumberCtrl = TextEditingController();
+  final _cardExpiryCtrl = TextEditingController();
+  final _cardCvvCtrl = TextEditingController();
+
+  // PayPal: el cobro capturado se conserva para no cobrar dos veces si el checkout se reintenta.
+  PayPalPaymentResult? _paypalResult;
+  double _exchangeRate = PayPalCheckout.defaultExchangeRate;
 
   // Facturación fiscal IVA 13%
   String _docType = 'FACTURA'; // FACTURA, NOTA_ENTREGA
@@ -422,6 +430,21 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
   void initState() {
     super.initState();
     _loadBranches();
+    PayPalCheckout.exchangeRate().then((r) {
+      if (mounted) setState(() => _exchangeRate = r);
+    });
+  }
+
+  @override
+  void dispose() {
+    _couponCtrl.dispose();
+    _nitCtrl.dispose();
+    _nameCtrl.dispose();
+    _cardHolderCtrl.dispose();
+    _cardNumberCtrl.dispose();
+    _cardExpiryCtrl.dispose();
+    _cardCvvCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBranches() async {
@@ -439,6 +462,7 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
   double get _subtotal => (widget.cart['subtotal'] as num).toDouble();
   double get _total => (_subtotal - _discountAmount).clamp(0.0, double.infinity);
   double get _iva13 => _total * 0.13;
+  double get _totalUsd => (_total / _exchangeRate * 100).roundToDouble() / 100;
 
   Future<void> _processCheckout() async {
     if (_selectedBranchId == null) {
@@ -446,10 +470,58 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
       return;
     }
 
+    // Validación de tarjeta (mismas reglas que la web).
+    final cleanCard = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
+    if (_paymentType == 'TARJETA') {
+      if (_cardHolderCtrl.text.trim().length < 3) {
+        setState(() => _error = 'Ingresa el nombre del titular de la tarjeta.');
+        return;
+      }
+      if (cleanCard.length < 13) {
+        setState(() => _error = 'Ingresa un número de tarjeta válido (mínimo 13 dígitos).');
+        return;
+      }
+      if (!RegExp(r'^(0[1-9]|1[0-2])/\d{2}$').hasMatch(_cardExpiryCtrl.text.trim())) {
+        setState(() => _error = 'Ingresa la fecha de vencimiento en formato MM/AA.');
+        return;
+      }
+      if (_cardCvvCtrl.text.trim().length < 3) {
+        setState(() => _error = 'Ingresa el código CVV (3 o 4 dígitos).');
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
+
+    // [CU18] PayPal: primero se cobra en la pasarela; el backend verifica la orden antes de facturar.
+    if (_paymentType == 'PAYPAL' && _paypalResult == null) {
+      try {
+        final result = await PayPalCheckout.pay(
+          context,
+          amountBob: _total,
+          description: 'Compra Online FashionStore (${widget.cart['items_count'] ?? ''} prendas)',
+        );
+        if (!mounted) return;
+        if (result == null) {
+          setState(() {
+            _loading = false;
+            _error = 'Cancelaste el pago en PayPal. No se realizó ningún cobro.';
+          });
+          return;
+        }
+        _paypalResult = result;
+      } on PayPalException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = e.message;
+        });
+        return;
+      }
+    }
 
     final payload = <String, dynamic>{
       'channel': 'ONLINE',
@@ -464,15 +536,19 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     if (_paymentType == 'TARJETA') {
       payload['card_payment'] = {
         'card_brand': _cardBrand,
-        'card_last4': _cardLast4Ctrl.text.length >= 4 ? _cardLast4Ctrl.text.substring(_cardLast4Ctrl.text.length - 4) : '4242',
+        'card_last4': cleanCard.substring(cleanCard.length - 4),
+        'gateway_reference': 'AUTH-$_cardBrand-${DateTime.now().millisecondsSinceEpoch.toRadixString(36).toUpperCase()}',
+      };
+    } else if (_paymentType == 'PAYPAL') {
+      final pp = _paypalResult!;
+      payload['paypal_payment'] = {
+        'paypal_order_id': pp.orderId,
+        if (pp.payerId != null) 'paypal_payer_id': pp.payerId,
+        if (pp.payerEmail != null) 'paypal_payer_email': pp.payerEmail,
       };
     } else if (_paymentType == 'QR') {
       payload['qr_payment'] = {
         'qr_reference': 'QR-MOB-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-      };
-    } else if (_paymentType == 'EFECTIVO') {
-      payload['cash_payment'] = {
-        'cash_received': _total,
       };
     }
 
@@ -547,9 +623,9 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
               children: [
                 _paymentTile('TARJETA', 'Tarjeta', Icons.credit_card),
                 const SizedBox(width: 8),
-                _paymentTile('QR', 'QR Simple', Icons.qr_code),
+                _paymentTile('PAYPAL', 'PayPal (USD)', Icons.account_balance_wallet_outlined),
                 const SizedBox(width: 8),
-                _paymentTile('EFECTIVO', 'Efectivo', Icons.money),
+                _paymentTile('QR', 'QR Simple', Icons.qr_code),
               ],
             ),
             const SizedBox(height: 12),
@@ -664,7 +740,11 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : const Icon(Icons.check_circle_outline),
                 label: Text(
-                  _loading ? 'Procesando...' : 'Confirmar y Pagar (Bs. ${_total.toStringAsFixed(2)})',
+                  _loading
+                      ? 'Procesando...'
+                      : _paymentType == 'PAYPAL' && _paypalResult == null
+                          ? 'Pagar con PayPal (\$${_totalUsd.toStringAsFixed(2)} USD)'
+                          : 'Confirmar y Pagar (Bs. ${_total.toStringAsFixed(2)})',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
@@ -692,7 +772,13 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     final sel = _paymentType == type;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _paymentType = type),
+        onTap: () {
+          if (_paypalResult != null && type != 'PAYPAL') {
+            setState(() => _error = 'Ya pagaste con PayPal; confirma la compra para registrar tu pedido.');
+            return;
+          }
+          setState(() => _paymentType = type);
+        },
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -718,51 +804,87 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5DFDC))),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _cardBrand,
-                  items: const [
-                    DropdownMenuItem(value: 'VISA', child: Text('VISA')),
-                    DropdownMenuItem(value: 'MASTERCARD', child: Text('Mastercard')),
-                  ],
-                  onChanged: (v) => setState(() => _cardBrand = v ?? 'VISA'),
-                ),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _cardBrand,
+                items: const [
+                  DropdownMenuItem(value: 'VISA', child: Text('VISA')),
+                  DropdownMenuItem(value: 'MASTERCARD', child: Text('Mastercard')),
+                  DropdownMenuItem(value: 'AMEX', child: Text('American Express')),
+                ],
+                onChanged: (v) => setState(() => _cardBrand = v ?? 'VISA'),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _cardLast4Ctrl,
-                maxLength: 4,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Últimos 4 dígitos',
-                  counterText: '',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _cardHolderCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Titular de la tarjeta', isDense: true, border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _cardNumberCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 19,
+              decoration: const InputDecoration(
+                labelText: 'Número de tarjeta',
+                counterText: '',
+                isDense: true,
+                border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _cardExpiryCtrl,
+                    keyboardType: TextInputType.datetime,
+                    maxLength: 5,
+                    decoration: const InputDecoration(labelText: 'Vence (MM/AA)', counterText: '', isDense: true, border: OutlineInputBorder()),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _cardCvvCtrl,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    decoration: const InputDecoration(labelText: 'CVV', counterText: '', isDense: true, border: OutlineInputBorder()),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       );
     }
-    if (_paymentType == 'QR') {
+    if (_paymentType == 'PAYPAL') {
+      final paid = _paypalResult;
       return Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.teal.shade200)),
-        child: const Row(
+        decoration: BoxDecoration(
+          color: paid != null ? Colors.green.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: paid != null ? Colors.green.shade300 : Colors.blue.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.qr_code_scanner, color: Colors.teal, size: 28),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Se generará un código QR interoperable avalado por la red bancaria boliviana.',
-                style: TextStyle(color: Colors.teal, fontSize: 12),
-              ),
+            Text(
+              'Total en divisa: \$${_totalUsd.toStringAsFixed(2)} USD (T.C. ${_exchangeRate.toStringAsFixed(2)} Bs/\$)',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: _ink),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              paid != null
+                  ? 'Pago autorizado por PayPal${paid.simulated ? ' (simulación)' : ''}. Ref: ${paid.gatewayReference}'
+                  : 'Al confirmar se abrirá la ventana de PayPal para que inicies sesión y apruebes el pago.',
+              style: TextStyle(fontSize: 12, color: paid != null ? Colors.green.shade800 : Colors.blue.shade900),
             ),
           ],
         ),
@@ -770,15 +892,15 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     }
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber.shade200)),
+      decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.teal.shade200)),
       child: const Row(
         children: [
-          Icon(Icons.local_shipping_outlined, color: Colors.amber, size: 28),
+          Icon(Icons.qr_code_scanner, color: Colors.teal, size: 28),
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Pagarás en efectivo al momento de recibir o retirar tu pedido.',
-              style: TextStyle(color: Colors.brown, fontSize: 12),
+              'Se generará un código QR interoperable avalado por la red bancaria boliviana.',
+              style: TextStyle(color: Colors.teal, fontSize: 12),
             ),
           ),
         ],
@@ -803,6 +925,7 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     final ord = _successOrder!;
     final numOrder = ord['order_number'] as String? ?? 'ORD-${ord['id']}';
     final inv = ord['invoice'] as Map<String, dynamic>?;
+    final payments = (ord['payments'] as List?) ?? const [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFFCFBFA),
@@ -844,6 +967,23 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                           children: [
                             const Text('Código Control', style: TextStyle(color: _muted, fontSize: 13)),
                             Text(inv['control_code'], style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                      ],
+                      if (payments.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Pago', style: TextStyle(color: _muted, fontSize: 13)),
+                            Flexible(
+                              child: Text(
+                                (payments.first['gateway_reference'] ?? payments.first['payment_type'] ?? '').toString(),
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                              ),
+                            ),
                           ],
                         ),
                       ],

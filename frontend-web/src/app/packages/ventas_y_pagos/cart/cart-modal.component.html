@@ -72,7 +72,7 @@
         <div class="d-flex flex-column gap-3 mb-3">
           <div *ngFor="let item of cart.items" class="p-2 border rounded-3 bg-light d-flex gap-3 align-items-center">
             <img [src]="item.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=100'"
-                 class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                 class="rounded border bg-white p-1" style="width: 60px; height: 60px; object-fit: contain;">
             <div class="flex-grow-1">
               <strong class="d-block small text-truncate" style="max-width: 180px;">{{ item.product_name }}</strong>
               <small class="text-muted d-block" style="font-size: 0.72rem;">{{ item.size }} &bull; {{ item.color }}</small>
@@ -148,84 +148,169 @@
         </div>
       </div>
 
-      <!-- Medio de Pago Polimórfico (CU18) -->
+      <!-- Medio de Pago Polimórfico (CU18 / Pasarela) -->
       <div class="mb-3">
-        <label class="form-label small fw-bold text-uppercase d-block mb-1">Método de Pago</label>
+        <label class="form-label small fw-bold text-uppercase d-block mb-1">Pasarela de Pago Online *</label>
         <div class="row g-1 mb-2">
-          <div class="col-6">
-            <button class="btn btn-sm w-100 border text-truncate"
+          <div class="col-4">
+            <button class="btn btn-sm w-100 border text-truncate p-2"
                     [class.btn-primary]="paymentType === 'TARJETA'"
                     [class.btn-light]="paymentType !== 'TARJETA'"
                     (click)="paymentType = 'TARJETA'">
-              <i class="bi bi-credit-card me-1"></i> Tarjeta Online
+              <i class="bi bi-credit-card d-block fs-5"></i> Tarjeta
             </button>
           </div>
-          <div class="col-6">
-            <button class="btn btn-sm w-100 border text-truncate"
+          <div class="col-4">
+            <button class="btn btn-sm w-100 border text-truncate p-2"
+                    [class.btn-primary]="paymentType === 'PAYPAL'"
+                    [class.btn-light]="paymentType !== 'PAYPAL'"
+                    (click)="paymentType = 'PAYPAL'">
+              <i class="bi bi-paypal d-block fs-5 text-primary"></i> PayPal ($ USD)
+            </button>
+          </div>
+          <div class="col-4">
+            <button class="btn btn-sm w-100 border text-truncate p-2"
                     [class.btn-primary]="paymentType === 'QR'"
                     [class.btn-light]="paymentType !== 'QR'"
                     (click)="paymentType = 'QR'">
-              <i class="bi bi-qr-code me-1"></i> Pago QR
+              <i class="bi bi-qr-code d-block fs-5"></i> QR Simple
             </button>
           </div>
         </div>
 
         <!-- Campos de Tarjeta -->
-        <div *ngIf="paymentType === 'TARJETA'" class="p-2 border rounded-3 bg-light">
+        <div *ngIf="paymentType === 'TARJETA'" class="p-3 border rounded-3 bg-light mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-bold text-dark">Datos de Tarjeta Bancaria</span>
+            <span class="badge bg-white text-dark border">VISA / MasterCard</span>
+          </div>
+          <div class="mb-2">
+            <label class="extra-small text-muted d-block">Titular de la tarjeta</label>
+            <input type="text" class="form-control form-control-sm" placeholder="Nombre completo" [(ngModel)]="cardHolder">
+          </div>
+          <div class="mb-2">
+            <label class="extra-small text-muted d-block">Número de tarjeta</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="bi bi-credit-card text-muted"></i></span>
+              <input type="text" class="form-control" placeholder="4500 0000 0000 0000" maxlength="19" [(ngModel)]="cardNumber">
+            </div>
+          </div>
           <div class="row g-2">
             <div class="col-6">
-              <select class="form-select form-select-sm" [(ngModel)]="cardBrand">
-                <option value="VISA">VISA</option>
-                <option value="MASTERCARD">MasterCard</option>
-              </select>
+              <label class="extra-small text-muted d-block">Expiración (MM/AA)</label>
+              <input type="text" class="form-control form-control-sm" placeholder="12/28" maxlength="5" [(ngModel)]="cardExpiry">
             </div>
             <div class="col-6">
-              <input type="text" class="form-control form-control-sm" placeholder="Últimos 4 dígitos" maxlength="4" [(ngModel)]="cardLast4">
+              <label class="extra-small text-muted d-block">CVV (3 dígitos)</label>
+              <input type="password" class="form-control form-control-sm" placeholder="123" maxlength="4" [(ngModel)]="cardCvv">
             </div>
           </div>
         </div>
 
-        <div *ngIf="paymentType === 'QR'" class="p-3 bg-info-subtle rounded-3 text-center small text-info-emphasis">
-          <i class="bi bi-qr-code-scan fs-3 d-block mb-1"></i>
-          Se generará el QR interoperable de la red bancaria boliviana tras confirmar la compra.
+        <!-- Pasarela PayPal -->
+        <div *ngIf="paymentType === 'PAYPAL'" class="p-3 border rounded-3 bg-light text-center mb-2">
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-2 text-primary fw-bold">
+            <i class="bi bi-paypal fs-4"></i> PayPal Checkout Internacional
+          </div>
+          <div class="small text-muted mb-1">
+            Total convertido a divisa internacional (T.C. 6.96 Bs/$):
+          </div>
+          <div class="fs-5 fw-bold text-dark mb-2">
+            ${{ cartTotalUsd | number:'1.2-2' }} USD <span class="badge bg-info-subtle text-info border">~ Bs. {{ cart?.subtotal | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Estado NO aprobado aún: botón para abrir simulador -->
+          <div *ngIf="!paypalApproved" class="mb-1">
+            <button type="button" class="btn btn-warning w-100 fw-bold py-2 shadow-sm rounded-3 d-flex align-items-center justify-content-center gap-2 text-dark"
+                    (click)="openPayPalSimulator()">
+              <i class="bi bi-paypal fs-5 text-primary"></i>
+              <span>Pagar con PayPal </span>
+            </button>
+            <div class="extra-small text-muted mt-1.5">
+              <i class="bi bi-shield-check text-success"></i> Entorno de pruebas seguro PayPal Sandbox
+            </div>
+          </div>
+
+          <!-- Estado APROBADO: badge de confirmación -->
+          <div *ngIf="paypalApproved" class="p-2.5 bg-success bg-opacity-10 border border-success rounded-3 text-start mb-1">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small fw-bold text-success d-flex align-items-center gap-1">
+                <i class="bi bi-check-circle-fill fs-5"></i> Pago Autorizado por PayPal
+              </span>
+              <button type="button" class="btn btn-sm btn-link text-muted p-0" (click)="resetPayPalPayment()" style="font-size: 11px;">
+                Reintentar
+              </button>
+            </div>
+            <div class="extra-small text-dark font-monospace mb-1">
+              <strong>Ref:</strong> {{ paypalTransactionId }}
+            </div>
+            <div class="extra-small text-muted">
+              Monto garantizado: <strong>${{ cartTotalUsd | number:'1.2-2' }} USD</strong>. Listo para generar factura.
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Simple -->
+        <div *ngIf="paymentType === 'QR'" class="p-3 bg-light border rounded-3 text-center small text-dark mb-2">
+          <div class="p-2 bg-white d-inline-block rounded-3 border mb-2">
+            <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=FASHIONSTORE-ONLINE-' + (cart?.subtotal || 0)"
+                 alt="QR de Pago" style="width: 120px; height: 120px;">
+          </div>
+          <div class="fw-bold">Escanea el QR para transferir Bs. {{ cart?.subtotal | number:'1.2-2' }}</div>
+          <div class="extra-small text-muted">Acepta cualquier app de banca móvil de Bolivia</div>
         </div>
       </div>
     </div>
 
-    <!-- PASO 3: ÉXITO Y RECIBO DIGITAL -->
+    <!-- PASO 3: ÉXITO Y RECIBO DIGITAL + FACTURACIÓN -->
     <div *ngIf="currentStep === 'SUCCESS' && completedOrder" class="flex-grow-1 overflow-auto p-4 text-center">
-      <div class="avatar bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+      <div class="avatar bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 64px; height: 64px;">
         <i class="bi bi-check-lg fs-1"></i>
       </div>
-      <h4 class="fw-bold mb-1">¡Gracias por tu compra!</h4>
-      <p class="text-muted small mb-3">Tu pedido ha sido procesado con éxito.</p>
+      <h4 class="fw-bold mb-1 text-dark">¡Compra y Factura Procesadas con Éxito!</h4>
+      <p class="text-muted small mb-3">Tu pago ha sido registrado y se ha emitido el comprobante legal correspondiente.</p>
 
-      <div class="card border rounded-3 p-3 bg-light text-start mb-3 font-monospace small">
+      <div class="card border rounded-3 p-3 bg-light text-start mb-3 font-monospace small shadow-xs">
         <div class="d-flex justify-content-between mb-1">
-          <span class="text-muted">Orden:</span>
-          <strong>{{ completedOrder.order_number }}</strong>
+          <span class="text-muted">N° de Pedido:</span>
+          <strong class="text-dark">{{ completedOrder.order_number }}</strong>
         </div>
         <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.invoice">
-          <span class="text-muted">Factura Fiscal:</span>
-          <span>{{ completedOrder.invoice.doc_type }}</span>
+          <span class="text-muted">Documento Fiscal:</span>
+          <span class="badge bg-primary">{{ completedOrder.invoice.doc_type }}</span>
         </div>
         <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.invoice?.control_code">
-          <span class="text-muted">Código Control:</span>
-          <span>{{ completedOrder.invoice?.control_code }}</span>
+          <span class="text-muted">Código de Control:</span>
+          <span class="fw-bold text-dark">{{ completedOrder.invoice?.control_code }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.invoice?.customer_nit">
+          <span class="text-muted">NIT / CI:</span>
+          <span>{{ completedOrder.invoice?.customer_nit }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1" *ngIf="completedOrder.payments && completedOrder.payments.length > 0">
+          <span class="text-muted">Pasarela / Referencia:</span>
+          <span class="badge bg-secondary text-truncate" style="max-width: 200px;">
+            {{ completedOrder.payments[0].gateway_reference || completedOrder.payments[0].payment_type }}
+          </span>
         </div>
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold fs-6">
-          <span>TOTAL:</span>
-          <span class="text-primary">Bs. {{ completedOrder.total_amount | number:'1.2-2' }}</span>
+          <span>TOTAL FACTURADO:</span>
+          <span class="text-success">Bs. {{ completedOrder.total_amount | number:'1.2-2' }}</span>
         </div>
+      </div>
+
+      <div class="alert alert-light border py-2 px-3 small rounded-3 mb-3 text-start d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0"></i>
+        <span>Los datos de facturación y el comprobante de PayPal quedan vinculados a tu pedido. En caso de solicitar un cambio o devolución, el reembolso se procesará con esta referencia.</span>
       </div>
 
       <div class="d-flex gap-2">
         <a routerLink="/tienda/pedidos" class="btn btn-outline-primary w-50 rounded-pill" (click)="closeModal()">
-          Ver Pedidos
+          Ver Mis Pedidos
         </a>
         <button class="btn btn-primary w-50 rounded-pill fw-bold" (click)="closeModal()">
-          Seguir en Tienda
+          Seguir Comprando
         </button>
       </div>
     </div>
@@ -261,5 +346,187 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL SIMULADOR PAYPAL SANDBOX EN CHECKOUT                    -->
+<!-- ============================================================= -->
+<div class="modal d-block" *ngIf="showPayPalSimulator" style="background: rgba(0,0,0,0.65); z-index: 1070;" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden bg-white">
+      
+      <!-- Cabecera Oficial PayPal -->
+      <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="background: #fdfdfd;">
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size: 22px; font-weight: 900; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -0.5px;">
+            <span style="color: #003087;">Pay</span><span style="color: #0079C1;">Pal</span>
+          </span>
+          <span class="badge bg-warning text-dark font-monospace" style="font-size: 10px; letter-spacing: 0.5px;">
+            {{ paypalSimulated ? 'SIMULACIÓN' : 'SANDBOX' }}
+          </span>
+        </div>
+        <button type="button" class="btn-close" (click)="closePayPalSimulator()" [disabled]="paypalProcessing" aria-label="Close"></button>
+      </div>
+
+      <!-- CUERPO SEGÚN EL PASO -->
+      <div class="modal-body p-4">
+        
+        <!-- PASO 1: REVISIÓN DE PAGO Y SELECCIÓN DE CUENTA -->
+        <div *ngIf="paypalSimulatorStep === 'REVIEW'">
+          <div class="alert alert-danger py-2 small mb-3" *ngIf="paypalError">
+            <i class="bi bi-x-circle me-1"></i>{{ paypalError }}
+          </div>
+          <div class="alert alert-info py-2 small mb-3" *ngIf="paypalSimulated">
+            <i class="bi bi-info-circle me-1"></i>Modo simulación de PayPal (entorno de pruebas sin credenciales sandbox). No se realiza ningún cobro real.
+          </div>
+          <div class="alert alert-success py-2 small mb-3" *ngIf="!paypalSimulated">
+            <i class="bi bi-plug-fill me-1"></i>Conectado a PayPal Sandbox. Inicia sesión con tu cuenta de comprador de prueba en la ventana de PayPal para autorizar el cobro.
+          </div>
+          <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+            <div>
+              <div class="extra-small text-muted text-uppercase fw-semibold">Pagar a</div>
+              <div class="fw-bold text-dark fs-6">FashionStore Bolivia S.R.L.</div>
+              <div class="extra-small text-muted">Compra Online ({{ cart?.items_count || 1 }} prendas)</div>
+            </div>
+            <div class="text-end">
+              <div class="fs-4 fw-bold text-dark">${{ cartTotalUsd | number:'1.2-2' }} USD</div>
+              <div class="extra-small text-muted">~ Bs. {{ cart?.subtotal | number:'1.2-2' }} (T.C. 6.96)</div>
+            </div>
+          </div>
+
+          <ng-container *ngIf="paypalSimulated">
+          <!-- Cuenta del Comprador PayPal -->
+          <div class="card border rounded-3 p-3 mb-3 bg-light">
+            <div class="d-flex align-items-center gap-2.5 mb-2">
+              <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                <i class="bi bi-person-fill fs-5"></i>
+              </div>
+              <div class="overflow-hidden">
+                <div class="fw-bold text-dark small text-truncate">{{ paypalPayerName }}</div>
+                <div class="extra-small text-muted text-truncate">{{ paypalPayerEmail }}</div>
+              </div>
+            </div>
+
+            <!-- Opciones de Débito en PayPal -->
+            <div class="list-group list-group-flush gap-1.5 mt-2">
+              <label class="list-group-item list-group-item-action d-flex align-items-center justify-content-between rounded-2 p-2 border cursor-pointer"
+                     [class.bg-white]="paypalFundingSource === 'BALANCE'"
+                     [class.border-primary]="paypalFundingSource === 'BALANCE'">
+                <div class="d-flex align-items-center gap-2">
+                  <input type="radio" name="paypalCartFunding" value="BALANCE" [(ngModel)]="paypalFundingSource" class="form-check-input mt-0">
+                  <div>
+                    <div class="small fw-semibold text-dark">Saldo de cuenta PayPal</div>
+                    <div class="extra-small text-muted">Disponible: $500.00 USD</div>
+                  </div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 10px;">Inmediato</span>
+              </label>
+
+              <label class="list-group-item list-group-item-action d-flex align-items-center justify-content-between rounded-2 p-2 border cursor-pointer"
+                     [class.bg-white]="paypalFundingSource === 'CARD'"
+                     [class.border-primary]="paypalFundingSource === 'CARD'">
+                <div class="d-flex align-items-center gap-2">
+                  <input type="radio" name="paypalCartFunding" value="CARD" [(ngModel)]="paypalFundingSource" class="form-check-input mt-0">
+                  <div class="d-flex align-items-center gap-1.5">
+                    <i class="bi bi-credit-card-2-front text-primary fs-5"></i>
+                    <div>
+                      <div class="small fw-semibold text-dark">Visa Débito •••• 4242</div>
+                      <div class="extra-small text-muted">Vence 12/28</div>
+                    </div>
+                  </div>
+                </div>
+                <span class="badge bg-light text-muted border" style="font-size: 10px;">Principal</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Botón de Pago PayPal -->
+          <div class="d-grid gap-2">
+            <button type="button" class="btn fw-bold py-2.5 rounded-pill shadow-sm text-dark d-flex align-items-center justify-content-center gap-2"
+                    style="background: #FFC439; border-color: #FFC439;"
+                    (click)="executePayPalSimulation()">
+              <i class="bi bi-paypal text-primary fs-5"></i>
+              <span>Pagar Ahora (${{ cartTotalUsd | number:'1.2-2' }} USD)</span>
+            </button>
+            <button type="button" class="btn btn-link text-muted extra-small" (click)="closePayPalSimulator()">
+              Cancelar y volver al Checkout
+            </button>
+          </div>
+          </ng-container>
+
+          <!-- Botones oficiales de PayPal (conexión real con la API sandbox/live) -->
+          <div *ngIf="!paypalSimulated">
+            <div *ngIf="paypalButtonsLoading" class="text-center text-muted small py-3">
+              <span class="spinner-border spinner-border-sm me-1"></span> Cargando PayPal...
+            </div>
+            <div id="paypal-buttons-cart" style="min-height: 48px;"></div>
+            <div class="text-center">
+              <button type="button" class="btn btn-link text-muted extra-small" (click)="closePayPalSimulator()">
+                Cancelar y volver
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2: PROCESANDO AUTORIZACIÓN BANCARIA -->
+        <div *ngIf="paypalSimulatorStep === 'PROCESSING'" class="text-center py-4">
+          <div class="spinner-border text-primary mb-3" style="width: 3.5rem; height: 3.5rem;" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <h5 class="fw-bold text-dark mb-1">Autorizando Pago en PayPal...</h5>
+          <p class="small text-muted mb-0">Conectando con el servidor seguro de PayPal Sandbox y procesando cobro.</p>
+        </div>
+
+        <!-- PASO 3: ÉXITO Y RECIBO DE CONFIRMACIÓN -->
+        <div *ngIf="paypalSimulatorStep === 'SUCCESS'" class="text-center py-2">
+          <div class="text-success mb-3">
+            <i class="bi bi-check-circle-fill display-3"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-1">¡Pago de PayPal Procesado con Éxito!</h5>
+          <p class="small text-muted mb-3">La transacción ha sido capturada y confirmada por la pasarela de PayPal.</p>
+
+          <!-- Comprobante Digital PayPal -->
+          <div class="bg-light p-3 rounded-3 border text-start mb-3 font-monospace" style="font-size: 12px;">
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">ID Transacción:</span>
+              <span class="fw-bold text-dark">{{ paypalTransactionId }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Estado:</span>
+              <span class="badge bg-success text-white">COMPLETED</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Monto Pagado:</span>
+              <span class="fw-bold text-primary">${{ cartTotalUsd | number:'1.2-2' }} USD (Bs. {{ cart?.subtotal | number:'1.2-2' }})</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Comprador:</span>
+              <span class="text-dark">{{ paypalPayerEmail }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1">
+              <span class="text-muted">Fecha y Hora:</span>
+              <span class="text-dark">{{ paypalAuthTime }}</span>
+            </div>
+          </div>
+
+          <div class="alert alert-info py-2 px-3 small rounded-3 mb-3 text-start d-flex align-items-center gap-2">
+            <i class="bi bi-bell-fill text-info fs-5 flex-shrink-0"></i>
+            <span>Confirmación completada. Haz clic a continuación para generar tu factura fiscal y registrar tu pedido.</span>
+          </div>
+
+          <button type="button" class="btn btn-primary w-100 fw-bold py-2.5 rounded-pill shadow-sm" (click)="closePayPalSimulator(); submitOrder()">
+            Continuar y Generar Factura
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Pie de página PayPal Sandbox -->
+      <div class="p-2.5 border-top bg-light text-center extra-small text-muted d-flex align-items-center justify-content-center gap-1.5">
+        <i class="bi bi-shield-lock-fill text-muted"></i>
+        <span>Protección al Comprador de PayPal · {{ paypalSimulated ? 'Modo simulación (sin cobro)' : 'Conectado a PayPal Sandbox' }}</span>
+      </div>
+    </div>
   </div>
 </div>

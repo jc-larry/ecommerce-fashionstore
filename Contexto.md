@@ -179,12 +179,14 @@ Centraliza la información de las prendas disponibles en la tienda, sustituyendo
 * Filtrado por temporada, en línea con la dinámica estacional descrita en clase.
 * **Canal:** el catálogo del cliente funciona por **igual en web (Angular) y en móvil (Flutter)**.
 
-#### 1.4.3 Módulo de Vestidor Virtual con Realidad Aumentada
-Permite previsualizar una o varias prendas del catálogo sobre la imagen de la persona usuaria antes de decidir una compra directa o una visita física a la tienda.
-* Superposición de la prenda seleccionada sobre la imagen captada por la cámara del dispositivo móvil.
-* Comparación entre variantes de color o modelo de una misma prenda.
-* Acceso directo desde la ficha de producto del catálogo.
-* Registro de las prendas probadas virtualmente durante la sesión.
+#### 1.4.3 Módulo de Vestidor Virtual con Realidad Aumentada & IA Generativa (CU32)
+Permite previsualizar una o varias prendas del catálogo sobre la imagen o silueta de la persona usuaria antes de decidir una compra directa o una visita física a la tienda, con una experiencia **100% visual (sin menús ciegos de texto)**.
+* **Selección Visual Directa:** Acceso desde el catálogo con un solo tap en la tarjeta de la prenda (`✨ Probar`), pre-cargando la fotografía en alta resolución sobre un fondo blanco de estudio.
+* **Rack de Ropa Táctil (Carrusel de Fotos):** Tira horizontal interactiva con miniaturas fotográficas y precios reales para alternar prendas al instante.
+* **Selector Modal de Catálogo Completo:** Galería emergente con buscador y filtros por categoría para explorar toda la colección viendo fotos y precios.
+* **Probador Visual & Asesor Biométrico:** Superposición de la prenda seleccionada sobre la silueta/maniquí o fotografía del cliente con calibración de escala/altura, y cálculo antropométrico de talla ideal (`XS` a `XXL`) con porcentaje de precisión.
+* **Conversión Directa Omnicanal (O2O):** Adición directa al carrito en la talla calculada (`CU17`) o agendamiento de cita en probador físico (`CU26`).
+* **Registro de Sesión y Trazabilidad:** Persistencia en `virtual_tryon_sessions` y `virtual_tryon_items` de todas las prendas evaluadas.
 
 #### 1.4.4 Módulo de Carrito de Compras, Medios de Pago y Facturación
 Reúne las prendas seleccionadas para compra directa y gestiona su cobro. La tienda opera de
@@ -193,17 +195,17 @@ por lo que el cobro es **agnóstico al canal**: cualquier transacción confirmad
 en caja— se registra de manera unificada.
 * Adición, eliminación y modificación de cantidades de prendas en el carrito; bloqueo automático de ítems con existencia cero.
 * Cálculo automático del subtotal y el total de la compra.
-* **Medios de pago modelados por herencia (generalización):** `MedioDePago` ⭅ Efectivo, Tarjeta, QR y Crédito. El QR es el medio más usado en el contexto boliviano y solo opera de forma local.
-* Pasarela electrónica (Stripe / QR) para la compra remota y Punto de Venta (POS) para el pago presencial en caja.
+* **Medios de pago modelados por herencia (generalización):** `MedioDePago` ⭅ Efectivo, Tarjeta, QR, Crédito y PayPal. El QR es el medio más usado en el contexto boliviano.
+* Pasarela electrónica (PayPal WebView / Tarjeta / QR) para la compra remota y Punto de Venta (POS) para el pago presencial en caja.
 * **Comprobante fiscal:** emisión de **Factura** (con IVA 13 % y código de control) o **Nota de Entrega**, modeladas como `Comprobante` ⭅ Factura / NotaDeEntrega.
 * Actualización del estado del pedido tras la confirmación del pago.
 
-#### 1.4.5 Módulo de Reservas para Prueba en Tienda Física
-Habilita a la persona usuaria a seleccionar con anticipación un conjunto de prendas y agendar un horario de visita a la tienda física, de modo que la mercadería esté disponible a su llegada y se reduzca el tiempo de búsqueda.
-* Selección de prendas, tallas y colores a reservar.
-* Agenda de fecha y horario de visita.
-* Panel de reservas pendientes para el personal de la tienda.
-* Confirmación de compra posterior a la prueba física, mediante el módulo de pago.
+#### 1.4.5 Módulo de Reservas para Prueba en Tienda Física (CU26 / CU27 / CU28)
+Habilita a la persona usuaria a seleccionar con anticipación un conjunto de prendas (hasta 5 prendas) y agendar un horario de visita a la tienda física, de modo que la mercadería esté disponible a su llegada y se reduzca el tiempo de búsqueda.
+* **Filtro Escalonado de Disponibilidad:** Tras seleccionar prenda, talla y color, el sistema presenta exclusivamente las sucursales donde la prenda tiene existencias físicas (`stock > 0`) y probador habilitado (`has_fitting_room = true`).
+* **Cobro de Seña del 50%:** Abono previo del 50% del valor de las prendas para confirmar el apartado, descontándose el restante en la caja POS al retirar.
+* **Bloqueo Temporal de Stock (48 Horas):** Descuento preventivo del inventario libre (`inv.stock_actual -= qty`) con registro auditable en `inventory_ledger` tipo `RESERVA`.
+* **Tablero Kanban Administrativo:** Panel en sucursal física para recepcionar al cliente, gestionar estados (`PENDIENTE`, `CONFIRMADA`, `COMPLETADA`, `CANCELADA`) y convertir a venta POS (`CU25`).
 
 #### 1.4.6 Módulo de Gestión de Inventario y Proveedores
 Mantiene actualizado el registro de existencias por prenda, talla, color y sucursal, alimentándose de las compras registradas a los proveedores y de los movimientos de venta y reserva.

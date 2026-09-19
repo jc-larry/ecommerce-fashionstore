@@ -1,0 +1,266 @@
+<div class="admin-page">
+  <!-- Encabezado del repartidor (mismo estilo de tarjetas del panel) -->
+  <div class="card border-0 text-white mb-4 shadow-sm" style="background: linear-gradient(135deg, #C66F5C 0%, #A95848 100%);">
+    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle bg-white bg-opacity-25 d-flex align-items-center justify-content-center" style="width: 56px; height: 56px;">
+          <i class="bi bi-bicycle fs-3 text-white"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1 text-white">¡Hola, {{ driverName }}!</h4>
+          <small class="text-white-50" *ngIf="profile">
+            {{ profile.vehicle_type }}<span *ngIf="profile.vehicle_plate"> · {{ profile.vehicle_plate }}</span>
+            <span *ngIf="profile.coverage_zone"> · Zona {{ profile.coverage_zone }}</span>
+          </small>
+        </div>
+      </div>
+      <button *ngIf="profile" class="btn btn-sm fw-bold px-3 rounded-pill"
+              [ngClass]="profile.is_available ? 'btn-light text-success' : 'btn-outline-light'"
+              (click)="toggleAvailability()" title="Cambiar disponibilidad">
+        <i class="bi" [ngClass]="profile.is_available ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+        {{ profile.is_available ? 'Disponible para pedidos' : 'No disponible' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card h-100"><div class="card-body p-4">
+        <p class="text-muted small fw-semibold mb-2">Entregas hoy</p>
+        <h3 class="fw-bold mb-0">{{ deliveredToday.length }}</h3>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card h-100"><div class="card-body p-4">
+        <p class="text-muted small fw-semibold mb-2">Fletes entregados hoy</p>
+        <h3 class="fw-bold mb-0" style="color:#A95848;">Bs. {{ freightToday | number:'1.2-2' }}</h3>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card h-100"><div class="card-body p-4">
+        <p class="text-muted small fw-semibold mb-2">Tiempo promedio de entrega</p>
+        <h3 class="fw-bold mb-0">{{ formatDuration(averageDeliveryMinutes) }}</h3>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card h-100"><div class="card-body p-4">
+        <p class="text-muted small fw-semibold mb-2">Entregas totales</p>
+        <h3 class="fw-bold mb-0">{{ profile?.total_deliveries ?? history.length }}</h3>
+      </div></div>
+    </div>
+  </div>
+
+  <div *ngIf="profileMissing" class="alert alert-warning rounded-3">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    Tu usuario no tiene un perfil de repartidor activo. Casa Matriz debe registrar tu vehículo y zona para que puedas tomar pedidos.
+  </div>
+  <div *ngIf="successMsg" class="alert alert-success alert-dismissible rounded-3">
+    <i class="bi bi-check-circle me-1"></i> {{ successMsg }}
+    <button type="button" class="btn-close" (click)="successMsg = ''"></button>
+  </div>
+  <div *ngIf="errorMsg" class="alert alert-danger alert-dismissible rounded-3">
+    <i class="bi bi-exclamation-triangle me-1"></i> {{ errorMsg }}
+    <button type="button" class="btn-close" (click)="errorMsg = ''"></button>
+  </div>
+
+  <div class="row g-4">
+    <!-- LISTA -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 p-3 pb-2">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0"><i class="bi bi-box-seam me-2" style="color:#C66F5C;"></i>{{ activeTab === 'activos' ? 'Mis entregas en curso' : activeTab === 'disponibles' ? 'Pedidos disponibles' : 'Historial de envíos' }}</h6>
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" (click)="loadAll()" title="Actualizar">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          <div class="btn-group btn-group-sm w-100">
+            <button class="btn" [ngClass]="activeTab === 'activos' ? 'btn-primary' : 'btn-light border'" (click)="setTab('activos')">Mis entregas ({{ active.length }})</button>
+            <button class="btn" [ngClass]="activeTab === 'disponibles' ? 'btn-primary' : 'btn-light border'" (click)="setTab('disponibles')">Disponibles ({{ available.length }})</button>
+            <button class="btn" [ngClass]="activeTab === 'historial' ? 'btn-primary' : 'btn-light border'" (click)="setTab('historial')">Historial ({{ history.length }})</button>
+          </div>
+        </div>
+
+        <div class="card-body p-2 overflow-auto" style="max-height: 600px;">
+          <div *ngIf="loading" class="text-center py-5 text-muted">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando…
+          </div>
+          <div *ngIf="!loading && currentList.length === 0" class="text-center py-5 text-muted small">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            <span *ngIf="activeTab === 'activos'">No tienes entregas en curso. Toma un pedido de la pestaña Disponibles.</span>
+            <span *ngIf="activeTab === 'disponibles'">No hay pedidos esperando repartidor.</span>
+            <span *ngIf="activeTab === 'historial'">Aún no registraste entregas.</span>
+          </div>
+
+          <div *ngFor="let s of currentList"
+               class="p-3 mb-2 rounded-3 border"
+               style="cursor: pointer;"
+               [style.border-color]="selected?.id === s.id ? '#C66F5C' : ''"
+               [style.background-color]="selected?.id === s.id ? '#FDF3F0' : '#fff'"
+               (click)="select(s)">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="font-monospace fw-bold small">{{ s.tracking_number }}</span>
+              <span class="badge rounded-pill"
+                    [ngClass]="{
+                      'bg-success': s.status === 'DELIVERED',
+                      'bg-danger': s.status === 'FAILED_ATTEMPT' || s.status === 'RETURNED_TO_STORE',
+                      'bg-warning text-dark': s.status === 'ASSIGNED' || s.status === 'RESCHEDULED' || s.status === 'PENDING_DISPATCH',
+                      'bg-info text-dark': s.status === 'PICKED_UP' || s.status === 'IN_TRANSIT' || s.status === 'OUT_FOR_DELIVERY'
+                    }">{{ statusLabels[s.status] || s.status }}</span>
+            </div>
+            <div class="fw-bold">{{ s.recipient_name }}</div>
+            <div class="small text-muted text-truncate"><i class="bi bi-geo-alt"></i> {{ s.delivery_address }}</div>
+            <div class="d-flex justify-content-between small mt-1">
+              <span class="text-muted"><i class="bi bi-shop"></i> {{ s.origin_branch_name || '—' }}</span>
+              <span *ngIf="activeTab !== 'historial'">Flete Bs. {{ s.shipping_cost | number:'1.2-2' }}</span>
+              <span *ngIf="activeTab === 'historial'">{{ s.delivered_at ? (s.delivered_at | date:'dd/MM HH:mm') : (s.updated_at | date:'dd/MM HH:mm') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETALLE -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 h-100" *ngIf="!selected">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center text-muted py-5">
+          <i class="bi bi-hand-index fs-1 mb-2"></i>
+          Selecciona un pedido para ver el detalle.
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4" *ngIf="selected">
+        <div class="card-body p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+              <h5 class="fw-bold mb-0">{{ selected.tracking_number }} <small class="text-muted fw-normal">· Pedido #{{ selected.order_id }}</small></h5>
+              <span class="small text-muted">{{ statusLabels[selected.status] || selected.status }}</span>
+            </div>
+            <button class="btn btn-sm btn-outline-success rounded-pill" (click)="openGoogleMaps()">
+              <i class="bi bi-cursor-fill"></i> Navegar al destino
+            </button>
+          </div>
+
+          <div class="row g-3 small mb-3">
+            <div class="col-md-6">
+              <div class="p-3 rounded-3 bg-light h-100">
+                <div class="text-muted">Recoger en</div>
+                <div class="fw-bold"><i class="bi bi-shop" style="color:#C66F5C;"></i> {{ selected.origin_branch_name || '—' }}</div>
+                <div>{{ selected.origin_branch_address }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-3 rounded-3 bg-light h-100">
+                <div class="text-muted">Entregar a</div>
+                <div class="fw-bold">{{ selected.recipient_name }}</div>
+                <div>{{ selected.delivery_address }}</div>
+                <a [href]="'tel:' + selected.recipient_phone"><i class="bi bi-telephone"></i> {{ selected.recipient_phone }}</a>
+              </div>
+            </div>
+          </div>
+
+          <div id="driver-map" class="rounded-3 mb-3" style="height: 220px;"
+               [hidden]="selected.origin_latitude == null || selected.origin_longitude == null"></div>
+
+          <!-- Tiempos del envío -->
+          <div class="d-flex flex-wrap gap-3 small mb-3">
+            <span><i class="bi bi-clock"></i> Creado: {{ selected.created_at | date:'dd/MM HH:mm' }}</span>
+            <span *ngIf="selected.claimed_at"><i class="bi bi-person-check"></i> Tomado: {{ selected.claimed_at | date:'dd/MM HH:mm' }}</span>
+            <span *ngIf="selected.dispatched_at"><i class="bi bi-box-arrow-up"></i> Recogido: {{ selected.dispatched_at | date:'dd/MM HH:mm' }}</span>
+            <span *ngIf="selected.delivered_at"><i class="bi bi-check2-circle"></i> Entregado: {{ selected.delivered_at | date:'dd/MM HH:mm' }}</span>
+            <span *ngIf="durationMinutes(selected) !== null" class="fw-bold">Duración: {{ formatDuration(durationMinutes(selected)) }}</span>
+            <span *ngIf="selected.delivery_attempts">Intentos fallidos: {{ selected.delivery_attempts }}</span>
+          </div>
+
+          <!-- Evidencia registrada -->
+          <div class="p-3 rounded-3 border mb-3 d-flex gap-3 align-items-center" *ngIf="selected.delivery_photo_url">
+            <img [src]="selected.delivery_photo_url" alt="Evidencia de entrega" class="rounded" style="width: 96px; height: 96px; object-fit: cover; cursor: zoom-in;"
+                 (click)="photoPreview = selected.delivery_photo_url || null">
+            <div class="small">
+              <div class="fw-bold text-success"><i class="bi bi-camera-fill"></i> Evidencia de entrega</div>
+              <div>Recibió: <strong>{{ selected.received_by_name }}</strong></div>
+              <div class="text-muted">{{ selected.delivered_at | date:'dd/MM/yyyy HH:mm' }}</div>
+            </div>
+          </div>
+
+          <!-- Acciones según estado -->
+          <div class="d-flex flex-wrap gap-2 mb-3" *ngIf="!showEvidenceForm">
+            <button *ngIf="selected.status === 'PENDING_DISPATCH' || (activeTab === 'disponibles' && selected.status === 'RESCHEDULED')"
+                    class="btn btn-primary fw-bold" [disabled]="processing || !profile?.is_available" (click)="claim(selected)">
+              <i class="bi bi-hand-thumbs-up"></i> Tomar pedido
+            </button>
+            <small *ngIf="activeTab === 'disponibles' && profile && !profile.is_available" class="text-muted align-self-center">Activa tu disponibilidad para tomar pedidos.</small>
+
+            <ng-container *ngIf="activeTab === 'activos'">
+              <button *ngIf="selected.status === 'ASSIGNED'" class="btn btn-primary fw-bold" [disabled]="processing" (click)="advance('PICKED_UP')">
+                <i class="bi bi-box-arrow-up"></i> Recogí el pedido
+              </button>
+              <button *ngIf="['PICKED_UP', 'FAILED_ATTEMPT', 'RESCHEDULED'].includes(selected.status)" class="btn btn-primary fw-bold" [disabled]="processing" (click)="advance('IN_TRANSIT')">
+                <i class="bi bi-signpost-2"></i> Salir en camino
+              </button>
+              <button *ngIf="selected.status === 'IN_TRANSIT'" class="btn btn-outline-primary fw-bold" [disabled]="processing" (click)="advance('OUT_FOR_DELIVERY')">
+                <i class="bi bi-geo"></i> Estoy llegando
+              </button>
+              <button *ngIf="canConfirmDelivery(selected)" class="btn btn-success fw-bold" [disabled]="processing" (click)="openEvidenceForm()">
+                <i class="bi bi-camera"></i> Confirmar entrega con foto
+              </button>
+              <button *ngIf="canConfirmDelivery(selected)" class="btn btn-outline-danger" [disabled]="processing" (click)="reportFailed()">
+                <i class="bi bi-x-octagon"></i> Intento fallido
+              </button>
+              <button *ngIf="selected.status === 'ASSIGNED'" class="btn btn-outline-secondary" [disabled]="processing" (click)="release()">
+                Liberar pedido
+              </button>
+            </ng-container>
+          </div>
+
+          <!-- Formulario de evidencia -->
+          <div class="p-3 rounded-3 mb-3" style="background:#F0FDF4; border:1px solid #BBF7D0;" *ngIf="showEvidenceForm">
+            <h6 class="fw-bold"><i class="bi bi-camera"></i> Evidencia de entrega</h6>
+            <p class="small text-muted mb-2">Toma una foto del paquete entregado (o junto a quien lo recibe). Queda como respaldo si el cliente reclama que no le llegó.</p>
+            <label class="btn btn-outline-success btn-sm mb-2">
+              <i class="bi bi-camera-fill"></i> {{ evidencePhoto ? 'Tomar otra foto' : 'Tomar foto' }}
+              <input type="file" accept="image/*" capture="environment" hidden (change)="onEvidenceFile($event)">
+            </label>
+            <div *ngIf="compressingPhoto" class="small text-muted"><span class="spinner-border spinner-border-sm"></span> Procesando foto…</div>
+            <div *ngIf="evidencePhoto" class="mb-2">
+              <img [src]="evidencePhoto" alt="Vista previa" class="rounded border" style="max-height: 200px; max-width: 100%;">
+            </div>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">¿Quién recibió? *</label>
+                <input class="form-control form-control-sm" [(ngModel)]="evidenceReceivedBy">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Observación</label>
+                <input class="form-control form-control-sm" [(ngModel)]="evidenceNotes" placeholder="Ej. dejado con portería">
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn btn-success fw-bold" [disabled]="processing || !evidencePhoto || compressingPhoto" (click)="confirmDelivery()">
+                <i class="bi bi-check2-circle"></i> Confirmar entrega
+              </button>
+              <button class="btn btn-light border" (click)="showEvidenceForm = false">Cancelar</button>
+            </div>
+          </div>
+
+          <!-- Línea de tiempo -->
+          <h6 class="fw-bold small text-uppercase text-muted">Historial del envío</h6>
+          <div class="border-start ps-3">
+            <div *ngFor="let ev of selected.events" class="mb-2 small">
+              <div class="fw-bold">{{ statusLabels[ev.status] || ev.status }} <span class="text-muted fw-normal">· {{ ev.created_at | date:'dd/MM HH:mm' }}</span></div>
+              <div>{{ ev.description }}</div>
+              <div class="text-muted">{{ ev.location }}</div>
+              <img *ngIf="ev.photo_url" [src]="ev.photo_url" alt="Evidencia" class="rounded mt-1" style="height: 60px; cursor: zoom-in;" (click)="photoPreview = ev.photo_url || null">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Visor de foto de evidencia -->
+<div *ngIf="photoPreview" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+     style="background: rgba(0,0,0,0.8); z-index: 2000;" (click)="photoPreview = null">
+  <img [src]="photoPreview" alt="Evidencia de entrega" style="max-width: 92vw; max-height: 88vh;" class="rounded shadow">
+</div>

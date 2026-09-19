@@ -7,24 +7,29 @@ from sqlalchemy.orm import Session, selectinload
 from app.db.session import get_db
 
 from app.packages.ventas_y_pagos.models import (
-    Order, OrderItem, Payment, EfectivoPayment, TarjetaPayment, QRPayment, CreditoPayment,
+    Order, OrderItem, Payment, EfectivoPayment, TarjetaPayment, QRPayment, PayPalPayment, CreditoPayment,
     Invoice, Cart, CartItem, CashShift, Quotation, QuotationItem, OrderReturn, OrderReturnItem,
 )
 from app.packages.ventas_y_pagos.schemas import (
     CartItemAdd, CartItemUpdate, CartItemResponse, CartResponse,
     CheckoutRequest, OrderResponse, OrderItemResponse, PaymentResponse, InvoiceResponse,
-    CashShiftOpen, CashShiftClose, CashShiftResponse,
+    CashShiftOpen, CashShiftClose, CashShiftResponse, BranchOrderFulfillmentUpdate,
     QuotationCreate, QuotationResponse, QuotationConvertRequest,
-    OrderReturnCreate, OrderReturnResponse,
+    OrderReturnCreate, OrderReturnResponse, CustomerReturnResponse, CustomerReturnItemResponse,
 )
 from app.packages.catalogo_y_tiendas.branches.models import Branch
 from app.packages.catalogo_y_tiendas.models import Product, ProductVariant, Color, Size, Coupon
 from app.packages.inventario_y_proveedores.merchandise.models import Inventory, InventoryLedger
+from app.packages.reservas_y_citas.models import Reservation
 from app.packages.seguridad_y_usuarios import User, RoleChecker, log_event, get_current_user, get_branch_scope, BranchScope
+from app.packages.ventas_y_pagos.paypal_service import paypal_service
+from app.packages.notificaciones.service import notificar, TIPO_PEDIDO
 
 router = APIRouter(prefix="/api/v1/sales", tags=["sales"])
 
 staff_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO", "CAJERO"])
+# Cotizaciones, conversión y devoluciones son decisiones del encargado de sucursal (no del cajero).
+manager_check = RoleChecker(allowed_roles=["SUPERADMIN", "ENCARGADO"])
 
 
 # ===================================================================
@@ -244,7 +249,10 @@ def _build_order_response(db: Session, order: Order) -> OrderResponse:
             cash_change=float(p.cash_change) if p.cash_change is not None else None,
             card_brand=p.card_brand,
             card_last4=p.card_last4,
+            gateway_reference=p.gateway_reference,
             qr_reference=p.qr_reference,
+            paypal_payer_id=p.paypal_payer_id,
+            paypal_payer_email=p.paypal_payer_email,
         )
         for p in order.payments
     ]
@@ -454,6 +462,20 @@ def process_checkout(
             status="CONFIRMADO",
             qr_reference=qr_ref,
         )
+    elif p_type == "PAYPAL":
+        if not data.paypal_payment:
+            raise HTTPException(status_code=400, detail="Faltan los datos de la transacción de PayPal.")
+        # Verificación lado servidor: el pedido solo se registra si PayPal confirma el cobro.
+        paypal_service.verify_completed_order(data.paypal_payment.paypal_order_id, float(total_amount))
+        paypal_ref = f"PAYPAL:{data.paypal_payment.paypal_order_id}"
+        payment = PayPalPayment(
+            order_id=order.id,
+            amount=total_amount,
+            status="CONFIRMADO",
+            gateway_reference=paypal_ref,
+            paypal_payer_id=data.paypal_payment.paypal_payer_id,
+            paypal_payer_email=data.paypal_payment.paypal_payer_email,
+        )
     elif p_type == "CREDITO":
         due_date = data.credit_payment.credit_due_date if data.credit_payment else (date.today() + timedelta(days=30))
         payment = CreditoPayment(
@@ -487,11 +509,17 @@ def process_checkout(
     )
     db.add(invoice)
 
-    # 8. Si era venta ONLINE, vaciar el carrito
+    # 8. Si era venta ONLINE, vaciar el carrito y avisar al cliente (CU40)
     if data.channel == "ONLINE":
         cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
         if cart:
             db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
+        notificar(
+            db, current_user.id,
+            f"Compra confirmada {_numero_orden(order)}",
+            f"Recibimos tu pago de Bs. {total_amount:.2f} ({p_type}). Tu pedido se preparará en {branch.name}.",
+            TIPO_PEDIDO, order.id, "ORDER",
+        )
 
     db.commit()
     db.refresh(order)
@@ -555,6 +583,132 @@ def list_orders(
     return [_build_order_response(db, o) for o in orders]
 
 
+def _numero_orden(order: Order) -> str:
+    """Número visible del pedido (mismo formato que OrderResponse.order_number)."""
+    anio = order.created_at.year if order.created_at else datetime.now().year
+    return f"ORD-{anio}-{order.id:06d}"
+
+
+# Mensajes al cliente por cada cambio de estado del alistado (CU40).
+AVISOS_ALISTADO = {
+    "PREPARANDO": ("Estamos preparando tu pedido", "La sucursal {sucursal} está alistando tu pedido {numero}."),
+    "LISTO_PARA_ENTREGA": ("Tu pedido está listo", "Tu pedido {numero} ya está listo para entrega o retiro en {sucursal}."),
+    "ENTREGADO": ("Pedido entregado", "Tu pedido {numero} fue entregado. ¡Gracias por comprar en FashionStore!"),
+    "CANCELADO": ("Pedido cancelado", "Tu pedido {numero} fue cancelado por la sucursal {sucursal}."),
+}
+
+
+# Flujo de alistado de un pedido online en la sucursal.
+FULFILLMENT_TRANSITIONS = {
+    "PENDIENTE": {"PREPARANDO", "CANCELADO"},
+    "PAGADA": {"PREPARANDO", "CANCELADO"},
+    "PREPARANDO": {"LISTO_PARA_ENTREGA", "CANCELADO"},
+    "LISTO_PARA_ENTREGA": {"ENTREGADO"},
+}
+
+
+@router.get("/orders-fulfillment", response_model=List[OrderResponse])
+def list_branch_fulfillment_orders(
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
+):
+    """Pedidos online (retiro en tienda o delivery) de la sucursal del cajero para alistar y entregar.
+
+    El stock de estos pedidos ya se descontó de la sucursal elegida al pagar.
+    """
+    query = db.query(Order).filter(Order.channel == "ONLINE")
+    if not scope.is_central:
+        query = query.filter(Order.branch_id == scope.branch_id)
+
+    if status_filter:
+        query = query.filter(Order.status == status_filter.upper())
+    else:
+        # Por defecto muestra pedidos que el cajero debe alistar o despachar
+        query = query.filter(Order.status.in_(["PAGADA", "PREPARANDO", "LISTO_PARA_ENTREGA", "PENDIENTE"]))
+
+    orders = query.order_by(Order.created_at.desc()).all()
+    return [_build_order_response(db, o) for o in orders]
+
+
+@router.patch("/orders/{order_id}/fulfillment", response_model=OrderResponse)
+def update_order_fulfillment(
+    order_id: int,
+    data: BranchOrderFulfillmentUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(staff_check),
+    scope: BranchScope = Depends(get_branch_scope),
+):
+    """Permite al cajero / encargado alistar y marcar como despachado/entregado un pedido de su sucursal."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+    if not scope.is_central and order.branch_id != scope.branch_id:
+        raise HTTPException(status_code=403, detail="No puedes gestionar pedidos de otra sucursal.")
+
+    if order.channel != "ONLINE":
+        raise HTTPException(status_code=400, detail="Solo los pedidos online se alistan desde esta bandeja.")
+
+    new_status = data.status.upper()
+    allowed = FULFILLMENT_TRANSITIONS.get(order.status, set())
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede pasar el pedido de {order.status} a {new_status}.",
+        )
+
+    # El pedido queda en la caja del cajero que lo atiende, para que cuadre en su arqueo.
+    if order.cash_shift_id is None and new_status != "CANCELADO":
+        shift = db.query(CashShift).filter(
+            CashShift.cashier_id == current_user.id,
+            CashShift.status == "ABIERTO",
+            CashShift.branch_id == order.branch_id,
+        ).first()
+        if not shift:
+            raise HTTPException(status_code=400, detail="Abre tu caja en esta sucursal antes de atender pedidos.")
+        order.cash_shift_id = shift.id
+
+    if new_status == "CANCELADO":
+        # Devolver al stock de la sucursal las prendas del pedido cancelado.
+        for item in order.items:
+            inv = db.query(Inventory).filter(
+                Inventory.branch_id == order.branch_id,
+                Inventory.variant_id == item.variant_id,
+            ).with_for_update().first()
+            if inv:
+                inv.stock_actual += item.quantity
+                db.add(InventoryLedger(
+                    branch_id=order.branch_id,
+                    variant_id=item.variant_id,
+                    quantity=item.quantity,
+                    movement_type="DEVOLUCION",
+                    unit_cost=float(inv.avg_cost or 0),
+                    reference_id=f"CANCEL-ORD-{order.id}",
+                ))
+
+    old_status = order.status
+    order.status = new_status
+    if new_status in AVISOS_ALISTADO:
+        titulo, plantilla = AVISOS_ALISTADO[new_status]
+        sucursal = db.query(Branch).filter(Branch.id == order.branch_id).first()
+        notificar(
+            db, order.user_id, titulo,
+            plantilla.format(numero=_numero_orden(order), sucursal=sucursal.name if sucursal else "la sucursal"),
+            TIPO_PEDIDO, order.id, "ORDER",
+        )
+    db.commit()
+    db.refresh(order)
+
+    log_event(
+        db, current_user.id, "UPDATE", "orders", order.id,
+        {"from_status": old_status, "to_status": new_status, "notes": data.notes},
+        request.client.host
+    )
+    return _build_order_response(db, order)
+
+
 # ===================================================================
 # CU23 — Arqueo de Caja (Apertura y Cierre de Turno)
 # ===================================================================
@@ -563,13 +717,32 @@ def _build_cash_shift_response(db: Session, shift: CashShift) -> CashShiftRespon
     cashier = db.query(User).filter(User.id == shift.cashier_id).first()
     branch = db.query(Branch).filter(Branch.id == shift.branch_id).first()
 
-    # Ventas en efectivo durante el turno
+    # Ventas y cobros asentados durante el turno
     orders_in_shift = db.query(Order).filter(Order.cash_shift_id == shift.id).all()
     cash_total = 0.0
+    card_total = 0.0
+    qr_total = 0.0
+    reservation_total = 0.0
+    delivery_total = 0.0
+    presencial_total = 0.0
+
     for ord in orders_in_shift:
         for p in ord.payments:
+            amt = float(p.amount)
             if p.payment_type == "EFECTIVO":
-                cash_total += float(p.amount)
+                cash_total += amt
+            elif p.payment_type == "TARJETA":
+                card_total += amt
+            elif p.payment_type in ("QR", "QR_PAGO"):
+                qr_total += amt
+
+        is_res = db.query(Reservation).filter(Reservation.completed_sale_id == ord.id).first() is not None
+        if is_res:
+            reservation_total += float(ord.total_amount)
+        elif ord.channel in ("DELIVERY", "ONLINE"):
+            delivery_total += float(ord.total_amount)
+        else:
+            presencial_total += float(ord.total_amount)
 
     return CashShiftResponse(
         id=shift.id,
@@ -587,6 +760,11 @@ def _build_cash_shift_response(db: Session, shift: CashShift) -> CashShiftRespon
         notes=shift.notes,
         total_sales_count=len(orders_in_shift),
         total_cash_sales=round(cash_total, 2),
+        total_card_sales=round(card_total, 2),
+        total_qr_sales=round(qr_total, 2),
+        total_reservation_sales=round(reservation_total, 2),
+        total_delivery_sales=round(delivery_total, 2),
+        total_presencial_sales=round(presencial_total, 2),
     )
 
 
@@ -729,7 +907,7 @@ def create_quotation(
     data: QuotationCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(staff_check),
+    current_user: User = Depends(manager_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU21] Genera una cotización comercial con período de validez."""
@@ -886,7 +1064,7 @@ def convert_quotation_to_order(
     data: QuotationConvertRequest,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(staff_check),
+    current_user: User = Depends(manager_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU21 -> CU18/CU20] Convierte una cotización vigente en venta formal con emisión de factura."""
@@ -945,12 +1123,71 @@ def convert_quotation_to_order(
 # CU22 — Devoluciones y Cambios de Prendas
 # ===================================================================
 
+@router.get("/returns/my", response_model=List[CustomerReturnResponse])
+def get_my_returns(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """[CU22 / CU24] Devoluciones y cambios registrados sobre las compras del cliente en sesión.
+
+    Solo lectura: las devoluciones las procesa el encargado de sucursal; aquí el cliente
+    consulta su estado, el monto reembolsado y qué prendas se devolvieron o cambiaron.
+    """
+    returns = (
+        db.query(OrderReturn)
+        .join(Order, Order.id == OrderReturn.order_id)
+        .filter(Order.user_id == current_user.id)
+        .options(selectinload(OrderReturn.items))
+        .order_by(OrderReturn.created_at.desc())
+        .all()
+    )
+
+    def _variant_parts(v):
+        if v is None:
+            return None, None, None
+        return (
+            v.product.name if v.product else "Prenda",
+            v.size.name if v.size else "-",
+            v.color.name if v.color else "-",
+        )
+
+    result = []
+    for r in returns:
+        items = []
+        for it in r.items:
+            name, size, color = _variant_parts(it.variant)
+            r_name, r_size, r_color = _variant_parts(it.replacement_variant)
+            items.append(CustomerReturnItemResponse(
+                product_name=name or "Prenda",
+                size=size or "-",
+                color=color or "-",
+                quantity=it.quantity,
+                replacement_product_name=r_name,
+                replacement_size=r_size,
+                replacement_color=r_color,
+            ))
+        order = r.order
+        result.append(CustomerReturnResponse(
+            id=r.id,
+            return_number=r.return_number,
+            order_id=r.order_id,
+            order_number=f"ORD-{order.created_at.year}-{order.id:06d}",
+            return_type=r.return_type,
+            reason=r.reason,
+            refund_amount=float(r.refund_amount),
+            status=r.status,
+            created_at=r.created_at,
+            items=items,
+        ))
+    return result
+
+
 @router.post("/returns", response_model=OrderReturnResponse, status_code=201)
 def process_order_return(
     data: OrderReturnCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(staff_check),
+    current_user: User = Depends(manager_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU22] Procesa devolución de dinero o cambio de prendas reingresando stock al inventario."""
@@ -1041,6 +1278,13 @@ def process_order_return(
                 reference_id=ret_num,
             ))
 
+    tipo_texto = "Devolución de dinero" if data.return_type == "DEVOLUCION_DINERO" else "Cambio de prenda"
+    detalle = f" Reembolso: Bs. {refund_total:.2f}." if data.return_type == "DEVOLUCION_DINERO" else ""
+    notificar(
+        db, order.user_id, f"{tipo_texto} registrada",
+        f"Se registró {ret_num} sobre tu pedido {_numero_orden(order)}.{detalle}",
+        TIPO_PEDIDO, order.id, "ORDER",
+    )
     db.commit()
     db.refresh(order_ret)
 

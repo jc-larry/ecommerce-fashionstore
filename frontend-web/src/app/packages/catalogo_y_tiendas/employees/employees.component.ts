@@ -121,6 +121,10 @@ export class EmployeesComponent implements OnInit {
    */
   save(): void {
     this.error = '';
+    if (!this.form.branch_id) {
+      this.error = 'Selecciona la sucursal a la que pertenece el empleado.';
+      return;
+    }
     const payload = {
       first_name: this.form.first_name,
       last_name: this.form.last_name,
@@ -128,18 +132,13 @@ export class EmployeesComponent implements OnInit {
       phone: this.form.phone,
       password: this.form.password,
       role_names: [this.form.role],
+      branch_id: Number(this.form.branch_id),
     };
+    // El backend crea el usuario y lo asigna a su sucursal en una sola transacción.
     this.users.createUser(payload).subscribe({
-      next: (created) => {
-        if (this.form.branch_id) {
-          this.catalogo.assignEmployee(Number(this.form.branch_id), created.id).subscribe({
-            next: () => { this.load(); this.closeForm(); },
-            error: (e) => (this.error = e.error?.detail || 'Empleado creado, pero falló la asignación de sucursal.'),
-          });
-        } else {
-          this.load();
-          this.closeForm();
-        }
+      next: () => {
+        this.load();
+        this.closeForm();
       },
       error: (e) => (this.error = e.error?.detail || 'Error al crear el empleado.'),
     });

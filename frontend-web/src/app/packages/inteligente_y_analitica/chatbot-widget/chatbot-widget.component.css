@@ -1,0 +1,52 @@
+.chatbot-wrapper {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1050;
+}
+
+.btn-chat-trigger {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.btn-chat-trigger:hover {
+  transform: scale(1.08);
+}
+
+.chat-window {
+  width: 360px;
+  height: 480px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+  border: 1px solid #E2E8F0;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.msg-user {
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.msg-bot {
+  align-self: flex-start;
+  max-width: 90%;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}

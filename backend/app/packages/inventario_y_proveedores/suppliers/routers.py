@@ -9,6 +9,13 @@ from app.packages.inventario_y_proveedores.suppliers.schemas import (
 )
 from app.packages.inventario_y_proveedores.merchandise.models import PurchaseOrder, PurchaseDetail, Inventory
 from app.packages.inventario_y_proveedores.merchandise.schemas import SupplierProductAvailability
+from app.packages.inventario_y_proveedores.suppliers.offer_models import SupplierOffer
+from app.packages.inventario_y_proveedores.suppliers.offer_schemas import (
+    SupplierProductStatusUpdate, SupplierProductStatusResponse, SUPPLIER_PRODUCT_STATUSES,
+)
+from app.packages.inventario_y_proveedores.suppliers.offer_routers import (
+    product_cover_image, get_supplier_product_status, set_supplier_product_status,
+)
 from app.packages.catalogo_y_tiendas.models import Product, ProductVariant, Color, Size
 from app.packages.catalogo_y_tiendas.branches.models import Branch
 # Importar control de roles, usuario y logueo de auditoría del paquete de Seguridad
@@ -250,6 +257,9 @@ def get_my_supplied_products(
     return [
         SupplierProductAvailability(
             variant_id=inv.variant_id,
+            product_id=prod.id,
+            image_url=product_cover_image(db, prod.id, variant.color_id),
+            supplier_status=get_supplier_product_status(db, scope.supplier_id, prod.id),
             sku=variant.sku,
             product_name=prod.name,
             color_name=color.name if color else "Estándar",
@@ -260,3 +270,33 @@ def get_my_supplied_products(
         )
         for inv, variant, prod, color, size, branch in rows
     ]
+
+
+
+@router.put("/me/products/{product_id}/status", response_model=SupplierProductStatusResponse)
+def update_my_product_status(
+    product_id: int,
+    data: SupplierProductStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(supplier_check),
+    scope: SupplierScope = Depends(get_supplier_scope),
+):
+    """[Rol PROVEEDOR] Declara si todavía trae la prenda: DISPONIBLE, AGOTADO o DESCONTINUADO."""
+    new_status = data.status.upper()
+    if new_status not in SUPPLIER_PRODUCT_STATUSES:
+        raise HTTPException(status_code=400, detail="El estado debe ser DISPONIBLE, AGOTADO o DESCONTINUADO.")
+    supplied = (
+        db.query(PurchaseDetail.id)
+        .join(PurchaseOrder, PurchaseOrder.id == PurchaseDetail.purchase_order_id)
+        .join(ProductVariant, ProductVariant.id == PurchaseDetail.variant_id)
+        .filter(PurchaseOrder.supplier_id == scope.supplier_id, ProductVariant.product_id == product_id)
+        .first()
+    )
+    linked_offer = db.query(SupplierOffer.id).filter(
+        SupplierOffer.supplier_id == scope.supplier_id, SupplierOffer.product_id == product_id
+    ).first()
+    if not supplied and not linked_offer:
+        raise HTTPException(status_code=404, detail="Esta prenda no figura entre las que suministras.")
+    set_supplier_product_status(db, scope.supplier_id, product_id, new_status)
+    db.commit()
+    return SupplierProductStatusResponse(supplier_id=scope.supplier_id, product_id=product_id, status=new_status)

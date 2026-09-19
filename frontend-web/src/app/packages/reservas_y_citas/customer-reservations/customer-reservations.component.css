@@ -1,0 +1,28 @@
+@media (min-width: 768px) {
+  .border-start-md {
+    border-left: 1px solid #E2E8F0;
+  }
+}
+
+@media (min-width: 992px) {
+  .border-start-lg {
+    border-left: 1px solid #E2E8F0;
+  }
+}
+
+.product-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+}
+
+.reservation-thumb img {
+  transition: transform 0.3s ease;
+}
+
+.reservation-thumb:hover img {
+  transform: scale(1.08);
+}

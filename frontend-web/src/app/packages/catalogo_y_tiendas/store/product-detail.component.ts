@@ -4,13 +4,15 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../seguridad_y_usuarios/auth.service';
 import {
-  CatalogoService, Product, ProductImage, Review, ColorRef, ProductAvailabilityResponse,
+  CatalogoService, Product, ProductVariant, ProductImage, Review, ColorRef, ProductAvailabilityResponse,
 } from '../catalogo.service';
 import { VentasService } from '../../ventas_y_pagos/ventas.service';
+import { ReservasService } from '../../reservas_y_citas/reservas.service';
 
 /**
  * [CU11] Detalle de prenda para el cliente + [CU14] reseñas y favorito.
  * [CU12] Disponibilidad y existencia física por sucursal para la variante seleccionada.
+ * [CU26] Agendamiento de reserva en probador con bloqueo de stock 48h (Filtro 1: Prenda/Talla/Color -> Filtro 2: Sucursales con Stock).
  */
 @Component({
   selector: 'app-product-detail',
@@ -46,7 +48,7 @@ export class ProductDetailComponent implements OnInit {
 
   allBranches: any[] = [];
 
-  // Formulario de cita de vestidor
+  // Formulario de cita de vestidor (CU26)
   showFittingModal = false;
   selectedAppointmentBranch: any = null;
   appointmentDate = '';
@@ -55,11 +57,14 @@ export class ProductDetailComponent implements OnInit {
   customerPhone = '';
   bookingConfirmed = false;
   bookingCode = '';
+  bookingLoading = false;
+  bookingError: string | null = null;
 
   constructor(
     public auth: AuthService,
     private catalogo: CatalogoService,
     private ventasService: VentasService,
+    private reservasService: ReservasService,
     private route: ActivatedRoute,
     public router: Router,
   ) {}
@@ -168,6 +173,13 @@ export class ProductDetailComponent implements OnInit {
     return this.sizeOptions.find(s => s.id === this.selectedSizeId);
   }
 
+  get selectedVariant(): ProductVariant | null {
+    if (!this.product || !this.product.variants) return null;
+    return this.product.variants.find(
+      (v) => v.color_id === this.selectedColorId && v.size_id === this.selectedSizeId
+    ) || (this.product.variants.length ? this.product.variants[0] : null);
+  }
+
   // ---- Disponibilidad por Sucursal (CU12) ----
   get branchStockList(): {
     branchId: number;
@@ -207,10 +219,23 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
+  // ---- Sucursales filtradas por disponibilidad para probador (CU12 / CU26) ----
+  get branchesWithStock(): any[] {
+    return this.branchStockList.filter((b) => b.hasStock);
+  }
+
+  get branchesWithoutStock(): any[] {
+    return this.branchStockList.filter((b) => !b.hasStock);
+  }
+
   // ---- Cita de Probador / Ensayo en Tienda ----
   openFittingModal(b: any): void {
     if (b.isTemporarilyClosed) {
       alert(`Esta sucursal está cerrada temporalmente (${b.closureReason || 'en refacciones'}). No es posible agendar citas aquí por el momento.`);
+      return;
+    }
+    if (!b.hasStock) {
+      alert('Esta sucursal no tiene stock disponible para la prenda y talla seleccionada. Por favor selecciona una sucursal con disponibilidad.');
       return;
     }
     this.selectedAppointmentBranch = b;
@@ -220,38 +245,66 @@ export class ProductDetailComponent implements OnInit {
     this.appointmentTime = b.openingTime || '15:00';
     this.bookingConfirmed = false;
     this.bookingCode = '';
+    this.bookingError = null;
+    this.bookingLoading = false;
     this.showFittingModal = true;
   }
 
   closeFittingModal(): void {
     this.showFittingModal = false;
+    this.bookingError = null;
   }
 
   confirmAppointment(): void {
-    if (!this.appointmentDate || !this.appointmentTime) {
-      alert('Por favor selecciona la fecha y hora de tu cita.');
+    if (!this.auth.isLoggedIn()) {
+      alert('Debes iniciar sesión con tu cuenta para agendar una reserva y bloquear la prenda en probador.');
+      this.router.navigate(['/login']);
       return;
     }
-    this.bookingCode = 'CITA-' + Math.floor(100000 + Math.random() * 900000);
-    this.bookingConfirmed = true;
+    if (!this.appointmentDate || !this.appointmentTime) {
+      this.bookingError = 'Por favor selecciona la fecha y hora de tu cita.';
+      return;
+    }
+    const variant = this.product?.variants?.find(
+      (v) => v.color_id === this.selectedColorId && v.size_id === this.selectedSizeId
+    );
+    if (!variant) {
+      this.bookingError = 'Selecciona color y talla antes de confirmar tu reserva.';
+      return;
+    }
 
-    const saved = JSON.parse(localStorage.getItem('fashionstore_fitting_appointments') || '[]');
-    const newAppointment = {
-      code: this.bookingCode,
-      branchName: this.selectedAppointmentBranch.branchName,
-      branchCity: this.selectedAppointmentBranch.city,
-      productName: this.product?.name,
-      colorName: this.selectedColor?.name,
-      sizeName: this.selectedSize?.name,
-      date: this.appointmentDate,
-      time: this.appointmentTime,
-      phone: this.customerPhone,
-      notes: this.appointmentNotes,
-      createdAt: new Date().toISOString(),
-      status: 'CONFIRMADA'
-    };
-    saved.push(newAppointment);
-    localStorage.setItem('fashionstore_fitting_appointments', JSON.stringify(saved));
+    if (!this.selectedAppointmentBranch || !this.selectedAppointmentBranch.branchId) {
+      this.bookingError = 'Selecciona una sucursal con disponibilidad.';
+      return;
+    }
+
+    this.bookingLoading = true;
+    this.bookingError = null;
+
+    this.reservasService.createReservation({
+      branch_id: this.selectedAppointmentBranch.branchId,
+      items: [{
+        variant_id: variant.id,
+        quantity: 1,
+        notes: this.appointmentNotes || undefined,
+      }],
+      notes: `Reserva para probador - Visita estimada: ${this.appointmentDate} ${this.appointmentTime}. Tel: ${this.customerPhone || 'S/N'}. ${this.appointmentNotes || ''}`.trim(),
+      reserved_at: `${this.appointmentDate}T${this.appointmentTime}:00`,
+    }).subscribe({
+      next: (res) => {
+        this.bookingLoading = false;
+        this.bookingConfirmed = true;
+        this.bookingCode = res.reservation_code;
+        // Refrescar disponibilidad en sucursales tras el bloqueo de stock
+        if (this.product) {
+          this.catalogo.getProductBranchAvailability(this.product.id).subscribe((a) => (this.availability = a));
+        }
+      },
+      error: (err) => {
+        this.bookingLoading = false;
+        this.bookingError = err?.error?.detail || 'No se pudo crear la reserva en esta sucursal (verifique existencia).';
+      }
+    });
   }
 
   get totalSelectedVariantStock(): number {

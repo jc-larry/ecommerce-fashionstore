@@ -22,11 +22,10 @@ def get_auth_token():
     admin = db.query(User).filter(User.email == "admin@fashionstore.com").first()
     if not admin:
         admin = db.query(User).filter(User.is_active == True).first()
-    token = create_access_token({"sub": str(admin.id), "roles": ["SUPERADMIN"]})
+    token = create_access_token(admin.id)
     session_rec = SessionToken(
         user_id=admin.id,
         token=token,
-        ip_address="127.0.0.1",
         expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
         is_revoked=False
     )
@@ -299,3 +298,11 @@ def test_cu22_order_returns_refund_and_exchange():
     assert ret_data["return_number"].startswith("DEV-")
     assert ret_data["status"] == "APROBADA"
     assert ret_data["refund_amount"] > 0
+
+    # 3. El comprador consulta sus devoluciones (vista cliente web/móvil)
+    my_res = client.get("/api/v1/sales/returns/my", headers=headers)
+    assert my_res.status_code == 200, my_res.text
+    mine = next((r for r in my_res.json() if r["id"] == ret_data["id"]), None)
+    assert mine is not None
+    assert mine["order_number"].startswith("ORD-")
+    assert mine["items"] and mine["items"][0]["quantity"] == 1

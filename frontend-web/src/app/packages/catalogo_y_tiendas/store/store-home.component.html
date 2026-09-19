@@ -12,6 +12,17 @@
         <span class="d-none d-md-inline">App Móvil</span>
       </a>
 
+      <!-- Enlaces rápidos a funcionalidades de Ciclo 3 -->
+      <a routerLink="/tienda/vestidor" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Vestidor Virtual con IA">
+        <i class="bi bi-person-bounding-box"></i>
+        <span class="d-none d-lg-inline">Probador Virtual</span>
+      </a>
+
+      <a routerLink="/tienda/rastreo" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" title="Rastreo de Envíos en Tiempo Real">
+        <i class="bi bi-geo-alt"></i>
+        <span class="d-none d-lg-inline">Rastrear Envío</span>
+      </a>
+
       <!-- Botón Carrito (disponible para todos) -->
       <button class="btn btn-sm btn-light border position-relative" (click)="isCartOpen = true" title="Mi Carrito de Compras">
         <i class="bi bi-bag-check"></i>
@@ -25,6 +36,12 @@
           <span class="d-none d-sm-inline fw-semibold">Panel Operativo</span>
         </a>
 
+        <!-- [CU40] Avisos de compras, reservas y envíos del cliente -->
+        <app-notifications-dropdown></app-notifications-dropdown>
+
+        <a routerLink="/tienda/reservas" class="btn btn-sm btn-light border" title="Mis Reservas en Tienda">
+          <i class="bi bi-calendar-check"></i>
+        </a>
         <a routerLink="/tienda/pedidos" class="btn btn-sm btn-light border" title="Mis Pedidos (CU24)">
           <i class="bi bi-receipt"></i>
         </a>
@@ -50,17 +67,18 @@
   </header>
 
   <main class="store-body">
-    <!-- Barra de Búsqueda y Sucursal (CU12) -->
+    <!-- Barra de Búsqueda y Sucursal (CU12) con Búsqueda por Voz (CU34) -->
     <div class="search-bar-wrapper mb-3 p-3 bg-white rounded-4 shadow-sm border">
       <div class="row g-2 align-items-center">
-        <!-- Input de búsqueda por texto libre -->
+        <!-- Input de búsqueda por texto libre y voz -->
         <div class="col-12 col-md-5">
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" class="form-control border-start-0 ps-0"
+            <input type="text" class="form-control border-start-0 border-end-0 ps-0"
                    placeholder="Buscar por prenda, ocasión, material..."
                    [(ngModel)]="search"
                    (ngModelChange)="onSearchChange($event)">
+            <app-voice-search (searchResult)="handleVoiceSearchResult($event)"></app-voice-search>
           </div>
         </div>
 

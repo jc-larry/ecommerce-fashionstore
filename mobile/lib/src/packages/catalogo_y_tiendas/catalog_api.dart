@@ -171,11 +171,16 @@ class CatalogApi {
     return {'items': [], 'total': 0, 'page': 1, 'limit': limit, 'total_pages': 1};
   }
 
+  /// [CU12] Stock por sucursal de cada variante. null si el servidor no responde.
   static Future<Map<String, dynamic>?> fetchProductBranchAvailability(int productId) async {
-    final r = await http
-        .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/products/$productId/branch-availability'), headers: await _headers())
-        .timeout(_timeout);
-    return r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic> : null;
+    try {
+      final r = await http
+          .get(Uri.parse('${AuthService.apiBaseUrl}/catalog/products/$productId/branch-availability'), headers: await _headers())
+          .timeout(_timeout);
+      return r.statusCode == 200 ? jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic> : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---------- PROMOCIONES Y CUPONES (CU13) ----------

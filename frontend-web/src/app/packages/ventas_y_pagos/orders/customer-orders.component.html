@@ -16,6 +16,21 @@
     </a>
   </div>
 
+  <!-- Pestañas: pedidos / devoluciones (CU24 / CU22) -->
+  <ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+      <button class="nav-link rounded-pill" [class.active]="activeTab === 'PEDIDOS'" (click)="activeTab = 'PEDIDOS'">
+        <i class="bi bi-receipt me-1"></i> Pedidos ({{ orders.length }})
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link rounded-pill" [class.active]="activeTab === 'DEVOLUCIONES'" (click)="activeTab = 'DEVOLUCIONES'">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Devoluciones y cambios ({{ returns.length }})
+      </button>
+    </li>
+  </ul>
+
+  <ng-container *ngIf="activeTab === 'PEDIDOS'">
   <div *ngIf="loading" class="text-center py-5">
     <div class="spinner-border text-primary"></div>
     <p class="text-muted small mt-2">Cargando compras...</p>
@@ -80,5 +95,40 @@
       </div>
     </div>
   </div>
+  </ng-container>
+
+  <!-- [CU22] Devoluciones y cambios del cliente -->
+  <ng-container *ngIf="activeTab === 'DEVOLUCIONES'">
+    <div *ngIf="returns.length === 0" class="text-center py-5 card border-0 shadow-sm rounded-4 p-5 bg-white">
+      <i class="bi bi-arrow-counterclockwise display-3 text-muted opacity-50 mb-3"></i>
+      <h4 class="fw-bold text-dark">No tienes devoluciones ni cambios</h4>
+      <p class="text-muted mb-0">Si necesitas cambiar o devolver una prenda (hasta 30 días después de la compra), acércate a la sucursal con tu número de pedido.</p>
+    </div>
+
+    <div *ngIf="returns.length > 0" class="d-flex flex-column gap-3">
+      <div *ngFor="let r of returns" class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-3 gap-2">
+          <div>
+            <span class="badge bg-light text-dark font-monospace me-2">{{ r.return_number }}</span>
+            <span class="badge bg-success-subtle text-success border border-success">{{ r.status }}</span>
+            <small class="text-muted d-block mt-1">Pedido {{ r.order_number }} &bull; {{ r.created_at | date:'dd/MM/yyyy HH:mm' }}</small>
+          </div>
+          <div class="text-end">
+            <span class="fw-bold text-primary">{{ r.return_type === 'DEVOLUCION_DINERO' ? 'Devolución de dinero' : 'Cambio de prenda' }}</span>
+            <span *ngIf="r.return_type === 'DEVOLUCION_DINERO'" class="d-block fs-5 fw-bold">Bs. {{ r.refund_amount | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <p class="small mb-2"><strong>Motivo:</strong> {{ r.reason }}</p>
+        <ul class="small mb-0 ps-3">
+          <li *ngFor="let it of r.items">
+            {{ it.quantity }}x {{ it.product_name }} ({{ it.size }} / {{ it.color }})
+            <span *ngIf="it.replacement_product_name" class="text-muted">
+              &rarr; cambiada por {{ it.replacement_product_name }} ({{ it.replacement_size }} / {{ it.replacement_color }})
+            </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </ng-container>
 
 </div>

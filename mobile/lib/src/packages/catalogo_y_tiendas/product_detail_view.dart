@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'catalog_api.dart';
 import '../ventas_y_pagos/ventas_api.dart';
 import '../ventas_y_pagos/cart_view.dart';
+import '../seguridad_y_usuarios/auth_service.dart';
+import '../seguridad_y_usuarios/login_view.dart';
+import '../reservas_y_citas/reserve_fitting_view.dart';
+import '../inteligente_y_analitica/virtual_tryon_view.dart';
 
 const _brand = Color(0xFFC66F5C);
 const _ink = Color(0xFF2B1F1D);
@@ -9,9 +13,14 @@ const _muted = Color(0xFF706361);
 
 /// [CU11] Detalle de prenda (móvil) + [CU14] reseñas y favorito.
 /// Prenda multicolor: elegir color cambia fotos y tallas disponibles.
+/// [CU12] Disponibilidad física por sucursal de la variante elegida.
+/// [CU26] Reservar la prenda para probarla en una sucursal con stock.
 class ProductDetailView extends StatefulWidget {
   final int productId;
-  const ProductDetailView({super.key, required this.productId});
+
+  /// Talla a preseleccionar (p. ej. la recomendada por el vestidor virtual).
+  final String? initialSizeName;
+  const ProductDetailView({super.key, required this.productId, this.initialSizeName});
 
   @override
   State<ProductDetailView> createState() => _ProductDetailViewState();
@@ -36,6 +45,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   final _pageCtrl = PageController();
   int _page = 0;
 
+  // [CU12] Stock por sucursal y datos de cada sucursal (horario, cierre temporal).
+  Map<String, dynamic>? _availability;
+  List<dynamic> _branches = [];
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +66,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     final p = await CatalogApi.fetchProduct(widget.productId);
     final rv = await CatalogApi.fetchReviews(widget.productId);
     final wl = await CatalogApi.fetchWishlistIds();
+    final av = await CatalogApi.fetchProductBranchAvailability(widget.productId);
+    List<dynamic> branches = [];
+    try {
+      branches = await VentasApi.fetchBranches();
+    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _product = p;
@@ -62,8 +80,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       _inWishlist = p != null && wl.contains(p['id']);
       _loading = false;
       final colors = _colors;
+      _availability = av;
+      _branches = branches;
       _colorId = colors.isNotEmpty ? colors.first['id'] as int : null;
       _syncSize();
+      _applyInitialSize();
       for (final r in _reviews) {
         if (r['is_mine'] == true) {
           _myRating = r['rating'] as int;
@@ -117,6 +138,122 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   void _syncSize() {
     final avail = _sizeOptions.where((s) => s['available'] == true).toList();
     _sizeId = avail.isNotEmpty ? avail.first['id'] as int : null;
+  }
+
+  /// Preselecciona la talla pedida (color incluido) si existe alguna variante activa con ella.
+  void _applyInitialSize() {
+    final wanted = widget.initialSizeName?.trim().toUpperCase();
+    if (wanted == null || wanted.isEmpty) return;
+    for (final v in (_product?['variants'] as List? ?? [])) {
+      if (v['is_active'] == true && (v['size']?['name'] ?? '').toString().toUpperCase() == wanted) {
+        _colorId = v['color_id'] as int?;
+        _sizeId = v['size']['id'] as int?;
+        return;
+      }
+    }
+  }
+
+  Future<void> _reloadAvailability() async {
+    final av = await CatalogApi.fetchProductBranchAvailability(widget.productId);
+    if (mounted) setState(() => _availability = av);
+  }
+
+  /// [CU12] Stock de la variante (color + talla) elegida en cada sucursal.
+  List<Map<String, dynamic>> get _branchStock {
+    final variants = (_availability?['variants'] as List?) ?? const [];
+    Map<String, dynamic>? variant;
+    for (final v in variants) {
+      if (v['color_id'] == _colorId && v['size_id'] == _sizeId) {
+        variant = Map<String, dynamic>.from(v as Map);
+        break;
+      }
+    }
+    if (variant == null) return const [];
+    return ((variant['branches'] as List?) ?? const []).map<Map<String, dynamic>>((b) {
+      final full = _branches.cast<Map?>().firstWhere(
+            (br) => br?['id'] == b['branch_id'],
+            orElse: () => null,
+          ) ?? const {};
+      final stock = (b['stock'] as num?)?.toInt() ?? 0;
+      return {
+        'id': b['branch_id'],
+        'name': b['branch_name'] ?? full['name'] ?? 'Sucursal',
+        'city': b['city'] ?? full['city'] ?? 'Santa Cruz',
+        'stock': stock,
+        'closed': full['is_temporarily_closed'] == true,
+        'closure_reason': full['closure_reason'],
+        'fitting_room': full['has_fitting_room'] ?? true,
+        'opening_time': (full['opening_time'] ?? '09:00').toString(),
+        'closing_time': (full['closing_time'] ?? '21:00').toString(),
+        'days_open': (full['days_open'] ?? 'Lunes a Sábado').toString(),
+      };
+    }).toList()
+      ..sort((a, b) => (b['stock'] as int).compareTo(a['stock'] as int));
+  }
+
+  String get _selectedColorName {
+    for (final c in _colors) {
+      if (c['id'] == _colorId) return (c['name'] ?? '').toString();
+    }
+    return '';
+  }
+
+  String get _selectedSizeName {
+    for (final s in _sizeOptions) {
+      if (s['id'] == _sizeId) return s['name'] as String;
+    }
+    return '';
+  }
+
+  /// [CU26] Abre la reserva para probador en la sucursal elegida (requiere sesión).
+  Future<void> _reserveAt(Map<String, dynamic> branch) async {
+    final vId = _selectedVariantExact;
+    if (vId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona color y talla antes de reservar.')),
+      );
+      return;
+    }
+    if (!await AuthService.isLoggedIn()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para reservar la prenda en probador.')),
+      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginView()));
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReserveFittingView(
+          variantId: vId,
+          productName: (_product?['name'] ?? 'Prenda').toString(),
+          colorName: _selectedColorName,
+          sizeName: _selectedSizeName,
+          unitPrice: (_product?['base_price'] as num).toDouble(),
+          branch: FittingBranch(
+            id: branch['id'] as int,
+            name: branch['name'].toString(),
+            city: branch['city'].toString(),
+            stock: branch['stock'] as int,
+            openingTime: branch['opening_time'] as String,
+            closingTime: branch['closing_time'] as String,
+            daysOpen: branch['days_open'] as String,
+          ),
+        ),
+      ),
+    );
+    // La reserva descuenta stock en la sucursal: refrescar la disponibilidad.
+    _reloadAvailability();
+  }
+
+  /// Variante exacta color + talla (sin caer en la primera variante como hace el carrito).
+  int? get _selectedVariantExact {
+    for (final v in (_product?['variants'] as List? ?? [])) {
+      if (v['color_id'] == _colorId && v['size']?['id'] == _sizeId) return v['id'] as int;
+    }
+    return null;
   }
 
   Future<void> _toggleWishlist() async {
@@ -271,6 +408,57 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           : _product == null
               ? const Center(child: Text('Esta prenda ya no está disponible.', style: TextStyle(color: _muted)))
               : _content(),
+      bottomNavigationBar: _loading || _product == null ? null : _bottomBar(),
+    );
+  }
+
+  /// Acciones principales fijas abajo: no se pierden al hacer scroll por la galería.
+  Widget _bottomBar() {
+    final base = (_product!['base_price'] as num).toDouble();
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, -2))],
+        ),
+        child: Row(children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              _selectedSizeName.isEmpty ? 'Precio' : 'Talla $_selectedSizeName',
+              style: const TextStyle(fontSize: 11, color: _muted),
+            ),
+            Text('Bs. ${base.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _brand)),
+          ]),
+          const SizedBox(width: 10),
+          IconButton.outlined(
+            tooltip: 'Reservar en tienda',
+            onPressed: _showReserveSheet,
+            icon: const Icon(Icons.storefront_outlined, color: _brand),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _addingToCart ? null : _addToCart,
+                icon: _addingToCart
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.shopping_bag_outlined, size: 20),
+                label: Text(_addingToCart ? 'Añadiendo…' : 'Añadir al carrito', style: const TextStyle(fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _brand,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 
@@ -283,38 +471,69 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
     return ListView(
       children: [
-        // Galería
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: Stack(children: [
-            PageView.builder(
-              controller: _pageCtrl,
-              itemCount: urls.isEmpty ? 1 : urls.length,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (_, i) => urls.isEmpty
-                  ? Container(color: const Color(0xFFEFE7E3), child: const Icon(Icons.image_outlined, size: 48, color: Color(0xFFC9BCB7)))
-                  : Image.network(urls[i], fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFFEFE7E3), child: const Icon(Icons.broken_image_outlined, size: 40, color: Color(0xFFD4CECB)))),
-            ),
-            if (disc > 0)
-              Positioned(top: 12, left: 12, child: _pill('-$disc%', const Color(0xFFD2624C))),
-            if (urls.length > 1)
-              Positioned(bottom: 10, left: 0, right: 0, child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(urls.length, (i) => Container(
-                  width: 7, height: 7, margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: i == _page ? _brand : Colors.white70),
-                )),
-              )),
-          ]),
+        // Galería compacta: la prenda se ve completa y deja espacio para talla y acciones.
+        SizedBox(
+          height: (MediaQuery.of(context).size.height * 0.45).clamp(260.0, 440.0),
+          child: Container(
+            color: const Color(0xFFF3EEEB),
+            child: Stack(children: [
+              PageView.builder(
+                controller: _pageCtrl,
+                itemCount: urls.isEmpty ? 1 : urls.length,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemBuilder: (_, i) => urls.isEmpty
+                    ? const Center(child: Icon(Icons.image_outlined, size: 48, color: Color(0xFFC9BCB7)))
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Image.network(urls[i], fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(Icons.broken_image_outlined, size: 40, color: Color(0xFFD4CECB)))),
+                      ),
+              ),
+              if (disc > 0)
+                Positioned(top: 12, left: 12, child: _pill('-$disc%', const Color(0xFFD2624C))),
+              if (urls.length > 1)
+                Positioned(
+                  bottom: 10, right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
+                    child: Text('${_page + 1}/${urls.length}', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                  ),
+                ),
+            ]),
+          ),
         ),
+        if (urls.length > 1)
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              itemCount: urls.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => GestureDetector(
+                onTap: () => _pageCtrl.animateToPage(i, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                child: Container(
+                  width: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: i == _page ? _brand : const Color(0xFFE5DFDC), width: i == _page ? 2 : 1),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.network(urls[i], fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                ),
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text((p['category']?['name'] ?? '').toString().toUpperCase(),
                 style: const TextStyle(fontSize: 11, color: _muted, letterSpacing: 1)),
             const SizedBox(height: 4),
-            Text(p['name'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _ink)),
+            Text(p['name'] as String, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _ink)),
             const SizedBox(height: 6),
             Row(children: [
               _stars(_ratingAvg),
@@ -401,18 +620,35 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               Text('Entrega estimada: 3–5 días hábiles', style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32))),
             ]),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity, height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _addingToCart ? null : _addToCart,
-                icon: _addingToCart
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.shopping_bag_outlined),
-                label: Text(_addingToCart ? 'Añadiendo…' : 'Añadir al carrito'),
-                style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showReserveSheet,
+                  icon: const Icon(Icons.storefront_outlined, size: 18),
+                  label: const Text('Reservar en tienda', style: TextStyle(fontSize: 13)),
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VirtualTryonView(
+                        initialProductId: widget.productId,
+                        initialProductName: (_product?['name'] ?? '').toString(),
+                        initialProduct: _product,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.checkroom, size: 18),
+                  label: const Text('Vestidor virtual', style: TextStyle(fontSize: 13)),
+                ),
+              ),
+            ]),
+
+            const SizedBox(height: 20),
+            _availabilitySection(),
 
             const Divider(height: 36),
             _reviewsSection(),
@@ -420,6 +656,108 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         ),
       ],
     );
+  }
+
+  /// [CU26] Hoja con las sucursales que tienen la talla/color elegidos para reservar.
+  void _showReserveSheet() {
+    final options = _branchStock
+        .where((b) => (b['stock'] as int) > 0 && b['closed'] != true && b['fitting_room'] != false)
+        .toList();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Reservar para probar en tienda', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _ink)),
+            const SizedBox(height: 4),
+            Text(
+              'Talla $_selectedSizeName · $_selectedColorName. Pagas una seña del 50 % y la prenda se aparta 48 h.',
+              style: const TextStyle(fontSize: 12, color: _muted),
+            ),
+            const SizedBox(height: 12),
+            if (options.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Ninguna sucursal tiene stock de esta talla y color. Prueba otra combinación.',
+                    style: TextStyle(color: _muted)),
+              )
+            else
+              ...options.map((b) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.storefront_outlined, color: _brand),
+                    title: Text('${b['name']}'),
+                    subtitle: Text('${b['city']} · ${b['opening_time']} - ${b['closing_time']} · ${b['stock']} en stock'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _reserveAt(b);
+                    },
+                  )),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// [CU12 / CU26] Disponibilidad por sucursal de la talla/color elegidos + reserva en probador.
+  Widget _availabilitySection() {
+    final list = _branchStock;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Disponible en tiendas', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _ink)),
+      const SizedBox(height: 4),
+      Text(
+        _selectedSizeName.isEmpty
+            ? 'Elige color y talla para ver el stock en cada sucursal.'
+            : 'Talla $_selectedSizeName · $_selectedColorName. Reserva y pruébatela en tienda (seña 50 %, se aparta 48 h).',
+        style: const TextStyle(fontSize: 12, color: _muted),
+      ),
+      const SizedBox(height: 10),
+      if (_availability == null)
+        const Text('No se pudo consultar el stock por sucursal.', style: TextStyle(fontSize: 12, color: _muted))
+      else if (list.isEmpty)
+        const Text('Sin stock en sucursales para esta combinación.', style: TextStyle(fontSize: 12, color: _muted))
+      else
+        ...list.map((b) {
+          final stock = b['stock'] as int;
+          final closed = b['closed'] == true;
+          final canReserve = stock > 0 && !closed && b['fitting_room'] != false;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5DFDC)),
+            ),
+            child: Row(children: [
+              Icon(Icons.storefront_outlined, color: stock > 0 && !closed ? _brand : const Color(0xFFC9BCB7)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${b['name']}', style: const TextStyle(fontWeight: FontWeight.w600, color: _ink)),
+                  Text(
+                    closed
+                        ? 'Cerrada temporalmente${b['closure_reason'] != null ? ' (${b['closure_reason']})' : ''}'
+                        : '${b['city']} · ${b['opening_time']} - ${b['closing_time']}',
+                    style: TextStyle(fontSize: 11, color: closed ? Colors.red.shade700 : _muted),
+                  ),
+                  Text(
+                    stock > 0 ? '$stock ${stock == 1 ? 'unidad' : 'unidades'}' : 'Agotado',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: stock > 0 ? Colors.green.shade700 : Colors.red.shade700),
+                  ),
+                ]),
+              ),
+              if (canReserve)
+                TextButton(
+                  onPressed: () => _reserveAt(b),
+                  child: const Text('Reservar', style: TextStyle(color: _brand, fontWeight: FontWeight.bold)),
+                ),
+            ]),
+          );
+        }),
+    ]);
   }
 
   Widget _reviewsSection() {

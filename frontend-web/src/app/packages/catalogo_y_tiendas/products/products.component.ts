@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CatalogoService } from '../catalogo.service';
+import { AuthService } from '../../seguridad_y_usuarios/auth.service';
 
 @Component({
   selector: 'app-products',
@@ -64,7 +65,12 @@ export class ProductsComponent implements OnInit {
     'Oversize', 'Bordado', 'Estampado floral', 'Básico imprescindible'
   ];
 
-  constructor(private catalogo: CatalogoService) {}
+  /** ENCARGADO/CAJERO solo consultan el catálogo; crear/editar prendas es de Casa Matriz. */
+  readOnly: boolean;
+
+  constructor(private catalogo: CatalogoService, auth: AuthService) {
+    this.readOnly = !auth.isCentralUser();
+  }
 
   ngOnInit(): void {
     this.loadAll();

@@ -13,7 +13,7 @@ from app.packages.notificaciones import send_password_recovery_email
 import secrets
 from app.packages.seguridad_y_usuarios.schemas import (
     UserLogin, UserRegister, TokenResponse, UserRecover, UserResponse,
-    UserCreate, UserUpdate, UserDetailResponse, AuditLogResponse, PasswordReset
+    UserCreate, UserUpdate, UserDetailResponse, AuditLogResponse, PasswordReset, RoleResponse
 )
 
 router = APIRouter(prefix="/api/v1", tags=["security"])
@@ -91,6 +91,62 @@ def _resolve_branch_id(current_user: User, db: Session) -> Optional[int]:
     return row.branch_id if row else None
 
 
+BRANCH_STAFF_ROLES = ("ENCARGADO", "CAJERO")
+
+
+def assign_user_to_branch(db: Session, user: User, branch_id: Optional[int]) -> None:
+    """Deja al usuario asignado a exactamente una sucursal (o a ninguna si branch_id es None).
+
+    Reglas de negocio: el personal de tienda (ENCARGADO/CAJERO) pertenece a una única
+    sucursal, y cada sucursal tiene un solo ENCARGADO activo. No hace commit.
+    """
+    from app.packages.catalogo_y_tiendas.branches.models import Branch, branch_employees
+
+    role_names = {r.name for r in user.roles}
+    if branch_id is not None:
+        if not role_names.intersection(BRANCH_STAFF_ROLES):
+            raise HTTPException(status_code=400, detail="Solo un ENCARGADO o CAJERO puede asignarse a una sucursal.")
+        branch = db.query(Branch).filter(Branch.id == branch_id).first()
+        if not branch:
+            raise HTTPException(status_code=404, detail="Sucursal no encontrada.")
+        if "ENCARGADO" in role_names:
+            other_manager = next(
+                (e for e in branch.employees
+                 if e.id != user.id and e.is_active and any(r.name == "ENCARGADO" for r in e.roles)),
+                None,
+            )
+            if other_manager:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"La sucursal {branch.name} ya tiene como encargado a "
+                           f"{other_manager.first_name} {other_manager.last_name}.",
+                )
+
+    db.execute(branch_employees.delete().where(branch_employees.c.user_id == user.id))
+    if branch_id is not None:
+        db.execute(branch_employees.insert().values(branch_id=branch_id, user_id=user.id))
+
+
+def _user_detail(db: Session, user: User) -> UserDetailResponse:
+    """UserDetailResponse con la sucursal asignada, para que el panel muestre y edite la asignación."""
+    from app.packages.catalogo_y_tiendas.branches.models import Branch
+
+    branch_id = _resolve_branch_id(user, db)
+    branch = db.query(Branch).filter(Branch.id == branch_id).first() if branch_id else None
+    return UserDetailResponse(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        phone=user.phone,
+        is_active=user.is_active,
+        roles=[RoleResponse.model_validate(r) for r in user.roles],
+        branch_id=branch_id,
+        branch_name=branch.name if branch else None,
+        is_central=any(r.name == "SUPERADMIN" for r in user.roles),
+    )
+
+
 def get_branch_scope(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -153,16 +209,22 @@ def get_supplier_scope(
 # --- BITÁCORA AUDITORA ---
 def log_event(db: Session, user_id: int, action: str, table: str, row_id: int, details: dict, ip: str = None):
     """[CU36] Auxiliar para registrar auditoría de base de datos"""
-    log = AuditLog(
-        user_id=user_id,
-        action=action,
-        table_name=table,
-        row_id=row_id,
-        new_values=details,
-        ip_address=ip
-    )
-    db.add(log)
-    db.commit()
+    try:
+        log = AuditLog(
+            user_id=user_id,
+            action=action,
+            table_name=table,
+            row_id=row_id,
+            new_values=details,
+            ip_address=ip
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 # --- ENDPOINTS: AUTENTICACIÓN ---
 @router.post("/auth/login", response_model=TokenResponse)
@@ -359,8 +421,8 @@ admin_check = RoleChecker(allowed_roles=["SUPERADMIN"])
 
 @router.get("/users", response_model=List[UserDetailResponse])
 def list_users(db: Session = Depends(get_db), current_user: User = Depends(admin_check)):
-    """[CU05] Lista todos los usuarios"""
-    return db.query(User).all()
+    """[CU05] Lista todos los usuarios con su sucursal asignada"""
+    return [_user_detail(db, u) for u in db.query(User).all()]
 
 @router.post("/users", response_model=UserDetailResponse, status_code=201)
 def create_user(
@@ -397,11 +459,18 @@ def create_user(
             db.flush()
         new_user.roles.append(role)
     # [CU05 - Paso 6] / [DSC005 - Paso 6] +Roles asignados
+
+    # Personal de tienda: la sucursal se asigna en la misma transacción que el usuario.
+    is_branch_staff = any(r.name in BRANCH_STAFF_ROLES for r in new_user.roles)
+    if is_branch_staff and user_data.branch_id is None:
+        raise HTTPException(status_code=400, detail="Un ENCARGADO o CAJERO debe crearse asignado a una sucursal.")
+    if user_data.branch_id is not None:
+        assign_user_to_branch(db, new_user, user_data.branch_id)
     db.commit()
     db.refresh(new_user)
 
-    log_event(db, current_user.id, "INSERT", "users", new_user.id, {"email": new_user.email, "roles": [r.name for r in new_user.roles]}, request.client.host)
-    return new_user
+    log_event(db, current_user.id, "INSERT", "users", new_user.id, {"email": new_user.email, "roles": [r.name for r in new_user.roles], "branch_id": user_data.branch_id}, request.client.host)
+    return _user_detail(db, new_user)
 
 @router.put("/users/{user_id}", response_model=UserDetailResponse)
 def update_user(
@@ -418,7 +487,10 @@ def update_user(
 
     old_vals = {"email": user.email, "is_active": user.is_active, "roles": [r.name for r in user.roles]}
 
-    for key, value in user_data.model_dump(exclude_unset=True).items():
+    changes = user_data.model_dump(exclude_unset=True)
+    for key, value in changes.items():
+        if key == "branch_id":
+            continue
         if key == "role_names":
             user.roles.clear()
             for r_name in value:
@@ -431,11 +503,23 @@ def update_user(
         else:
             setattr(user, key, value)
 
+    db.flush()
+    is_branch_staff = any(r.name in BRANCH_STAFF_ROLES for r in user.roles)
+    if "branch_id" in changes:
+        if is_branch_staff and changes["branch_id"] is None:
+            raise HTTPException(status_code=400, detail="Un ENCARGADO o CAJERO debe tener una sucursal asignada.")
+        assign_user_to_branch(db, user, changes["branch_id"])
+    elif not is_branch_staff:
+        # Si dejó de ser personal de tienda, se libera su sucursal.
+        assign_user_to_branch(db, user, None)
+    elif _resolve_branch_id(user, db) is None:
+        raise HTTPException(status_code=400, detail="Un ENCARGADO o CAJERO debe tener una sucursal asignada.")
+
     db.commit()
     db.refresh(user)
 
-    log_event(db, current_user.id, "UPDATE", "users", user.id, {"old": old_vals, "new": {"email": user.email, "is_active": user.is_active, "roles": [r.name for r in user.roles]}}, request.client.host)
-    return user
+    log_event(db, current_user.id, "UPDATE", "users", user.id, {"old": old_vals, "new": {"email": user.email, "is_active": user.is_active, "roles": [r.name for r in user.roles], "branch_id": _resolve_branch_id(user, db)}}, request.client.host)
+    return _user_detail(db, user)
 
 @router.delete("/users/{user_id}", response_model=UserDetailResponse)
 def deactivate_user(
@@ -451,7 +535,7 @@ def deactivate_user(
     user.is_active = False
     db.commit()
     log_event(db, current_user.id, "UPDATE", "users", user.id, {"deactivated": True, "email": user.email}, request.client.host)
-    return user
+    return _user_detail(db, user)
 
 # --- ENDPOINTS: AUDITORÍA ---
 @router.get("/audit/logs", response_model=List[AuditLogResponse])

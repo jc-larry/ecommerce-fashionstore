@@ -337,7 +337,7 @@ def register_inventory_adjustment(
     data: InventoryAdjustmentCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(branch_staff_check),
+    current_user: User = Depends(staff_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU38] Registra mermas, daños, pérdidas textiles o sobrantes de inventario con cálculo financiero en Bs."""
@@ -454,7 +454,7 @@ def create_stock_transfer(
     data: StockTransferCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(branch_staff_check),
+    current_user: User = Depends(staff_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU15] Crea una solicitud de transferencia de inventario entre sucursales."""
@@ -554,7 +554,7 @@ def update_transfer_status(
     data: StockTransferStatusUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(branch_staff_check),
+    current_user: User = Depends(staff_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU15] Actualiza el estado de la transferencia afectando existencias y el libro mayor (ACID)."""
@@ -763,7 +763,7 @@ def update_stock_thresholds(
     data: StockThresholdUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(branch_staff_check),
+    current_user: User = Depends(staff_check),
     scope: BranchScope = Depends(get_branch_scope),
 ):
     """[CU16] Configura umbrales de stock mínimo y máximo para una sucursal y variante."""

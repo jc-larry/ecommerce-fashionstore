@@ -17,7 +17,15 @@ export class BranchContextService {
   public activeBranch$ = this.activeBranchSubject.asObservable();
 
   constructor(private catalogoService: CatalogoService, private authService: AuthService) {
-    this.initBranches();
+    // El servicio nace antes del login: se recalcula la sucursal cada vez que cambia el
+    // usuario de la sesión, para que un cajero/encargado entre directo a su sucursal asignada.
+    let lastUserKey: string | null = null;
+    this.authService.currentUser$.subscribe((user) => {
+      const key = user ? `${user.id}:${user.branch_id ?? ''}` : '';
+      if (key === lastUserKey) return;
+      lastUserKey = key;
+      this.initBranches();
+    });
   }
 
   public initBranches(): void {
@@ -91,8 +99,14 @@ export class BranchContextService {
     return b ? b.id : null;
   }
 
+  /** Solo SUPERADMIN puede estar en modo Casa Matriz; el personal de sucursal nunca, aunque aún no tenga sucursal asignada. */
   public isCentral(): boolean {
-    return this.activeBranchSubject.getValue() === null;
+    return this.authService.isCentralUser() && this.activeBranchSubject.getValue() === null;
+  }
+
+  /** Personal de sucursal (ENCARGADO/CAJERO) sin sucursal asignada por el administrador. */
+  public hasNoAssignedBranch(): boolean {
+    return !this.authService.isCentralUser() && this.authService.getCurrentUser()?.branch_id == null;
   }
 
   public getBranches(): BranchOption[] {

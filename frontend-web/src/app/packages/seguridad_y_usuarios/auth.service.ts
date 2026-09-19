@@ -126,4 +126,13 @@ export class AuthService {
   isProveedorUser(): boolean {
     return this.getRoles().includes('PROVEEDOR');
   }
+
+  /** [Rol REPARTIDOR] True si el usuario tiene el rol REPARTIDOR (portal propio de entregas y rutas). */
+  isRepartidorUser(): boolean {
+    return this.getRoles().includes('REPARTIDOR');
+  }
+
+  hasRole(role: string): boolean {
+    return this.getRoles().includes(role);
+  }
 }

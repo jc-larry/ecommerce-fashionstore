@@ -262,6 +262,8 @@ a:hover { color: #A95848; }
 .pill-ok .pill-dot { background: #2E7D32; }
 .pill-off  { background: rgba(198, 111, 92, 0.14); color: #A95848; }
 .pill-off .pill-dot { background: #A95848; }
+.pill-warn { background: rgba(217, 140, 30, 0.14); color: #9A5B0B; }
+.pill-warn .pill-dot { background: #C77A12; }
 
 /* Badge de categoría que corrige la barra sólida sin texto */
 .badge-category {
@@ -328,7 +330,9 @@ a:hover { color: #A95848; }
   flex-shrink: 0;
   border-radius: 0.5rem;
   border: 1px solid #D4CECB;
-  object-fit: cover;
+  object-fit: contain;
+  background: #FFFFFF;
+  padding: 2px;
 }
 .thumb-ph {
   display: flex;

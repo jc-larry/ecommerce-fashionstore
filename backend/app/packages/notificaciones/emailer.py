@@ -95,3 +95,35 @@ def send_password_recovery_email(to_email: str, reset_link: str) -> bool:
     except Exception as exc:  # pragma: no cover - depende del entorno SMTP
         print(f"[EMAIL:ERROR] No se pudo enviar el correo a {to_email}: {exc!r}")
         return False
+
+
+def send_transactional_email(to_email: str, subject: str, message: str, action_url: str = "") -> bool:
+    """[CU40] Envía correo transaccional estilizado con branding de FashionStore."""
+    text_body = f"{subject}\n\n{message}\n\nFashionStore — Tu moda a un toque."
+    action_button = ""
+    if action_url:
+        action_button = f"""
+        <p style="margin:24px 0">
+            <a href="{action_url}" style="background:#C66F5C;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold;display:inline-block">
+                Ver Detalles
+            </a>
+        </p>
+        """
+
+    html_body = f"""\
+<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:auto;color:#2B1F1D;padding:20px;border:1px solid #ECE3DE;border-radius:12px">
+  <h2 style="color:#C66F5C;margin-bottom:8px">FashionStore</h2>
+  <h3 style="color:#2B1F1D;margin-top:0">{subject}</h3>
+  <p style="line-height:1.6;color:#4A3B38">{message.replace('\n', '<br>')}</p>
+  {action_button}
+  <hr style="border:none;border-top:1px solid #ECE3DE;margin:24px 0">
+  <p style="font-size:12px;color:#8C7E7B">
+    Notificación oficial generada automáticamente por FashionStore Bolivia.
+  </p>
+</div>"""
+    try:
+        return _send(to_email, subject, html_body, text_body)
+    except Exception as exc:
+        print(f"[EMAIL:ERROR] Error al despachar correo transaccional a {to_email}: {exc!r}")
+        return False
+

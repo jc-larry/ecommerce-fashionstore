@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { UsersService } from '../users.service';
+import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
 
 const ALL_ROLES = ['SUPERADMIN', 'ENCARGADO', 'CAJERO', 'CLIENTE'];
+const BRANCH_STAFF_ROLES = ['ENCARGADO', 'CAJERO'];
 
 @Component({
   selector: 'app-usuarios-roles',
@@ -23,10 +25,18 @@ export class UsuariosRolesComponent implements OnInit {
   validationErrors: { [key: string]: string } = {};
   success = '';
 
-  constructor(private usersService: UsersService) {}
+  branches: any[] = [];
+
+  constructor(private usersService: UsersService, private catalogo: CatalogoService) {}
 
   ngOnInit(): void {
     this.loadUsers();
+    this.catalogo.getBranches().subscribe({ next: (b: any[]) => (this.branches = b.filter((x: any) => x.is_active)) });
+  }
+
+  /** ENCARGADO y CAJERO pertenecen obligatoriamente a una sucursal. */
+  get needsBranch(): boolean {
+    return this.form.role_names.some((r) => BRANCH_STAFF_ROLES.includes(r));
   }
 
   emptyForm() {
@@ -38,6 +48,7 @@ export class UsuariosRolesComponent implements OnInit {
       password: '',
       role_names: ['CLIENTE'] as string[],
       is_active: true,
+      branch_id: null as number | null,
     };
   }
 
@@ -100,6 +111,7 @@ export class UsuariosRolesComponent implements OnInit {
       password: '',
       role_names: (u.roles || []).map((r: any) => r.name),
       is_active: u.is_active,
+      branch_id: u.branch_id ?? null,
     };
     this.validationErrors = {};
     this.error = '';
@@ -157,6 +169,10 @@ export class UsuariosRolesComponent implements OnInit {
       this.validationErrors['roles'] = 'Selecciona al menos un rol para este usuario (ej. Cajero, Encargado o Administrador).';
     }
 
+    if (this.needsBranch && !this.form.branch_id) {
+      this.validationErrors['branch_id'] = 'Asigna la sucursal donde trabajará este encargado o cajero.';
+    }
+
     return Object.keys(this.validationErrors).length === 0;
   }
 
@@ -180,6 +196,7 @@ export class UsuariosRolesComponent implements OnInit {
         phone: this.form.phone?.trim() || null,
         is_active: this.form.is_active,
         role_names: this.form.role_names,
+        branch_id: this.needsBranch ? this.form.branch_id : null,
       };
       this.usersService.updateUser(this.editingId, payload).subscribe({
         next: () => {
@@ -197,6 +214,7 @@ export class UsuariosRolesComponent implements OnInit {
         last_name: this.form.last_name.trim(),
         email: this.form.email.trim(),
         phone: this.form.phone?.trim() || null,
+        branch_id: this.needsBranch ? this.form.branch_id : null,
       }).subscribe({
         next: () => {
           this.success = 'Usuario registrado exitosamente en la plataforma.';

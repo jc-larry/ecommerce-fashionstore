@@ -1,0 +1,45 @@
+.bg-purple {
+  background-color: #6F42C1 !important;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: #CBD5E1;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-badge {
+  position: absolute;
+  left: -2rem;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 0 0 1px #94A3B8;
+}
+
+.timeline-content {
+  background: #F8FAFC;
+  padding: 0.85rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+}

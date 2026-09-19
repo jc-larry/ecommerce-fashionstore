@@ -79,6 +79,8 @@ class UserCreate(BaseModel):
         description="La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial."
     )
     role_names: List[str] = []
+    # Obligatorio si el usuario es ENCARGADO o CAJERO: el personal de tienda pertenece a una sola sucursal.
+    branch_id: Optional[int] = None
 
     _norm_email = field_validator("email", mode="before")(_normalize_email)
 
@@ -89,6 +91,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     is_active: Optional[bool] = None
     role_names: Optional[List[str]] = None
+    branch_id: Optional[int] = None
 
     _norm_email = field_validator("email", mode="before")(_normalize_email)
 

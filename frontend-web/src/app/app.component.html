@@ -35,6 +35,9 @@
         <a routerLink="/admin/suppliers" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
           <i class="bi bi-truck"></i> Proveedores
         </a>
+        <a routerLink="/admin/supplier-requests" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-arrow-repeat"></i> Pedidos a Proveedores
+        </a>
         <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
           <i class="bi bi-person-badge"></i> Empleados
         </a>
@@ -56,6 +59,21 @@
         <a routerLink="/admin/quotations-returns" routerLinkActive="active" class="nav-item">
           <i class="bi bi-file-earmark-ruled"></i> Cotizaciones / Devolución
         </a>
+        <a routerLink="/admin/reservations" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-kanban"></i> Bandeja Reservas
+        </a>
+        <a routerLink="/admin/shipments" routerLinkActive="active" class="nav-item">
+          <i class="bi bi-truck"></i> Despachos y Envíos
+        </a>
+        <a routerLink="/admin/delivery-zones" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-map"></i> Zonas de Entrega
+        </a>
+        <a routerLink="/admin/reports" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-file-earmark-bar-graph"></i> Reportes y Voz
+        </a>
+        <a routerLink="/admin/analytics-dashboard" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
+          <i class="bi bi-graph-up-arrow"></i> Dashboard Analítico BI
+        </a>
         <a routerLink="/admin/audit" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
           <i class="bi bi-shield-check"></i> Auditoría
         </a>
@@ -63,8 +81,13 @@
 
       <!-- ====== MODO AISLADO (OPERANDO DENTRO DE UNA SUCURSAL) ====== -->
       <ng-container *ngIf="!branchContext.isCentral()">
+        <!-- Personal sin sucursal asignada: no puede operar hasta que Casa Matriz lo asigne -->
+        <div *ngIf="branchContext.hasNoAssignedBranch()" class="p-3 mx-1 mb-2 rounded-3 small" style="background-color: #FFFBEB; border: 1px solid #FDE68A; color: #92400E;">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          No tienes una sucursal asignada. Solicita al administrador de Casa Matriz que te asigne una.
+        </div>
         <!-- Tarjeta indicadora de la sucursal actual -->
-        <div class="p-3 mx-1 mb-2 rounded-3 shadow-xs" style="background-color: #FEF3F2; border: 1px solid #FECDCA;">
+        <div *ngIf="!branchContext.hasNoAssignedBranch()" class="p-3 mx-1 mb-2 rounded-3 shadow-xs" style="background-color: #FEF3F2; border: 1px solid #FECDCA;">
           <div class="d-flex align-items-center justify-content-between mb-1">
             <span class="badge bg-danger text-white fw-bold" style="font-size: 0.62rem; letter-spacing: 0.5px;">SUCURSAL ACTIVA</span>
             <button *ngIf="authService.isCentralUser()" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-pill fw-bold" style="font-size: 0.68rem;" (click)="openExitModal()" title="Salir de esta sucursal">
@@ -92,23 +115,32 @@
         <a routerLink="/admin/products" routerLinkActive="active" class="nav-item">
           <i class="bi bi-tag"></i> Catálogo / Stock
         </a>
-        <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/employees" routerLinkActive="active" class="nav-item" *ngIf="authService.isCentralUser()">
           <i class="bi bi-person-badge"></i> Personal de Tienda
         </a>
-        <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/purchases" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
           <i class="bi bi-box-seam"></i> Mercadería
         </a>
-        <a routerLink="/admin/transfers" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/supplier-requests" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') && !authService.isCentralUser()">
+          <i class="bi bi-box-arrow-in-down"></i> Recepción de Proveedores
+        </a>
+        <a routerLink="/admin/transfers" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
           <i class="bi bi-arrow-left-right"></i> Transferencias
         </a>
-        <a routerLink="/admin/alerts" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/alerts" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
           <i class="bi bi-bell"></i> Alertas de Stock
         </a>
-        <a routerLink="/admin/adjustments" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/adjustments" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
           <i class="bi bi-clipboard-minus"></i> Ajustes de Stock
         </a>
-        <a routerLink="/admin/quotations-returns" routerLinkActive="active" class="nav-item">
+        <a routerLink="/admin/quotations-returns" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
           <i class="bi bi-file-earmark-ruled"></i> Cotizaciones / Devolución
+        </a>
+        <a routerLink="/admin/reservations" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
+          <i class="bi bi-calendar-check"></i> Reservas en Tienda
+        </a>
+        <a routerLink="/admin/shipments" routerLinkActive="active" class="nav-item" *ngIf="authService.hasRole('ENCARGADO') || authService.isCentralUser()">
+          <i class="bi bi-truck"></i> Despachos y Envíos
         </a>
 
         <!-- Botón permanente de salida hacia Casa Matriz (solo SUPERADMIN: ENCARGADO/CAJERO no tienen Casa Matriz a la que salir) -->
@@ -153,7 +185,7 @@
               {{ (branchContext.activeBranch$ | async) ? 'Sucursal Activa' : 'Ámbito Operativo' }}
             </small>
             <span class="fw-bold" style="font-size: 0.88rem; color: #2C2C2C;">
-              {{ (branchContext.activeBranch$ | async)?.name ? '📍 ' + (branchContext.activeBranch$ | async)?.name : '🏢 Casa Matriz (Consolidado)' }}
+              {{ (branchContext.activeBranch$ | async)?.name ? '📍 ' + (branchContext.activeBranch$ | async)?.name : (authService.isCentralUser() ? '🏢 Casa Matriz (Consolidado)' : '⚠️ Sin sucursal asignada') }}
             </span>
           </div>
         </div>
@@ -164,7 +196,7 @@
               [style.color]="(branchContext.activeBranch$ | async) ? '#991B1B' : '#9A3412'"
               style="font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px;">
           <i class="bi me-1" [ngClass]="(branchContext.activeBranch$ | async) ? 'bi-shop' : 'bi-diagram-3-fill'"></i>
-          {{ (branchContext.activeBranch$ | async) ? 'Modo Aislado: ' + (branchContext.activeBranch$ | async)?.name : 'Modo Centralizado (Consolidado)' }}
+          {{ (branchContext.activeBranch$ | async) ? 'Modo Aislado: ' + (branchContext.activeBranch$ | async)?.name : (authService.isCentralUser() ? 'Modo Centralizado (Consolidado)' : 'Sin sucursal') }}
         </span>
 
         <!-- Botón destacado de Salir de Sucursal (cuando se opera en una sucursal; solo Casa Matriz) -->
@@ -186,9 +218,7 @@
       </div>
 
       <div class="topbar-actions d-flex align-items-center gap-3">
-        <button class="btn btn-light rounded-circle btn-icon shadow-xs" title="Notificaciones">
-          <i class="bi bi-bell"></i>
-        </button>
+        <app-notifications-dropdown></app-notifications-dropdown>
         <div class="country-selector border rounded-3 px-3 py-1 bg-white d-flex align-items-center shadow-xs">
           <span class="me-2">🇧🇴</span> <span style="font-size: 0.82rem; font-weight: 600;">Bolivia (BO)</span>
         </div>
@@ -241,26 +271,100 @@
   </div>
 </div>
 
-<!-- [Rol PROVEEDOR] Portal de autoservicio: shell propio, independiente del admin y de la tienda -->
-<div *ngIf="authService.isLoggedIn() && authService.isProveedorUser() && !authService.isAdminUser()" class="supplier-shell">
-  <header class="topbar shadow-sm d-flex align-items-center justify-content-between px-4">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-truck text-primary fs-4"></i>
-      <span class="fw-bold">FashionStore · Portal de Proveedor</span>
+<!-- [Rol PROVEEDOR] Portal de autoservicio con el mismo diseño del panel (sidebar + topbar) -->
+<div *ngIf="authService.isLoggedIn() && authService.isProveedorUser() && !authService.isAdminUser()" class="admin-layout">
+  <aside class="sidebar shadow-sm">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="bi bi-bag-heart-fill"></i></div>
+      <div class="brand-text">
+        <h5 class="mb-0 fw-bold">FashionStore</h5>
+        <small class="text-muted" style="font-size: 0.65rem; letter-spacing: 1px;">PORTAL DE PROVEEDOR</small>
+      </div>
     </div>
-    <div class="d-flex align-items-center gap-3">
-      <span class="text-muted small">{{ userName }}</span>
+    <nav class="sidebar-nav">
+      <a *ngFor="let item of supplierNav" routerLink="/proveedor" [queryParams]="{ tab: item.tab }"
+         class="nav-item" [class.active]="portalTab === item.tab">
+        <i class="bi" [ngClass]="item.icon"></i> {{ item.label }}
+      </a>
+    </nav>
+    <ng-container *ngTemplateOutlet="portalUserFooter"></ng-container>
+  </aside>
+  <main class="main-content">
+    <header class="topbar shadow-sm">
+      <h5 class="fw-bold mb-0">{{ portalTitle }}</h5>
+      <div class="topbar-actions">
+        <app-notifications-dropdown></app-notifications-dropdown>
+        <span class="badge rounded-pill px-3 py-2" style="background:#FBF0ED; color:#A95848; font-weight:600;">
+          <i class="bi bi-truck me-1"></i>{{ userName }} (Proveedor)
+        </span>
+      </div>
+    </header>
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>
+
+<!-- [Rol REPARTIDOR] Portal de entregas con el mismo diseño del panel (sidebar + topbar) -->
+<div *ngIf="authService.isLoggedIn() && authService.isRepartidorUser() && !authService.isAdminUser()" class="admin-layout">
+  <aside class="sidebar shadow-sm">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="bi bi-bag-heart-fill"></i></div>
+      <div class="brand-text">
+        <h5 class="mb-0 fw-bold">FashionStore</h5>
+        <small class="text-muted" style="font-size: 0.65rem; letter-spacing: 1px;">PORTAL DE REPARTIDOR</small>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a *ngFor="let item of deliveryNav" routerLink="/repartidor" [queryParams]="{ tab: item.tab }"
+         class="nav-item" [class.active]="portalTab === item.tab">
+        <i class="bi" [ngClass]="item.icon"></i> {{ item.label }}
+      </a>
+    </nav>
+    <ng-container *ngTemplateOutlet="portalUserFooter"></ng-container>
+  </aside>
+  <main class="main-content">
+    <header class="topbar shadow-sm">
+      <h5 class="fw-bold mb-0">{{ portalTitle }}</h5>
+      <div class="topbar-actions">
+        <app-notifications-dropdown></app-notifications-dropdown>
+        <span class="badge rounded-pill px-3 py-2" style="background:#FBF0ED; color:#A95848; font-weight:600;">
+          <i class="bi bi-bicycle me-1"></i>{{ userName }} (Repartidor)
+        </span>
+      </div>
+    </header>
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>
+
+<!-- Pie de la barra lateral de los portales (usuario + cerrar sesión) -->
+<ng-template #portalUserFooter>
+  <div class="sidebar-footer mt-auto p-3 border-top">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center"
+             style="width: 32px; height: 32px; font-size: 0.8rem; background-color: #C66F5C;">
+          {{ userInitials }}
+        </div>
+        <div style="line-height: 1.2;">
+          <div class="fw-bold text-truncate" style="font-size: 0.85rem; max-width: 130px;">{{ userName }}</div>
+          <span class="pill pill-role" style="font-size: 0.62rem;">{{ authService.isProveedorUser() ? 'Proveedor' : 'Repartidor' }}</span>
+        </div>
+      </div>
       <button class="btn btn-sm btn-light text-muted border-0" (click)="onLogout()" title="Cerrar Sesión">
         <i class="bi bi-box-arrow-right"></i>
       </button>
     </div>
-  </header>
-  <div class="content-area">
-    <router-outlet></router-outlet>
   </div>
-</div>
+</ng-template>
 
 <!-- Pantallas de autenticación y tienda del cliente (sin chrome de administración) -->
-<div *ngIf="!(authService.isLoggedIn() && (authService.isAdminUser() || authService.isProveedorUser()))">
+<div *ngIf="!(authService.isLoggedIn() && (authService.isAdminUser() || authService.isProveedorUser() || authService.isRepartidorUser()))">
   <router-outlet></router-outlet>
 </div>
+
+<!-- Asistente Virtual / Chatbot IA: exclusivo para clientes y visitantes de la tienda -->
+<app-chatbot-widget *ngIf="!(authService.isLoggedIn() && (authService.isAdminUser() || authService.isProveedorUser() || authService.isRepartidorUser()))"></app-chatbot-widget>
+

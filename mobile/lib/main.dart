@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'src/packages/seguridad_y_usuarios/auth_service.dart';
 import 'src/packages/catalogo_y_tiendas/store_shell.dart';
+import 'src/packages/envios_y_logistica/delivery_dashboard_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthService.init();
-  runApp(const FashionStoreApp());
+  // Si quedó abierta la sesión de un repartidor, la app arranca en su panel de entregas.
+  final isRepartidor = await AuthService.isLoggedIn() && await AuthService.isRepartidor();
+  runApp(FashionStoreApp(startInDeliveryPanel: isRepartidor));
 }
 
 class FashionStoreApp extends StatelessWidget {
-  const FashionStoreApp({super.key});
+  final bool startInDeliveryPanel;
+  const FashionStoreApp({super.key, this.startInDeliveryPanel = false});
 
   // Paleta de marca (terracota)
   static const Color _brand = Color(0xFFC66F5C);
@@ -80,8 +84,8 @@ class FashionStoreApp extends StatelessWidget {
           ),
         ),
       ),
-      // Al ingresar a la app se muestra directamente el catálogo de ropa de la tienda
-      home: const StoreShell(),
+      // Cliente/visitante: catálogo de la tienda. Repartidor: panel de entregas.
+      home: startInDeliveryPanel ? const DeliveryDashboardView() : const StoreShell(),
     );
   }
 }
