@@ -213,16 +213,62 @@ def generar_datos_sinteticos(raiz, n_personas=40, n_prendas=12, seed=0):
     print(f'Datos sintéticos creados en {raiz}')
 
 
+def montar_drive():
+    """Monta Google Drive y CONFIRMA que quedó montado. Devuelve la raíz real (…/MyDrive) o None.
+
+    Importante: si un intento anterior falló, en /content/drive pueden quedar carpetas locales
+    sueltas que impiden volver a montar ("mount failed"). En ese caso se monta en /content/gdrive
+    en vez de borrar nada (nunca se toca el contenido de Drive).
+    """
+    if not EN_COLAB:
+        return None
+    from google.colab import drive
+
+    def raiz_de(punto):
+        for nombre in ('MyDrive', 'My Drive'):
+            r = Path(punto) / nombre
+            if r.is_dir():
+                try:
+                    os.listdir(r)          # comprueba que se puede leer de verdad
+                    return r
+                except Exception:
+                    pass
+        return None
+
+    for punto in ('/content/drive', '/content/gdrive'):
+        if os.path.ismount(punto):
+            r = raiz_de(punto)
+            if r:
+                print(f'📂 Google Drive ya montado en {punto}')
+                return r
+    for punto in ('/content/drive', '/content/gdrive'):
+        if os.path.isdir(punto) and not os.path.ismount(punto) and os.listdir(punto):
+            print(f'⚠️  {punto} contiene carpetas locales de un intento anterior; probando otro punto de montaje.')
+            continue
+        for intento in (1, 2):
+            try:
+                print(f'📂 Montando Google Drive en {punto} (intento {intento})…')
+                drive.mount(punto, force_remount=(intento == 2))
+            except Exception as e:
+                print(f'   Aviso de montaje: {e}')
+            r = raiz_de(punto)
+            if r:
+                print(f'✅ Drive montado: {r}')
+                return r
+            time.sleep(3)
+    return None
+
+
 def buscar_directorios_vton():
     """Busca de forma inteligente, rápida y segura las carpetas de datos en Google Drive."""
-    if EN_COLAB:
-        from google.colab import drive
-        if not (os.path.exists('/content/drive/MyDrive') or os.path.exists('/content/drive/My Drive')):
-            try:
-                print('📂 Conectando y montando Google Drive en /content/drive...')
-                drive.mount('/content/drive', force_remount=False)
-            except Exception as e:
-                print('Aviso montaje Drive:', e)
+    RAIZ_DRIVE = montar_drive()
+    if EN_COLAB and RAIZ_DRIVE is None:
+        raise RuntimeError(
+            'No se pudo montar Google Drive.\n'
+            'Soluciones: 1) Entorno de ejecución → Reiniciar sesión y vuelve a ejecutar; '
+            '2) o monta Drive a mano desde el panel de Archivos (icono de carpeta → "Activar Drive").\n'
+            'IMPORTANTE: no crees carpetas dentro de /content/drive mientras no esté montado.'
+        )
 
     dir_et1 = None
     dir_et2 = None
@@ -251,19 +297,22 @@ def buscar_directorios_vton():
                 (p / 'dataset_metadata.csv').is_file())
 
     # 1. Comprobar ruta directa configurada y variantes comunes
-    candidatos_base = [
+    candidatos_base = []
+    if RAIZ_DRIVE is not None:                       # raíz real devuelta por el montaje
+        candidatos_base += [RAIZ_DRIVE / 'entrenamiento_ia_vestidor', RAIZ_DRIVE]
+    candidatos_base += [
         Path(CFG['BASE_DIR']),
         Path('/content/drive/MyDrive/entrenamiento_ia_vestidor'),
-        Path('/content/drive/My Drive/entrenamiento_ia_vestidor'),
+        Path('/content/gdrive/MyDrive/entrenamiento_ia_vestidor'),
         Path('/content/drive/MyDrive'),
-        Path('/content/drive/My Drive'),
+        Path('/content/gdrive/MyDrive'),
         Path('/content/drive/Shareddrives'),
-        Path('/content/drive'),
-        Path('/content'),
+        Path('/content/gdrive/Shareddrives'),
         Path('.'),
     ]
+    candidatos_base = [c for c in dict.fromkeys(candidatos_base)]
 
-    for cand in candidatos_base[:3]:
+    for cand in candidatos_base[:4]:
         if cand.is_dir():
             sub1 = cand / CFG['ETAPA1_SUBDIR']
             sub2 = cand / CFG['ETAPA2_SUBDIR']
@@ -328,7 +377,9 @@ def buscar_directorios_vton():
                     with os.scandir(curr) as it:
                         for entry in it:
                             try:
-                                if entry.is_dir(follow_symlinks=False):
+                                # is_dir() SIGUE los enlaces: en Drive las carpetas compartidas
+                                # aparecen como accesos directos (symlinks) y antes se saltaban.
+                                if entry.is_dir():
                                     if entry.name.startswith('.') or entry.name in ('sample_data', '.ipynb_checkpoints', 'bin', 'etc', 'var', 'usr', 'lib', 'proc'):
                                         continue
                                     cola.append((Path(entry.path), prof + 1))
@@ -367,6 +418,31 @@ else:
     BASE, DIR_ETAPA1, DIR_ETAPA2 = buscar_directorios_vton()
     SALIDA = BASE / CFG['SALIDA_SUBDIR']
 
+print('\n📂 Estado de carpetas de datos:')
+for nombre, ruta in [('Etapa 1 (archive)', DIR_ETAPA1), ('Etapa 2 (catálogo)', DIR_ETAPA2)]:
+    estado = '✅ Encontrada' if (ruta and ruta.is_dir()) else '❌ NO EXISTE'
+    print(f'  · {nombre}: {ruta}  {estado}')
+print(f'  · Carpeta base: {BASE}')
+
+# Nunca se crean carpetas de salida si los datos no están: si Drive no está montado, hacerlo
+# dejaría carpetas locales dentro de /content/drive que después impiden volver a montarlo.
+if not DIR_ETAPA1 or not DIR_ETAPA1.is_dir():
+    print('\n📋 Diagnóstico — contenido real de las carpetas:')
+    for raiz in [BASE, BASE.parent, Path('/content/drive/MyDrive'), Path('/content/gdrive/MyDrive'), Path('/content')]:
+        if raiz and raiz.is_dir():
+            try:
+                hijos = sorted(os.listdir(raiz))[:25]
+                print(f'   {raiz} → {hijos if hijos else "(vacía)"}')
+            except Exception as e:
+                print(f'   {raiz} → error al listar: {e}')
+    raise FileNotFoundError(
+        f'No se encontró la carpeta de la Etapa 1 en {DIR_ETAPA1}.\n'
+        'Si el diagnóstico muestra la carpeta base vacía o solo con "resultados_vton", Drive no está '
+        'montado de verdad: Entorno de ejecución → Reiniciar sesión y vuelve a ejecutar.\n'
+        'Si tus carpetas están en otra ruta, ponla en CFG["BASE_DIR"] (Celda 1).'
+    )
+
+SALIDA = BASE / CFG['SALIDA_SUBDIR']
 CACHE_DRIVE = SALIDA / 'cache'
 # Copia local de la caché para leer rápido durante el entrenamiento (Drive es lento).
 CACHE_LOCAL = Path('/content/cache_vton') if (EN_COLAB and not MODO_PRUEBA) else CACHE_DRIVE
@@ -375,27 +451,7 @@ for p in (SALIDA, CACHE_DRIVE, CACHE_LOCAL):
         p.mkdir(parents=True, exist_ok=True)
     except Exception as e_mk:
         print(f'Aviso creando {p}: {e_mk}')
-
-print('\n📂 Estado de carpetas de datos:')
-for nombre, ruta in [('Etapa 1 (archive)', DIR_ETAPA1), ('Etapa 2 (catálogo)', DIR_ETAPA2)]:
-    estado = '✅ Encontrada' if (ruta and ruta.exists()) else '❌ NO EXISTE'
-    print(f'  · {nombre}: {ruta}  {estado}')
 print(f'  · Salida de resultados: {SALIDA}')
-
-if not DIR_ETAPA1 or not DIR_ETAPA1.exists():
-    print('\n📋 Diagnóstico de carpetas detectadas en Google Drive:')
-    for raiz in [Path('/content/drive/MyDrive'), Path('/content/drive/My Drive'), Path('/content')]:
-        if raiz.exists():
-            print(f'   Contenido de {raiz}:')
-            try:
-                for entry in sorted(os.listdir(raiz))[:25]:
-                    print(f'     - {entry}')
-            except Exception as e:
-                print(f'     Error al listar {raiz}: {e}')
-    raise FileNotFoundError(
-        f'No se encontró la carpeta archive (Etapa 1) en {DIR_ETAPA1}.\n'
-        f'Verifica que la carpeta "entrenamiento_ia_vestidor" con su subcarpeta "archive" esté en tu Google Drive.'
-    )
 
 # %% [CELDA 3] Utilidades de imágenes
 EXT_IMG = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
