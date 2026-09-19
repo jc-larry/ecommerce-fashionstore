@@ -591,14 +591,16 @@ def descubrir_datos(raiz, csv_nombre=None):
                 pares = []
                 for a, b in zip(df[col_persona].astype(str), df[col_prenda].astype(str)):
                     ra, rb = resolver(a), resolver(b)
-                    if ra and rb:
+                    if ra and rb and ra != rb:
                         pares.append((ra, rb))
                 if pares:
                     return dict(pares=pares, imagenes=[], info=f'CSV pareado: {len(pares)} pares (persona="{col_persona}", prenda="{col_prenda}")')
-            if len(cols_img) == 1:
-                rutas = sorted({r for r in (resolver(v) for v in df[cols_img[0]].astype(str)) if r})
+            if len(cols_img) == 1 or (len(cols_img) >= 2 and not pares):
+                # Si falló la creación de pares (ej. misma imagen), recolectamos las de la columna prenda o la primera válida
+                col_unica = cols_img[1] if len(cols_img) >= 2 else cols_img[0]
+                rutas = sorted({r for r in (resolver(v) for v in df[col_unica].astype(str)) if r})
                 if rutas:
-                    return dict(pares=[], imagenes=rutas, info=f'CSV con columna de imágenes: {len(rutas)} imágenes detectadas ("{cols_img[0]}")')
+                    return dict(pares=[], imagenes=rutas, info=f'CSV con columna de imágenes: {len(rutas)} imágenes detectadas ("{col_unica}")')
         except Exception as e_csv:
             print(f'Aviso al procesar metadatos {meta_file}: {e_csv}')
 
@@ -886,8 +888,12 @@ def collate_seguro(lote):
 
 def dividir(items, frac_val, seed=CFG['SEED']):
     items = list(items)
+    if len(items) <= 1:
+        return items, items
     random.Random(seed).shuffle(items)
     n_val = max(1, int(len(items) * frac_val))
+    if n_val == len(items):
+        n_val = len(items) - 1
     return items[n_val:], items[:n_val]
 
 
