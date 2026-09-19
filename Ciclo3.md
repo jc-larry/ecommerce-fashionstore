@@ -975,6 +975,16 @@ Arquitectura tipo **CP-VTON** a 256 × 192:
 | Decoder U-Net del TOM | Sintetiza la imagen | 🔥 | ❄️ |
 | **Capas finales de fusión** (`up1` + `fusion`) | Imagen renderizada + máscara de composición | 🔥 | 🔥 |
 
+**Versión v2 (correcciones tras el primer entrenamiento en Colab):**
+
+| Problema observado en v1 (TensorBoard y demo) | Causa | Corrección v2 |
+| :-- | :-- | :-- |
+| La Etapa 2 entrenó con fotos de prendas como si fueran personas (grid con un cárdigan como "persona", 1 muestra de validación, pérdidas de entrenamiento que se repiten) | La clasificación consideraba "persona" cualquier imagen con brazos; las mangas de un producto se parsean como brazos | "Persona" exige rostro o pelo visible; la caché se reclasifica sola al volver a ejecutar; aviso si la Etapa 2 tiene menos de 20 muestras |
+| Contorno blanco alrededor de la prenda y manchas de color en los hombros | La agnóstica borraba un anillo dilatado que incluía fondo, y la máscara suave mezclaba la prenda con su fondo blanco | La agnóstica solo borra la ropa vieja (+2 px); el fondo que la prenda nueva no cubre se copia de la foto original (canal `fondo_visible`); composición con borde firme |
+| La demo "salía bien" pero no probaba nada | Usaba la misma prenda que la persona llevaba puesta | La demo final prueba **persona A + prenda B** (del catálogo o de otra persona) |
+
+Los checkpoints v1 no son compatibles (5 canales): v2 entrena en `etapa1_v2` / `etapa2_v2` reutilizando la caché de imágenes.
+
 Parámetros entrenables: ~8 % en la Etapa 1 y ~4 % en la Etapa 2 (evita el olvido catastrófico).
 Optimizador **AdamW** + **ReduceLROnPlateau** (factor 0,5, paciencia 2), precisión mixta (AMP),
 recorte de gradiente, early stopping (paciencia 6). Épocas por defecto: 20 (Etapa 1) y 15 (Etapa 2);
@@ -1000,7 +1010,7 @@ verificado contra PyTorch con onnxruntime) y `vton_metadatos.json`:
 | Tensor | Forma | Rango |
 | :-- | :-- | :-- |
 | entrada `agnostic` | `[batch, 3, 256, 192]` | [-1, 1] |
-| entrada `parse` | `[batch, 5, 256, 192]` — `[preservar, área_generar, brazos, cara_cuello, silueta]` | {0, 1} |
+| entrada `parse` | `[batch, 6, 256, 192]` — `[preservar, área_generar, brazos, cara_cuello, silueta, fondo_visible]` | {0, 1} |
 | entrada `cloth` | `[batch, 3, 256, 192]` | [-1, 1] |
 | entrada `cloth_mask` | `[batch, 1, 256, 192]` | {0, 1} |
 | salida `result` | `[batch, 3, 256, 192]` | [-1, 1] |

@@ -94,6 +94,10 @@ CFG = dict(
     ETAPA1_CSV='labels_front.csv',
     ETAPA2_SUBDIR='entrenamiento_ia_ropa',
     SALIDA_SUBDIR='resultados_vton',          # checkpoints, gráficas, caché y ONNX (en Drive)
+    # v2: 6 canales de parsing (fondo visible), clasificación persona/prenda por rostro y
+    # composición sin halo. Los checkpoints v1 (5 canales) NO son compatibles: se entrena de nuevo
+    # en carpetas etapa1_v2 / etapa2_v2 (la caché de imágenes se reutiliza).
+    VERSION_MODELO='v2',
     # --- Datos ---
     IMG_H=256, IMG_W=192,                    # resolución CP-VTON (múltiplos de 32)
     MAX_IMG_ETAPA1=4000,                     # límite para terminar hoy en una T4 (None = todas)
@@ -629,10 +633,16 @@ INDICE = json.loads(INDICE_PATH.read_text(encoding='utf-8')) if INDICE_PATH.exis
 
 
 def clasificar(parse):
-    """'persona' si hay anatomía visible; 'prenda' si solo hay ropa; 'otro' en otro caso."""
+    """'persona' solo si se ve un ROSTRO o pelo además de anatomía; si no, es foto de producto.
+
+    v1 usaba solo "anatomía visible": las mangas de una chaqueta o cárdigan fotografiado sin
+    modelo se parsean como brazos, y las fotos del catálogo terminaban tratadas como personas
+    (la Etapa 2 entrenó con prendas en lugar de cuerpos).
+    """
     anat = np.isin(parse, ANATOMIA).mean()
     ropa = np.isin(parse, ROPA).mean()
-    if anat > 0.01:
+    rostro = np.isin(parse, [L['face'], L['hair']]).mean()
+    if rostro > 0.004 and anat > 0.01:
         return 'persona', None
     if ropa > 0.03:
         conteo = {k: int((parse == v).sum()) for k, v in
@@ -687,6 +697,22 @@ if CACHE_LOCAL != CACHE_DRIVE:
     except Exception as e_cp:
         print(f'Aviso al copiar caché a disco local: {e_cp}')
 
+# Reclasifica la caché existente con la regla actual (las entradas de v1 pueden estar mal).
+_cambios = 0
+for _k, _v in INDICE.items():
+    if not _v.get('ok'):
+        continue
+    _ruta_parse = CACHE_DRIVE / f'{_k}_parse.png'
+    if not _ruta_parse.exists():
+        continue
+    _tipo, _sub = clasificar(np.array(Image.open(_ruta_parse), dtype=np.uint8))
+    if (_tipo, _sub) != (_v.get('tipo'), _v.get('subtipo')):
+        _v['tipo'], _v['subtipo'] = _tipo, _sub
+        _cambios += 1
+if _cambios:
+    INDICE_PATH.write_text(json.dumps(INDICE, ensure_ascii=False), encoding='utf-8')
+    print(f'Reclasificadas {_cambios} imágenes de la caché (persona ↔ prenda).')
+
 fallidas = [v for v in INDICE.values() if not v.get('ok')]
 print(f'Imágenes omitidas por corruptas o ilegibles: {len(fallidas)}')
 for v in fallidas[:5]:
@@ -714,8 +740,16 @@ MODO1, ITEMS1 = armar_items(DESC1)
 MODO2, ITEMS2 = armar_items(DESC2)
 # Reúne TODAS las personas detectadas en cualquier dataset (Etapa 1 + Etapa 2 / cuerpos)
 POOL_PERSONAS = sorted({k for k, v in INDICE.items() if v.get('ok') and v.get('tipo') == 'persona'})
-print(f'Etapa 1: modo={MODO1}, muestras={len(ITEMS1)}')
-print(f'Etapa 2: modo={MODO2}, muestras={len(ITEMS2)}')
+def _conteo(desc):
+    tipos = [INDICE.get(clave_de(r), {}).get('tipo') for r in desc['imagenes']]
+    return tipos.count('persona'), tipos.count('prenda')
+
+
+print(f'Etapa 1: modo={MODO1}, muestras={len(ITEMS1)}  (personas/prendas detectadas: {_conteo(DESC1)})')
+print(f'Etapa 2: modo={MODO2}, muestras={len(ITEMS2)}  (personas/prendas detectadas: {_conteo(DESC2)})')
+if MODO2 is not None and len(ITEMS2) < 20:
+    print(f'⚠️  La Etapa 2 solo tiene {len(ITEMS2)} muestras: el fine-tuning será poco útil. '
+          'Agrega más fotos del catálogo a entrenamiento_ia_ropa/.')
 print(f'Personas disponibles en el pool para combinar con prendas del catálogo: {len(POOL_PERSONAS)}')
 if MODO1 is None:
     raise RuntimeError('La Etapa 1 no tiene fotos de personas utilizables. Revisa la carpeta archive/.')
@@ -723,7 +757,7 @@ if not POOL_PERSONAS:
     raise RuntimeError('No hay ninguna foto de persona en los datos: no se puede entrenar un probador virtual.')
 
 # %% [CELDA 7] Representación agnóstica + REGLA DE ORO (cuello/brazos) + Dataset robusto
-N_PARSE = 5   # canales: [preservar, area_generar, brazos, cara_cuello, silueta]  (preservar SIEMPRE en el 0)
+N_PARSE = 6   # canales: [preservar, area_generar, brazos, cara_cuello, silueta, fondo_visible]  (preservar SIEMPRE en el 0)
 
 
 def dilatar(mascara, k):
@@ -762,11 +796,18 @@ def derivar_mascaras(parse, preservar_brazos=CFG['PRESERVAR_BRAZOS']):
     if preservar_brazos:
         preservar |= brazos
     area_generar = ~preservar
+    # v2 — sin halo: en el anillo dilatado solo se borra (gris) la ropa vieja y un borde de 2 px;
+    # el FONDO que queda más allá sigue visible en la agnóstica y, si la prenda nueva no lo cubre,
+    # el resultado final copia el píxel original (antes se regeneraba y quedaba un contorno blanco).
+    fondo = parse == L['background']
+    gris = area_generar & ~(fondo & ~dilatar(ropa_sup, 5))
+    fondo_visible = area_generar & ~gris
     silueta = np.array(Image.fromarray((parse > 0).astype(np.uint8) * 255)
                        .resize((ancho // 8, alto // 8), Image.BILINEAR)
                        .resize((ancho, alto), Image.BILINEAR)) / 255.0
     return dict(preservar=preservar, area=area_generar, brazos=brazos, cara_cuello=cara | cuello,
-                silueta=silueta, ropa=ropa_sup & area_generar, cuello=cuello)
+                silueta=silueta, ropa=ropa_sup & area_generar, cuello=cuello,
+                gris=gris, fondo_visible=fondo_visible)
 
 
 def mascara_de_prenda(img, parse):
@@ -781,8 +822,10 @@ def mascara_de_prenda(img, parse):
 
 def mapa_a_tensores(m):
     t = lambda a: torch.from_numpy(np.asarray(a, dtype=np.float32))[None]
-    parse_t = torch.cat([t(m['preservar']), t(m['area']), t(m['brazos']), t(m['cara_cuello']), t(m['silueta'])], 0)
-    return parse_t, t(m['preservar']), t(m['ropa']), t(m['cuello'])
+    parse_t = torch.cat([t(m['preservar']), t(m['area']), t(m['brazos']), t(m['cara_cuello']), t(m['silueta']),
+                         t(m['fondo_visible'])], 0)
+    visible = 1 - t(m['gris'])          # la agnóstica = persona × visible (gris = 0)
+    return parse_t, visible, t(m['ropa']), t(m['cuello'])
 
 
 def prenda_desde_persona(persona_t, ropa_t, aleatorio):
@@ -857,7 +900,7 @@ class DatasetVTON(Dataset):
         if m['ropa'].mean() < 0.02:
             raise ValueError('la persona no tiene prenda superior visible')
         persona = pil_a_tensor(img)
-        parse_t, preservar, ropa, cuello = mapa_a_tensores(m)
+        parse_t, visible, ropa, cuello = mapa_a_tensores(m)
         if self.modo == 'auto':
             prenda, mprenda = prenda_desde_persona(persona, ropa, self.entrenamiento)
         else:
@@ -871,7 +914,7 @@ class DatasetVTON(Dataset):
             prenda = pil_a_tensor(img_c) * mprenda + (1 - mprenda)
         return dict(
             persona=persona,
-            agnostica=persona * preservar,                  # ropa original borrada (gris = 0)
+            agnostica=persona * visible,                    # ropa original borrada (gris = 0), fondo visible
             parse=parse_t,
             prenda=prenda,
             mascara_prenda=mprenda,
@@ -1085,11 +1128,15 @@ class ModeloVTON(nn.Module):
         # REGLA DE ORO (1): la prenda deformada no puede ocupar cuello/brazos/cara.
         mascara_ef = mascara_def * (1 - preservar)
         render, comp = self.tom(agnostica, parse, prenda_def, mascara_ef)
-        comp = comp * mascara_ef
+        # Borde duro: en el contorno suave de la máscara la prenda (sobre fondo blanco) se mezclaba
+        # con blanco y dejaba un halo; ahora la composición solo usa la prenda donde la máscara es firme.
+        comp = comp * torch.clamp((mascara_ef - 0.3) / 0.4, 0, 1)
         tryon = comp * prenda_def + (1 - comp) * render
-        # REGLA DE ORO (2): la anatomía ORIGINAL se superpone sobre la prenda generada.
-        # (en la agnóstica, las zonas a preservar son píxeles originales de la foto)
-        final = preservar * agnostica + (1 - preservar) * tryon
+        # REGLA DE ORO (2): la anatomía ORIGINAL se superpone sobre la prenda generada, y el fondo
+        # original que la prenda nueva no cubre también se conserva (v2).
+        fondo_visible = parse[:, 5:6]
+        conservar = torch.clamp(preservar + fondo_visible * (1 - mascara_def), 0, 1)
+        final = conservar * agnostica + (1 - conservar) * tryon
         return dict(final=final, tryon=tryon, render=render, comp=comp, prenda_def=prenda_def,
                     mascara_def=mascara_def, mascara_ef=mascara_ef, flujo=flujo)
 
@@ -1325,7 +1372,7 @@ def guardar_ckpt(ruta, modelo, opt, sched, scaler, epoca, hist, mejor, sin_mejor
 
 
 def entrenar_etapa(etapa, modelo, items, modo, epocas, lr):
-    carpeta = SALIDA / f'etapa{etapa}'
+    carpeta = SALIDA / f"etapa{etapa}_{CFG['VERSION_MODELO']}"
     dir_ckpt = carpeta / 'checkpoints'
     dir_ckpt.mkdir(parents=True, exist_ok=True)
     tiene_gt = modo != 'prenda'
@@ -1339,14 +1386,17 @@ def entrenar_etapa(etapa, modelo, items, modo, epocas, lr):
     vgg = PerdidaVGG(CFG['PESOS_PREENTRENADOS']).to(DEVICE)
     try:
         from torch.utils.tensorboard import SummaryWriter
-        escritor = SummaryWriter(str(SALIDA / 'tensorboard' / f'etapa{etapa}'))
+        escritor = SummaryWriter(str(SALIDA / 'tensorboard' / f"etapa{etapa}_{CFG['VERSION_MODELO']}"))
     except Exception:
         escritor = None
 
     hist, inicio, mejor, sin_mejora = defaultdict(list), 1, float('inf'), 0
     ultimo = dir_ckpt / 'last.pth'
-    if CFG['REANUDAR'] and ultimo.exists():
-        ck = torch.load(ultimo, map_location=DEVICE, weights_only=False)
+    ck = torch.load(ultimo, map_location=DEVICE, weights_only=False) if (CFG['REANUDAR'] and ultimo.exists()) else None
+    if ck is not None and ck.get('n_parse') != N_PARSE:
+        print(f'⚠️  {ultimo} es de otra versión del modelo ({ck.get("n_parse")} canales); se entrena desde cero.')
+        ck = None
+    if ck is not None:
         modelo.load_state_dict(ck['modelo'])
         opt.load_state_dict(ck['opt'])
         sched.load_state_dict(ck['sched'])
@@ -1409,7 +1459,7 @@ HIST1 = entrenar_etapa(1, modelo, ITEMS1, MODO1, CFG['EPOCAS_ETAPA1'], CFG['LR_E
 if MODO2 is None or not ITEMS2:
     print('⚠️  La carpeta de la Etapa 2 no tiene imágenes utilizables; se exportará el modelo de la Etapa 1.')
 else:
-    ck1 = SALIDA / 'etapa1' / 'checkpoints' / 'best.pth'
+    ck1 = SALIDA / f"etapa1_{CFG['VERSION_MODELO']}" / 'checkpoints' / 'best.pth'
     modelo = ModeloVTON(CFG['PESOS_PREENTRENADOS']).to(DEVICE)
     if ck1.exists():
         modelo.load_state_dict(torch.load(ck1, map_location=DEVICE, weights_only=False)['modelo'])
@@ -1479,7 +1529,7 @@ METADATOS = dict(
     alto=H, ancho=W, opset=CFG['ONNX_OPSET'],
     entradas={
         'agnostic': f'float32 [batch,3,{H},{W}] en [-1,1]: persona con la ropa superior borrada (0 = gris)',
-        'parse': f'float32 [batch,{N_PARSE},{H},{W}] en {{0,1}}: [preservar, area_generar, brazos, cara_cuello, silueta]',
+        'parse': f'float32 [batch,{N_PARSE},{H},{W}] en {{0,1}}: [preservar, area_generar, brazos, cara_cuello, silueta, fondo_visible]',
         'cloth': f'float32 [batch,3,{H},{W}] en [-1,1]: prenda centrada sobre fondo blanco',
         'cloth_mask': f'float32 [batch,1,{H},{W}] en {{0,1}}',
     },
@@ -1528,32 +1578,43 @@ def preparar_entrada(persona_pil, prenda_pil):
     prenda = letterbox(prenda_pil.convert('RGB'))
     parse_p, parse_c = PARSER.parsear([persona, prenda], [getattr(persona_pil, 'ruta', None), getattr(prenda_pil, 'ruta', None)])
     m = derivar_mascaras(parse_p)
-    parse_t, preservar, _, _ = mapa_a_tensores(m)
+    parse_t, visible, _, _ = mapa_a_tensores(m)
     persona_t = pil_a_tensor(persona)
     mprenda = torch.from_numpy(mascara_de_prenda(prenda, parse_c).astype(np.float32))[None]
     prenda_t = pil_a_tensor(prenda) * mprenda + (1 - mprenda)
-    return {'agnostic': (persona_t * preservar)[None].numpy(), 'parse': parse_t[None].numpy(),
+    return {'agnostic': (persona_t * visible)[None].numpy(), 'parse': parse_t[None].numpy(),
             'cloth': prenda_t[None].numpy(), 'cloth_mask': mprenda[None].numpy()}, persona_t
 
 
-_ds_demo = DatasetVTON(ITEMS1[:16], MODO1, CACHE_LOCAL, False, POOL_PERSONAS)
-_demo = next((_ds_demo[i] for i in range(len(_ds_demo)) if _ds_demo[i] is not None), None)
-if _demo is not None:
-    entrada = {'agnostic': _demo['agnostica'][None].numpy(), 'parse': _demo['parse'][None].numpy(),
-               'cloth': _demo['prenda'][None].numpy(), 'cloth_mask': _demo['mascara_prenda'][None].numpy()}
-    resultado = sesion.run(['result'], entrada)[0][0]
-    fig, ax = plt.subplots(1, 4, figsize=(11, 4))
-    for a, (img, t) in zip(ax, [(_demo['persona'], 'Original'), (_demo['agnostica'], 'Agnóstica'),
-                                (_demo['prenda'], 'Prenda'), (torch.from_numpy(resultado), 'Resultado ONNX')]):
-        a.imshow(tensor_a_numpy_img(img))
-        a.set_title(t)
-        a.axis('off')
+# Prueba REAL de probador: cada persona con una prenda DISTINTA a la que lleva puesta.
+# (La prueba de v1 usaba la misma prenda de la foto y por eso "salía bien" aunque el modelo no transfiriera.)
+_personas = [m for m in (DatasetVTON(ITEMS1[:24], MODO1, CACHE_LOCAL, False, POOL_PERSONAS)[i] for i in range(min(24, len(ITEMS1))))
+             if m is not None][:4]
+if MODO2 == 'prenda' and ITEMS2:
+    _ds_c = DatasetVTON(ITEMS2[:12], 'prenda', CACHE_LOCAL, False, POOL_PERSONAS)
+    _prendas = [m for m in (_ds_c[i] for i in range(len(_ds_c))) if m is not None]
+else:
+    _prendas = _personas[1:] + _personas[:1]          # prenda de OTRA persona
+_n = min(len(_personas), len(_prendas))
+if _n:
+    fig, ax = plt.subplots(_n, 4, figsize=(11, 3.4 * _n), squeeze=False)
+    for i in range(_n):
+        per, pre = _personas[i], _prendas[i]
+        entrada = {'agnostic': per['agnostica'][None].numpy(), 'parse': per['parse'][None].numpy(),
+                   'cloth': pre['prenda'][None].numpy(), 'cloth_mask': pre['mascara_prenda'][None].numpy()}
+        resultado = torch.from_numpy(sesion.run(['result'], entrada)[0][0])
+        for j, (img, t) in enumerate([(per['persona'], 'Original'), (per['agnostica'], 'Agnóstica'),
+                                      (pre['prenda'], 'Prenda nueva'), (resultado, 'Resultado ONNX')]):
+            ax[i, j].imshow(tensor_a_numpy_img(img))
+            ax[i, j].axis('off')
+            if i == 0:
+                ax[i, j].set_title(t)
     fig.tight_layout()
     mostrar(fig, DIR_ONNX / 'demo_inferencia_onnx.png')
 
 print('\n================ RESUMEN ================')
 print(f'Resultados en Drive: {SALIDA}')
-print(f'  · Curvas y grids por época: {SALIDA}/etapa1, {SALIDA}/etapa2')
+print(f"  · Curvas y grids por época: {SALIDA}/etapa1_{CFG['VERSION_MODELO']}, {SALIDA}/etapa2_{CFG['VERSION_MODELO']}")
 print(f'  · Checkpoints (.pth cada {CFG["CHECKPOINT_CADA"]} épocas + best/last): {SALIDA}/etapaN/checkpoints')
 print(f'  · Modelo para el backend: {RUTA_ONNX} + vton_metadatos.json')
 print('  · TensorBoard:  %load_ext tensorboard   y   %tensorboard --logdir "' + str(SALIDA / 'tensorboard') + '"')
