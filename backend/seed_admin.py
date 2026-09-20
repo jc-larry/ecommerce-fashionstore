@@ -13,15 +13,15 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.db.session import SessionLocal, engine, Base
-from app.packages.seguridad_y_usuarios.models import User, Role, user_roles
-from app.packages.seguridad_y_usuarios.services import get_password_hash
+from app.packages.paquete_seguridad_usuarios.models import User, Role, user_roles
+from app.packages.paquete_seguridad_usuarios.services import get_password_hash
 
 # Import other models to ensure they are registered with Base.metadata before create_all
-from app.packages.catalogo_y_tiendas import models as catalog_models
-from app.packages.catalogo_y_tiendas.branches import models as branches_models
-from app.packages.inventario_y_proveedores.suppliers import models as suppliers_models
-from app.packages.inventario_y_proveedores.merchandise import models as merchandise_models
-from app.packages.ventas_y_pagos import models as sales_models
+from app.packages.paquete_catalogo_y_tiendas import models as catalog_models
+from app.packages.paquete_catalogo_y_tiendas.branches import models as branches_models
+from app.packages.paquete_inventario_y_proveedores.suppliers import models as suppliers_models
+from app.packages.paquete_inventario_y_proveedores.merchandise import models as merchandise_models
+from app.packages.paquete_ventas_y_pagos import models as sales_models
 
 # Roles base del sistema (RF06)
 BASE_ROLES = {
@@ -77,7 +77,7 @@ def seed():
             print("[INFO] El usuario administrador ya existe.")
 
         # 3. Asegurar sucursales distribuidas exclusivamente en Santa Cruz de la Sierra (CU06)
-        from app.packages.catalogo_y_tiendas.branches.models import Branch
+        from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch
         branches_data = [
             {
                 "name": "FashionStore Equipetrol",

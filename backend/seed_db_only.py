@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy import text
 from app.db.session import SessionLocal
-from app.packages.catalogo_y_tiendas.models import (
+from app.packages.paquete_catalogo_y_tiendas.models import (
     Category, Product, ProductVariant, ProductImage, Color, Size
 )
 

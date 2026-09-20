@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.db.session import SessionLocal
-from app.packages.catalogo_y_tiendas.branches.models import Branch
-from app.packages.catalogo_y_tiendas.models import ProductVariant
-from app.packages.inventario_y_proveedores.merchandise.models import Inventory
+from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch
+from app.packages.paquete_catalogo_y_tiendas.models import ProductVariant
+from app.packages.paquete_inventario_y_proveedores.merchandise.models import Inventory
 from tests.test_cu17_cu24 import get_auth_token
 
 client = TestClient(app)

@@ -3,7 +3,7 @@ Script para inicializar la Taxonomía Oficial de Moda Femenina, Curvas de Tallas
 """
 from sqlalchemy import text
 from app.db.session import engine, SessionLocal
-from app.packages.catalogo_y_tiendas.models import Category, Size, Color, Product, ProductVariant, ProductImage
+from app.packages.paquete_catalogo_y_tiendas.models import Category, Size, Color, Product, ProductVariant, ProductImage
 
 # Asegurar columnas nuevas
 UPGRADES = [

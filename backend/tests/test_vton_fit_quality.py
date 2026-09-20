@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.packages.inteligente_y_analitica.vton_service import VirtualTryonAIService
+from app.packages.paquete_inteligente_y_analitica.vton_service import VirtualTryonAIService
 
 UPLOADS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
 MODELS = os.path.join(UPLOADS, "models")

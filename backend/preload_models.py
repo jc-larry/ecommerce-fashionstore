@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
 def main() -> int:
-    from app.packages.inteligente_y_analitica.vton_service import (
+    from app.packages.paquete_inteligente_y_analitica.vton_service import (
         GARMENT_REMBG_MODEL,
         REMBG_MODEL_NAME,
         VirtualTryonAIService,

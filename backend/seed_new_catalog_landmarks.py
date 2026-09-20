@@ -142,7 +142,7 @@ def seed_database():
     """Limpia catálogo anterior e inserta las 4 nuevas prendas con landmarks."""
     from sqlalchemy import text
     from app.db.session import engine, SessionLocal, Base
-    from app.packages.catalogo_y_tiendas.models import (
+    from app.packages.paquete_catalogo_y_tiendas.models import (
         Category, Product, ProductVariant, ProductImage, Color, Size, Season
     )
 
@@ -407,8 +407,8 @@ def seed_database():
         # 6. Crear inventario por sucursal
         print("\n  Creando inventario por sucursal...")
         try:
-            from app.packages.catalogo_y_tiendas.branches.models import Branch
-            from app.packages.inventario_y_proveedores.merchandise.models import Inventory
+            from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch
+            from app.packages.paquete_inventario_y_proveedores.merchandise.models import Inventory
             branches = db.query(Branch).all()
             all_variants = db.query(ProductVariant).all()
             inv_count = 0

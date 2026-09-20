@@ -1124,8 +1124,11 @@ class GMMFlujo(nn.Module):
             delta = self.estimadores[j](entrada)
             flujo = delta if flujo is None else flujo + delta
         flujo = F.interpolate(flujo, size=(H, W), mode='bilinear', align_corners=False)
-        prenda_def = deformar(prenda, flujo, self.base_full, 'border')
+        # Acotamiento anatómico estricto: evita deformaciones exageradas o alas laterales
+        flujo = torch.tanh(flujo) * 0.20
         mascara_def = deformar(mascara_prenda, flujo, self.base_full, 'zeros')
+        # Limpieza de bordes: neutraliza cualquier píxel estirado de borde fuera de la máscara real
+        prenda_def = deformar(prenda, flujo, self.base_full, 'border') * mascara_def + (1 - mascara_def)
         return prenda_def, mascara_def, flujo
 
 
@@ -1186,12 +1189,12 @@ class ModeloVTON(nn.Module):
         render, comp = self.tom(agnostica, parse, prenda_def, mascara_ef)
         # Borde duro: en el contorno suave de la máscara la prenda (sobre fondo blanco) se mezclaba
         # con blanco y dejaba un halo; ahora la composición solo usa la prenda donde la máscara es firme.
-        comp = comp * torch.clamp((mascara_ef - 0.3) / 0.4, 0, 1)
+        comp = comp * torch.clamp((mascara_ef - 0.2) / 0.5, 0, 1)
         tryon = comp * prenda_def + (1 - comp) * render
         # REGLA DE ORO (2): la anatomía ORIGINAL se superpone sobre la prenda generada, y el fondo
-        # original que la prenda nueva no cubre también se conserva (v2).
+        # original que la prenda nueva no cubre también se conserva al 100% (sin alas ni franjas laterales).
         fondo_visible = parse[:, 5:6]
-        conservar = torch.clamp(preservar + fondo_visible * (1 - mascara_def), 0, 1)
+        conservar = torch.clamp(preservar + fondo_visible * (1 - mascara_ef), 0, 1)
         final = conservar * agnostica + (1 - conservar) * tryon
         return dict(final=final, tryon=tryon, render=render, comp=comp, prenda_def=prenda_def,
                     mascara_def=mascara_def, mascara_ef=mascara_ef, flujo=flujo)
@@ -1294,23 +1297,38 @@ def iou(pred, gt):
 def calcular_perdidas(o, b, vgg, lam, tiene_gt):
     tm, cuello = b['mascara_objetivo'], b['cuello']
     wm, wc, flujo = o['mascara_def'], o['prenda_def'], o['flujo']
-    tv = (flujo[:, :, 1:] - flujo[:, :, :-1]).abs().mean() + (flujo[:, :, :, 1:] - flujo[:, :, :, :-1]).abs().mean()
-    invasion = (wm * cuello).sum() / (cuello.sum() + 1)          # prenda cayendo sobre el cuello
+
+    # --- CASTIGOS (PENALIZACIONES) DE OPTIMIZACIÓN AVANZADA ---
+    # 1. Castigo de Suavidad de Flujo (TV de 1er y 2do orden para evitar distorsiones bruscas)
+    tv1 = (flujo[:, :, 1:] - flujo[:, :, :-1]).abs().mean() + (flujo[:, :, :, 1:] - flujo[:, :, :, :-1]).abs().mean()
+    tv2 = (flujo[:, :, 2:] - 2 * flujo[:, :, 1:-1] + flujo[:, :, :-2]).abs().mean() if flujo.shape[2] > 2 else 0.0
+    castigo_tv = tv1 + 0.5 * tv2
+
+    # 2. Castigo Cuadrático Exponencial por invasión de cuello y rostro (Regla de Oro de preservación)
+    invasion_tasa = (wm * cuello).sum() / (cuello.sum() + 1e-5)
+    castigo_cuello = 20.0 * (invasion_tasa ** 2) + 5.0 * invasion_tasa
+
+    # 3. Castigo por desalineación de centroide (anclaje firme al torso de la persona)
     dice = 1 - ((2 * (wm * tm).flatten(1).sum(1) + 1) / ((wm + tm).flatten(1).sum(1) + 1)).mean()
+    centroide_wm = wm.mean(dim=[-2, -1])
+    centroide_tm = tm.mean(dim=[-2, -1])
+    castigo_anclaje = F.mse_loss(centroide_wm, centroide_tm) * 12.0
+
     if tiene_gt:
         persona = b['persona']
         l1 = (((wc - persona).abs() * tm).sum() / (tm.sum() * 3 + 1)) + F.l1_loss(o['final'], persona)
         vg = vgg(wc * tm, persona * tm) + vgg(o['final'], persona)
         comp_reg = F.l1_loss(o['comp'], o['mascara_ef'])
         s_loss = 1 - ssim(o['final'], persona)
-        total = (lam['l1'] * l1 + lam['vgg'] * vg + lam['mascara'] * dice + lam['tv'] * tv
-                 + lam['cuello'] * invasion + lam['comp'] * comp_reg + lam['ssim'] * s_loss)
+        total = (lam['l1'] * l1 + lam['vgg'] * vg + lam['mascara'] * dice + lam['tv'] * castigo_tv
+                 + lam['cuello'] * castigo_cuello + castigo_anclaje + lam['comp'] * comp_reg + lam['ssim'] * s_loss)
     else:
         me = o['mascara_ef']
         l1 = ((o['tryon'] - wc).abs() * me).sum() / (me.sum() * 3 + 1)   # la textura del catálogo se conserva
         vg = vgg(o['tryon'] * me, wc * me)
-        total = 2 * lam['mascara'] * dice + lam['tv'] * tv + lam['cuello'] * invasion + lam['l1'] * l1 + lam['vgg'] * vg
-    return total, dict(l1=float(l1), vgg=float(vg))
+        total = (2 * lam['mascara'] * dice + lam['tv'] * castigo_tv + lam['cuello'] * castigo_cuello 
+                 + castigo_anclaje + lam['l1'] * l1 + lam['vgg'] * vg)
+    return total, dict(l1=float(l1), vgg=float(vg), castigo_cuello=float(castigo_cuello), castigo_tv=float(castigo_tv))
 
 
 @torch.no_grad()
@@ -1508,10 +1526,31 @@ def entrenar_etapa(etapa, modelo, items, modo, epocas, lr):
     return hist
 
 # %% [CELDA 13] ETAPA 1 — Pre-entrenamiento base (archive/labels_front.csv)
+if 'ModeloVTON' not in globals() or 'entrenar_etapa' not in globals():
+    raise RuntimeError(
+        "\n" + "=" * 70 + "\n"
+        "❌ [ERROR DE SESIÓN EN COLAB] 'ModeloVTON' o 'entrenar_etapa' no están en memoria.\n"
+        "Causa: La sesión de Google Colab se reinició o se saltaron las celdas anteriores.\n\n"
+        "👉 SOLUCIÓN:\n"
+        "1. En el menú superior de Google Colab, haz clic en:\n"
+        "   'Entorno de ejecución' (Runtime) -> 'Ejecutar las celdas anteriores' (Run before)\n"
+        "   o presiona Ctrl + F8.\n"
+        "2. Esto cargará las clases (Celda 8) y el bucle de entrenamiento (Celda 12).\n"
+        + "=" * 70
+    )
+
 modelo = ModeloVTON(CFG['PESOS_PREENTRENADOS']).to(DEVICE)
 HIST1 = entrenar_etapa(1, modelo, ITEMS1, MODO1, CFG['EPOCAS_ETAPA1'], CFG['LR_ETAPA1'])
 
 # %% [CELDA 14] ETAPA 2 — Fine-tuning con tu catálogo (entrenamiento_ia_ropa/)
+if 'ModeloVTON' not in globals() or 'entrenar_etapa' not in globals():
+    raise RuntimeError(
+        "\n" + "=" * 70 + "\n"
+        "❌ [ERROR DE SESIÓN EN COLAB] 'ModeloVTON' o 'entrenar_etapa' no están en memoria.\n"
+        "👉 SOLUCIÓN: En Google Colab presiona 'Entorno de ejecución' -> 'Ejecutar las celdas anteriores'.\n"
+        + "=" * 70
+    )
+
 if MODO2 is None or not ITEMS2:
     print('⚠️  La carpeta de la Etapa 2 no tiene imágenes utilizables; se exportará el modelo de la Etapa 1.')
 else:

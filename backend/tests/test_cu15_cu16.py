@@ -4,11 +4,11 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.session import SessionLocal
-from app.packages.seguridad_y_usuarios.models import User, SessionToken
-from app.packages.seguridad_y_usuarios.services import create_access_token
-from app.packages.catalogo_y_tiendas.branches.models import Branch
-from app.packages.catalogo_y_tiendas.models import ProductVariant
-from app.packages.inventario_y_proveedores.merchandise.models import Inventory, InventoryLedger, StockTransfer
+from app.packages.paquete_seguridad_usuarios.models import User, SessionToken
+from app.packages.paquete_seguridad_usuarios.services import create_access_token
+from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch
+from app.packages.paquete_catalogo_y_tiendas.models import ProductVariant
+from app.packages.paquete_inventario_y_proveedores.merchandise.models import Inventory, InventoryLedger, StockTransfer
 
 client = TestClient(app)
 

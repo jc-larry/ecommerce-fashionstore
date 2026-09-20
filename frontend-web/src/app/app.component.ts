@@ -1,8 +1,8 @@
 import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { AuthService } from './packages/seguridad_y_usuarios/auth.service';
-import { BranchContextService } from './packages/catalogo_y_tiendas/branches/branch-context.service';
+import { AuthService } from './packages/paquete_seguridad_usuarios/auth.service';
+import { BranchContextService } from './packages/paquete_catalogo_y_tiendas/branches/branch-context.service';
 
 @Component({
   selector: 'app-root',

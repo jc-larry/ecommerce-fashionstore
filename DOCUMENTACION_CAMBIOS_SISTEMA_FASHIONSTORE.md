@@ -27,31 +27,33 @@ En cumplimiento estricto con los requerimientos planteados para el primer parcia
 
 ### 2.1 Los 8 Paquetes Oficiales del Sistema
 
-De acuerdo a la especificación de `PaquetesUML.md`, el sistema se organiza en exactamente 8 subsistemas cohesivos:
+De acuerdo a la especificación oficial del documento del proyecto (*Proyecto Sistemas de Información II 1° Parcial Grupo 29.pdf*, Cap. 2.1.1, Págs. 56–58) y `PaquetesUML.md`, el sistema se organiza en exactamente los siguientes 8 subsistemas cohesivos con prefijo explícito `paquete_`:
 
 ```
-├── 1. seguridad_y_usuarios       (CU01–CU05, CU36)
-├── 2. catalogo_y_tiendas         (CU06, CU07, CU09, CU11–CU14)
-├── 3. inventario_y_proveedores   (CU08, CU10, CU15, CU16, CU37, CU38)
-├── 4. ventas_y_pagos             (CU17–CU25)
-├── 5. reservas_y_citas           (CU26–CU28)
-├── 6. envios_y_logistica         (CU29–CU31)
-├── 7. inteligente_y_analitica    (CU32–CU35, CU39)
-└── 8. notificaciones             (CU40)
+├── 1. paquete_seguridad_usuarios       (CU01–CU05, CU36) [Paquete_Seguridad_Usuarios]
+├── 2. paquete_catalogo_y_tiendas         (CU06, CU07, CU09, CU11–CU14) [Paquete_Catálogo_Y_Tiendas]
+├── 3. paquete_inventario_y_proveedores   (CU08, CU10, CU15, CU16, CU37, CU38) [Paquete_Inventario_Y_Proveedores]
+├── 4. paquete_ventas_y_pagos             (CU17–CU25) [Paquete_Ventas_Y_Pagos]
+├── 5. paquete_reservas_y_citas           (CU26–CU28) [Paquete_Reservas_Y_Citas]
+├── 6. paquete_envios_y_logistica         (CU29–CU31) [Paquete_Envíos_Y_Logística]
+├── 7. paquete_inteligente_y_analitica    (CU32–CU35, CU39) [Paquete_Inteligente_Y_Analítica]
+└── 8. paquete_notificaciones             (CU40) [Paquete_Notificaciones]
 ```
 
 ### 2.2 Acciones de Reestructuración Ejecutadas
 
-- **Frontend Web (`frontend-web/src/app/`)**:
-  - Se detectó que el directorio `dashboard/` residía erróneamente dentro de `packages/`.
-  - Como el propio `README.md` estipula (*"dashboard/ es el panel de bienvenida del personal; no es un paquete UML"*), se trasladó a `frontend-web/src/app/dashboard/`.
-  - Se actualizaron todas las referencias de enrutamiento en `app-routing.module.ts`, `app.module.ts` y las importaciones relativas de servicios dentro de `dashboard.component.ts`.
-  - **Estado actual**: `frontend-web/src/app/packages/` contiene exactamente los 8 directorios lógicos.
+- **Normalización Estricta 1:1 con la Documentación**:
+  - Se ajustó `seguridad_y_usuarios` a `paquete_seguridad_usuarios` eliminando la conjunción "y" intermedia para calzar con el nombre oficial del documento (`Paquete_Seguridad_Usuarios`).
+  - Se adoptó el prefijo exacto `paquete_*` en todos los subsistemas en Backend, Frontend Web y Móvil Flutter.
+- **Frontend Web (`frontend-web/src/app/packages/`)**:
+  - Todas las 8 carpetas siguen la nomenclatura `paquete_*`.
+  - Se actualizaron las 44 referencias relativas e importaciones de componentes y servicios. Compilación verificada con `ng build` (código 0).
 - **App Móvil Flutter (`mobile/lib/src/packages/`)**:
-  - Se eliminaron las carpetas residuales vacías `audit/` y `reports/`.
-  - **Estado actual**: `mobile/lib/src/packages/` contiene exactamente los 8 paquetes de diseño.
+  - Se renombraron las 8 carpetas a `paquete_*`.
+  - Se actualizaron las 27 referencias e importaciones en los archivos `.dart` correspondientes.
 - **Backend FastAPI (`backend/app/packages/`)**:
-  - Preserva la arquitectura 1:1 con los 8 sub-paquetes Python.
+  - Preserva la arquitectura 1:1 con los 8 sub-paquetes Python `paquete_*`.
+  - Se actualizaron todos los modelos, routers y tests unitarios. Pruebas de pytest pasando con 100% de éxito.
 
 ---
 

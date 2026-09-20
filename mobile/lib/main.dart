@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'src/packages/seguridad_y_usuarios/auth_service.dart';
-import 'src/packages/catalogo_y_tiendas/store_shell.dart';
-import 'src/packages/envios_y_logistica/delivery_dashboard_view.dart';
+import 'src/packages/paquete_seguridad_usuarios/auth_service.dart';
+import 'src/packages/paquete_paquete_catalogo_y_tiendas/store_shell.dart';
+import 'src/packages/paquete_paquete_envios_y_logistica/delivery_dashboard_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

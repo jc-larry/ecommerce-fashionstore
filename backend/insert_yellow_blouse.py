@@ -9,9 +9,9 @@ from decimal import Decimal
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.db.session import SessionLocal
-from app.packages.catalogo_y_tiendas.models import Category, Color, Size, Product, ProductVariant, ProductImage
-from app.packages.catalogo_y_tiendas.branches.models import Branch
-from app.packages.inventario_y_proveedores.merchandise.models import Inventory, InventoryLedger
+from app.packages.paquete_catalogo_y_tiendas.models import Category, Color, Size, Product, ProductVariant, ProductImage
+from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch
+from app.packages.paquete_inventario_y_proveedores.merchandise.models import Inventory, InventoryLedger
 
 def insert_blouse():
     db = SessionLocal()

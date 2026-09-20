@@ -5,36 +5,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 # Importar modelos para que SQLAlchemy los registre en metadata
-from app.packages.seguridad_y_usuarios import models as security_models
-from app.packages.catalogo_y_tiendas import models as catalog_models
-from app.packages.catalogo_y_tiendas.branches import models as branches_models
-from app.packages.inventario_y_proveedores.suppliers import models as suppliers_models
-from app.packages.inventario_y_proveedores.suppliers import offer_models as supplier_offer_models
-from app.packages.inventario_y_proveedores.merchandise import models as merchandise_models
+from app.packages.paquete_seguridad_usuarios import models as security_models
+from app.packages.paquete_catalogo_y_tiendas import models as catalog_models
+from app.packages.paquete_catalogo_y_tiendas.branches import models as branches_models
+from app.packages.paquete_inventario_y_proveedores.suppliers import models as suppliers_models
+from app.packages.paquete_inventario_y_proveedores.suppliers import offer_models as supplier_offer_models
+from app.packages.paquete_inventario_y_proveedores.merchandise import models as merchandise_models
 # Ventas y Pagos: solo modelos en el Ciclo 1 (tablas orders/order_items/payments/invoices;
 # jerarquías MedioDePago y Comprobante). Los routers llegan en el Ciclo 2 (CU17-CU24).
-from app.packages.ventas_y_pagos import models as sales_models
+from app.packages.paquete_ventas_y_pagos import models as sales_models
 # Ciclo 3: Reservas, Envíos, Inteligente/Analítica, Notificaciones
-from app.packages.reservas_y_citas import models as reservation_models
-from app.packages.envios_y_logistica import models as logistics_models
-from app.packages.envios_y_logistica.delivery_persons import models as delivery_persons_models
-from app.packages.inteligente_y_analitica import models as analytics_models
-from app.packages.notificaciones import models as notification_models
+from app.packages.paquete_reservas_y_citas import models as reservation_models
+from app.packages.paquete_envios_y_logistica import models as logistics_models
+from app.packages.paquete_envios_y_logistica.delivery_persons import models as delivery_persons_models
+from app.packages.paquete_inteligente_y_analitica import models as analytics_models
+from app.packages.paquete_notificaciones import models as notification_models
 
 # Importar routers de cada paquete
-from app.packages.seguridad_y_usuarios.routers import router as security_router
-from app.packages.catalogo_y_tiendas.routers import router as catalog_router
-from app.packages.catalogo_y_tiendas.branches.routers import router as branches_router
-from app.packages.inventario_y_proveedores.suppliers.routers import router as suppliers_router
-from app.packages.inventario_y_proveedores.suppliers.offer_routers import router as supplier_offers_router
-from app.packages.inventario_y_proveedores.merchandise.routers import router as merchandise_router
-from app.packages.ventas_y_pagos.routers import router as sales_router
-from app.packages.ventas_y_pagos.paypal_routers import router as paypal_router
-from app.packages.reservas_y_citas.routers import router as reservations_router
-from app.packages.envios_y_logistica.routers import router as logistics_router
-from app.packages.envios_y_logistica.delivery_persons.routers import router as delivery_persons_router
-from app.packages.inteligente_y_analitica.routers import router as analytics_router
-from app.packages.notificaciones.routers import router as notifications_router
+from app.packages.paquete_seguridad_usuarios.routers import router as security_router
+from app.packages.paquete_catalogo_y_tiendas.routers import router as catalog_router
+from app.packages.paquete_catalogo_y_tiendas.branches.routers import router as branches_router
+from app.packages.paquete_inventario_y_proveedores.suppliers.routers import router as suppliers_router
+from app.packages.paquete_inventario_y_proveedores.suppliers.offer_routers import router as supplier_offers_router
+from app.packages.paquete_inventario_y_proveedores.merchandise.routers import router as merchandise_router
+from app.packages.paquete_ventas_y_pagos.routers import router as sales_router
+from app.packages.paquete_ventas_y_pagos.paypal_routers import router as paypal_router
+from app.packages.paquete_reservas_y_citas.routers import router as reservations_router
+from app.packages.paquete_envios_y_logistica.routers import router as logistics_router
+from app.packages.paquete_envios_y_logistica.delivery_persons.routers import router as delivery_persons_router
+from app.packages.paquete_inteligente_y_analitica.routers import router as analytics_router
+from app.packages.paquete_notificaciones.routers import router as notifications_router
 
 
 # Crear tablas automáticamente al arrancar.

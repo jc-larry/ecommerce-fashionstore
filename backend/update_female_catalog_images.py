@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.db.session import SessionLocal
-from app.packages.catalogo_y_tiendas.models import Product, ProductImage, Category
+from app.packages.paquete_catalogo_y_tiendas.models import Product, ProductImage, Category
 
 # Categorías con imágenes representativas femeninas elegantes
 CATEGORY_AVATARS = {

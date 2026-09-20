@@ -20,17 +20,17 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy import text
 from app.db.session import engine, SessionLocal, Base
-from app.packages.catalogo_y_tiendas.branches.models import Branch, branch_employees
-from app.packages.seguridad_y_usuarios.models import User, Role, user_roles
-from app.packages.seguridad_y_usuarios.services import get_password_hash
-from app.packages.inventario_y_proveedores.suppliers.models import Supplier
-from app.packages.inventario_y_proveedores.merchandise.models import (
+from app.packages.paquete_catalogo_y_tiendas.branches.models import Branch, branch_employees
+from app.packages.paquete_seguridad_usuarios.models import User, Role, user_roles
+from app.packages.paquete_seguridad_usuarios.services import get_password_hash
+from app.packages.paquete_inventario_y_proveedores.suppliers.models import Supplier
+from app.packages.paquete_inventario_y_proveedores.merchandise.models import (
     Inventory, InventoryLedger, PurchaseOrder, PurchaseDetail
 )
-from app.packages.catalogo_y_tiendas.models import (
+from app.packages.paquete_catalogo_y_tiendas.models import (
     Category, Product, ProductVariant, ProductImage, Color, Size, Season
 )
-from app.packages.ventas_y_pagos.models import CashShift
+from app.packages.paquete_ventas_y_pagos.models import CashShift
 
 PASSWORD_DEFAULT = "Password123!"
 

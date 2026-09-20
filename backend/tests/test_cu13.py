@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.session import SessionLocal
-from app.packages.seguridad_y_usuarios.models import User, SessionToken
-from app.packages.seguridad_y_usuarios.services import create_access_token
+from app.packages.paquete_seguridad_usuarios.models import User, SessionToken
+from app.packages.paquete_seguridad_usuarios.services import create_access_token
 
 client = TestClient(app)
 

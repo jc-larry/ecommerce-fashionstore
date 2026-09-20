@@ -14,7 +14,7 @@ Para la plataforma **FashionStore**, los **40 casos de uso** del sistema (lista 
 
 ```mermaid
 graph TD
-    subgraph PKG_Security [1. Seguridad y Usuarios]
+    subgraph PKG_Security [1. Paquete_Seguridad_Usuarios]
         CU01["CU01: Iniciar sesión (C1)"]
         CU02["CU02: Cerrar sesión (C1)"]
         CU03["CU03: Recuperar credenciales (C1)"]
@@ -23,7 +23,7 @@ graph TD
         CU36["CU36: Consultar bitácora de auditoría (C1)"]
     end
 
-    subgraph PKG_Catalog [2. Catálogo y Tiendas]
+    subgraph PKG_Catalog [2. Paquete_Catálogo_Y_Tiendas]
         CU06["CU06: Gestionar sucursales (C1)"]
         CU07["CU07: Gestionar catálogo — galería, oferta, variantes editables (C1)"]
         CU09["CU09: Gestionar empleados de sucursal (C1)"]
@@ -33,7 +33,7 @@ graph TD
         CU14["CU14: Wishlist y reseñas de prendas — versión ligera (C1); ampliación (C2)"]
     end
 
-    subgraph PKG_Inventory [3. Inventario y Proveedores]
+    subgraph PKG_Inventory [3. Paquete_Inventario_Y_Proveedores]
         CU08["CU08: Gestionar proveedores (C1)"]
         CU10["CU10: Registrar compras/ingresos de mercadería (C1)"]
         CU37["CU37: Valoración de inventario / capital invertido - costo promedio ponderado (C1)"]
@@ -42,7 +42,7 @@ graph TD
         CU16["CU16: Alertas automáticas de stock (C2)"]
     end
 
-    subgraph PKG_Sales [4. Ventas y Pagos]
+    subgraph PKG_Sales [4. Paquete_Ventas_Y_Pagos]
         CU17["CU17: Carrito de compra digital (C2)"]
         CU18["CU18: Checkout con herencia de medios de pago - Efectivo/Tarjeta/QR/Crédito (C2)"]
         CU19["CU19: Venta presencial en caja - POS (C2)"]
@@ -54,19 +54,19 @@ graph TD
         CU25["CU25: Convertir reserva en venta (C3)"]
     end
 
-    subgraph PKG_Reservations [5. Reservas y Citas]
+    subgraph PKG_Reservations [5. Paquete_Reservas_Y_Citas]
         CU26["CU26: Agendar reserva de prendas (C3)"]
         CU27["CU27: Gestionar bandeja de reservas - preparar/atender (C3)"]
         CU28["CU28: Cancelar reserva - libera stock (C3)"]
     end
 
-    subgraph PKG_Logistics [6. Envíos y Logística]
+    subgraph PKG_Logistics [6. Paquete_Envíos_Y_Logística]
         CU29["CU29: Envíos/despacho + método de envío/recojo (C3)"]
         CU30["CU30: Rastrear estado de pedido/envío (C3)"]
         CU31["CU31: Zonas de cobertura y tarifas de envío (C3)"]
     end
 
-    subgraph PKG_AI_Analytics [7. Inteligente y Analítica]
+    subgraph PKG_AI_Analytics [7. Paquete_Inteligente_Y_Analítica]
         CU32["CU32: Vestidor Virtual RA + capturas (C3)"]
         CU33["CU33: Recomendaciones IA + chatbot (C3)"]
         CU34["CU34: Búsqueda de catálogo por voz / NLP (C3)"]
@@ -74,7 +74,7 @@ graph TD
         CU39["CU39: Dashboard de ventas e inventario global (C3)"]
     end
 
-    subgraph PKG_Notif [8. Notificaciones]
+    subgraph PKG_Notif [8. Paquete_Notificaciones]
         CU40["CU40: Notificar estado en tiempo real (push) + correos transaccionales (C3)"]
     end
 
