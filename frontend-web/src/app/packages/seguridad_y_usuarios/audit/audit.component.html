@@ -50,6 +50,157 @@
     <button class="val-close" (click)="error = ''" title="Cerrar">&times;</button>
   </div>
 
+  <!-- 4 TARJETAS KPI DE AUDITORÍA -->
+  <div class="row g-3 mb-4" *ngIf="!loading && logs.length > 0">
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-primary">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Total Eventos</small>
+          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+            <i class="bi bi-journal-text"></i>
+          </div>
+        </div>
+        <div class="fs-3 fw-bold text-dark">{{ totalEventsCount }}</div>
+        <small class="text-muted" style="font-size: 0.75rem;">Registros persistidos</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-info">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Seguridad & Accesos</small>
+          <div class="rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+            <i class="bi bi-shield-lock-fill"></i>
+          </div>
+        </div>
+        <div class="fs-3 fw-bold text-dark">{{ securityEventsCount }}</div>
+        <small class="text-muted" style="font-size: 0.75rem;">Logins y Logouts</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-success">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Mutaciones DB</small>
+          <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+            <i class="bi bi-database-fill-gear"></i>
+          </div>
+        </div>
+        <div class="fs-3 fw-bold text-dark">{{ mutationEventsCount }}</div>
+        <small class="text-muted" style="font-size: 0.75rem;">Insert / Update / Delete</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-warning">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Operadores Activos</small>
+          <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+            <i class="bi bi-people-fill"></i>
+          </div>
+        </div>
+        <div class="fs-3 fw-bold text-dark">{{ activeUsersCount }}</div>
+        <small class="text-muted" style="font-size: 0.75rem;">Usuarios con actividad</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILA DE GRÁFICAS VISUALES DE AUDITORÍA -->
+  <div class="row g-3 mb-4" *ngIf="!loading && logs.length > 0">
+    <!-- Gráfico 1: Distribución por Tipo de Acción -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-pie-chart-fill text-primary me-2"></i>Distribución por Acción
+          </h6>
+          <small class="text-muted" style="font-size: 0.72rem;">Clic para filtrar</small>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <div *ngFor="let item of actionBreakdown" 
+               class="p-2 rounded-3 border bg-light bg-opacity-50 cursor-pointer action-bar-item"
+               [class.border-primary]="actionFilter === item.action"
+               (click)="filterByAction(item.action)"
+               title="Filtrar por {{ item.label }}">
+            <div class="d-flex justify-content-between align-items-center small mb-1">
+              <span class="fw-semibold text-dark d-flex align-items-center gap-2">
+                <i class="bi {{ item.icon }}"></i>{{ item.label }}
+              </span>
+              <span class="fw-bold text-secondary">{{ item.count }} ({{ item.percent }}%)</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar {{ item.colorClass }}" [style.width.%]="item.percent"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 2: Actividad por Módulo / Entidad -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-layers-half text-success me-2"></i>Top Módulos Afectados
+          </h6>
+          <small class="text-muted" style="font-size: 0.72rem;">{{ tableBreakdown.length }} tablas</small>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <div *ngFor="let tbl of tableBreakdown" 
+               class="p-2 rounded-3 border bg-light bg-opacity-50 cursor-pointer table-bar-item"
+               [class.border-success]="tableFilter === tbl.table"
+               (click)="filterByTable(tbl.table)"
+               title="Filtrar por {{ tbl.label }}">
+            <div class="d-flex justify-content-between align-items-center small mb-1">
+              <span class="fw-semibold text-dark text-truncate" style="max-width: 170px;">{{ tbl.label }}</span>
+              <span class="badge bg-white text-dark border">{{ tbl.count }} ops</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar bg-success" [style.width.%]="tbl.percent"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 3: Línea Temporal de Actividad -->
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+        <h6 class="fw-bold text-dark mb-3">
+          <i class="bi bi-bar-chart-line-fill text-info me-2"></i>Actividad Reciente
+        </h6>
+        <div class="d-flex align-items-end justify-content-around pt-3 pb-1" style="height: 140px; border-bottom: 2px solid #E2E8F0;">
+          <div *ngFor="let point of timelineBreakdown" class="d-flex flex-column align-items-center gap-1" style="width: 12%;">
+            <small class="fw-bold text-primary" style="font-size: 0.7rem;">{{ point.count }}</small>
+            <div class="rounded-top-2 w-100 bg-info bg-opacity-75" 
+                 [style.height.px]="(point.heightPercent / 100) * 80 + 8"
+                 [title]="point.date + ': ' + point.count + ' eventos'">
+            </div>
+            <small class="text-muted" style="font-size: 0.65rem; white-space: nowrap;">{{ point.date }}</small>
+          </div>
+        </div>
+        <small class="text-muted text-center d-block mt-2" style="font-size: 0.72rem;">
+          Eventos en los últimos días
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVISO DE FILTRO ACTIVO -->
+  <div class="d-flex align-items-center justify-content-between p-2 mb-3 bg-light rounded-3 border" 
+       *ngIf="actionFilter !== 'TODOS' || tableFilter !== 'TODAS' || searchQuery">
+    <div class="d-flex align-items-center gap-2 small">
+      <i class="bi bi-funnel-fill text-primary"></i>
+      <span class="text-muted">Filtro activo:</span>
+      <span class="badge bg-primary" *ngIf="actionFilter !== 'TODOS'">Acción: {{ actionFilter }}</span>
+      <span class="badge bg-success" *ngIf="tableFilter !== 'TODAS'">Módulo: {{ getTableLabel(tableFilter) }}</span>
+      <span class="badge bg-secondary" *ngIf="searchQuery">Búsqueda: "{{ searchQuery }}"</span>
+    </div>
+    <button class="btn btn-sm btn-link text-decoration-none text-danger p-0" (click)="resetFilters()">
+      <i class="bi bi-x-circle me-1"></i>Limpiar filtros
+    </button>
+  </div>
+
   <!-- Tabla Principal de Auditoría -->
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">

@@ -656,7 +656,12 @@ def update_transfer_status(
                 )
                 db.add(dest_inv)
             else:
-                dest_inv.stock_actual += d.quantity
+                prev_stock = dest_inv.stock_actual
+                prev_cost = float(dest_inv.avg_cost or 0.0)
+                new_stock = prev_stock + d.quantity
+                if new_stock > 0:
+                    dest_inv.avg_cost = round(((prev_stock * prev_cost) + (d.quantity * unit_cost)) / new_stock, 2)
+                dest_inv.stock_actual = new_stock
 
             db.add(InventoryLedger(
                 branch_id=trf.destination_branch_id,

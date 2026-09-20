@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { AnaliticaService, KardexItem, TopSellingItem } from '../analitica.service';
+import { AnaliticaService, KardexItem, TopSellingItem, ProductSalesTrend } from '../analitica.service';
 import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
 
 @Component({
@@ -8,7 +8,7 @@ import { CatalogoService } from '../../catalogo_y_tiendas/catalogo.service';
   styleUrls: ['./manager-reports.component.css']
 })
 export class ManagerReportsComponent implements OnInit {
-  activeTab: 'kardex' | 'top' | 'voice' = 'kardex';
+  activeTab: 'kardex' | 'top' | 'voice' | 'trend' = 'kardex';
 
   // Kardex
   kardexRecords: KardexItem[] = [];
@@ -29,6 +29,15 @@ export class ManagerReportsComponent implements OnInit {
   isSpeaking: boolean = false;
   loadingVoice: boolean = false;
 
+  // CU35: Análisis de Demanda y Reposición por Prenda
+  productsList: any[] = [];
+  selectedProductId: number | null = null;
+  selectedMonths: number = 6;
+  trendData: ProductSalesTrend | null = null;
+  loadingTrend: boolean = false;
+  trendError: string = '';
+  searchProductQuery: string = '';
+
   constructor(
     private analiticaService: AnaliticaService,
     private catalogoService: CatalogoService
@@ -39,6 +48,7 @@ export class ManagerReportsComponent implements OnInit {
     this.loadKardex();
     this.loadTopSelling();
     this.loadVoiceSummary();
+    this.loadProductsList();
   }
 
   loadBranches(): void {
@@ -94,6 +104,61 @@ export class ManagerReportsComponent implements OnInit {
         this.loadingVoice = false;
       }
     });
+  }
+
+  // Cargar catálogo para el selector de prendas
+  loadProductsList(): void {
+    this.catalogoService.getProducts().subscribe({
+      next: (prods: any[]) => {
+        this.productsList = prods;
+        if (prods.length > 0 && !this.selectedProductId) {
+          // Pre-seleccionar la primera prenda
+          this.selectProduct(prods[0].id);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  get filteredProductsList(): any[] {
+    const q = (this.searchProductQuery || '').trim().toLowerCase();
+    if (!q) return this.productsList;
+    return this.productsList.filter(p => 
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.category && p.category.name && p.category.name.toLowerCase().includes(q)) ||
+      String(p.id).includes(q)
+    );
+  }
+
+  selectProduct(productId: number): void {
+    this.selectedProductId = productId;
+    this.loadingTrend = true;
+    this.trendError = '';
+    this.trendData = null;
+
+    this.analiticaService.getProductSalesTrend(productId, this.selectedMonths).subscribe({
+      next: (data) => {
+        this.trendData = data;
+        this.loadingTrend = false;
+      },
+      error: (err) => {
+        this.trendError = err?.error?.detail || 'No se pudo cargar la tendencia histórica de la prenda.';
+        this.loadingTrend = false;
+      }
+    });
+  }
+
+  onMonthsChange(months: number): void {
+    this.selectedMonths = months;
+    if (this.selectedProductId) {
+      this.selectProduct(this.selectedProductId);
+    }
+  }
+
+  getMaxTimelineUnits(): number {
+    if (!this.trendData || !this.trendData.timeline.length) return 1;
+    const max = Math.max(...this.trendData.timeline.map(t => t.units_sold));
+    return max > 0 ? max : 1;
   }
 
   speakSummary(): void {

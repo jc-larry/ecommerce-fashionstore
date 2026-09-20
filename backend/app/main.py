@@ -49,6 +49,9 @@ from app.db.session import engine, Base
 # a tablas que ya existían. `create_all` solo crea tablas faltantes, no columnas.
 _COLUMN_UPGRADES = [
     "ALTER TABLE inventory ADD COLUMN IF NOT EXISTS avg_cost NUMERIC(10, 2) NOT NULL DEFAULT 0",
+    "ALTER TABLE inventory ADD COLUMN IF NOT EXISTS stock_reservado INT NOT NULL DEFAULT 0",
+    "ALTER TABLE inventory ADD COLUMN IF NOT EXISTS stock_en_transito INT NOT NULL DEFAULT 0",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS collection_id INTEGER REFERENCES collections(id) ON DELETE SET NULL",
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS channel VARCHAR(10) NOT NULL DEFAULT 'ONLINE'",
     "ALTER TABLE product_images ALTER COLUMN color_id DROP NOT NULL",
     "ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",

@@ -2,12 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AuthService } from '../seguridad_y_usuarios/auth.service';
-import { UsersService } from '../seguridad_y_usuarios/users.service';
-import { CatalogoService } from '../catalogo_y_tiendas/catalogo.service';
-import { BranchContextService } from '../catalogo_y_tiendas/branches/branch-context.service';
-import { InventarioService } from '../inventario_y_proveedores/inventario.service';
-import { VentasService } from '../ventas_y_pagos/ventas.service';
+import { AuthService } from '../packages/seguridad_y_usuarios/auth.service';
+import { UsersService } from '../packages/seguridad_y_usuarios/users.service';
+import { CatalogoService } from '../packages/catalogo_y_tiendas/catalogo.service';
+import { BranchContextService } from '../packages/catalogo_y_tiendas/branches/branch-context.service';
+import { InventarioService } from '../packages/inventario_y_proveedores/inventario.service';
+import { VentasService } from '../packages/ventas_y_pagos/ventas.service';
 
 @Component({
   selector: 'app-dashboard',

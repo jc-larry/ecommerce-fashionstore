@@ -145,6 +145,19 @@ CREATE TABLE seasons (
 );
 ```
 
+#### Tabla: `collections` (Colecciones y Cápsulas de Moda) — *(RF05 / RF23)*
+Colecciones temáticas o líneas especiales de diseño, vinculadas opcionalmente a una temporada comercial.
+```sql
+CREATE TABLE collections (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL, -- 'Gala 2026', 'Streetwear Minimalist'
+    description VARCHAR(255),
+    season_id INTEGER REFERENCES seasons(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    banner_url VARCHAR(500)
+);
+```
+
 #### Tabla: `colors`
 Catálogo estructurado de colores.
 ```sql
@@ -176,10 +189,12 @@ CREATE TABLE products (
                                        -- si > base_price la tienda muestra precio tachado y -%
     category_id INTEGER NOT NULL,
     season_id INTEGER,
+    collection_id INTEGER,             -- FK a collections (RF05 / RF23)
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
-    FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE SET NULL
+    FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE SET NULL,
+    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE SET NULL
 );
 ```
 
@@ -267,9 +282,9 @@ CREATE TABLE suppliers (
 );
 ```
 
-#### Tabla: `inventory`  *(Ciclo 1)*
-Stock físico real, **costo promedio ponderado vigente** y límites mínimos/máximos estructurados
-por Sucursal y Variante de Producto.
+#### Tabla: `inventory`  *(Ciclo 1 / Examen 1)*
+Stock físico real, existencias reservadas para probador, mercadería en tránsito inter-sucursal,
+**costo promedio ponderado vigente** y límites estructurados por Sucursal y Variante.
 ```sql
 CREATE TABLE inventory (
     branch_id INTEGER NOT NULL,
@@ -278,20 +293,25 @@ CREATE TABLE inventory (
     avg_cost DECIMAL(10, 2) DEFAULT 0 NOT NULL, -- Costo promedio ponderado vigente (CU10 / CU37)
     stock_minimo INTEGER DEFAULT 5 NOT NULL,
     stock_maximo INTEGER DEFAULT 100 NOT NULL,
+    stock_reservado INTEGER DEFAULT 0 NOT NULL,  -- Prendas apartadas para vestidor / citas físicas (CU26)
+    stock_en_transito INTEGER DEFAULT 0 NOT NULL, -- Mercadería despachada en transferencias entre sucursales
     PRIMARY KEY (branch_id, variant_id),
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT,
     FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE
 );
 ```
 
-> **Costo promedio ponderado (CU10, CU37, CU38).** Cada **ingreso** (CU10) recalcula:
-> `avg_cost = (stock_previo · avg_previo + cantidad · costo_unitario_lote) / (stock_previo + cantidad)`.
-> Las **salidas** (venta, reserva, ajuste) **no** modifican `avg_cost`; se valoran al `avg_cost`
-> vigente y así se registra su `unit_cost` en `inventory_ledger`.
-> **CU37** — capital invertido = `Σ (inventory.stock_actual · inventory.avg_cost)` (global o por
-> sucursal). Nunca se usa el último costo unitario.
-> **CU38** — un ajuste (merma/daño/pérdida/conteo) escribe un movimiento `AJUSTE` en
-> `inventory_ledger` con `unit_cost = avg_cost` vigente y `reference_id = 'AJU-<id>'`.
+> **Costo promedio ponderado (CU10, CU15, CU37, CU38).** 
+> 1. Cada **ingreso de compra** (CU10) recalcula:
+>    `avg_cost = (stock_previo · avg_previo + cantidad · costo_unitario_lote) / (stock_previo + cantidad)`.
+> 2. Cada **transferencia inter-sucursal completada** (CU15) recalcula el CPP en la sucursal de destino:
+>    `dest_avg_cost = (dest_stock · dest_avg_previo + cant_recibida · origen_avg_cost) / (dest_stock + cant_recibida)`.
+> 3. Las **salidas** (venta, reserva, ajuste) **no** modifican `avg_cost`; se valoran al `avg_cost`
+>    vigente y así se registra su `unit_cost` en `inventory_ledger`.
+> 4. **CU37** — capital invertido = `Σ (inventory.stock_actual · inventory.avg_cost)` (global o por
+>    sucursal). Nunca se usa el último costo unitario.
+> 5. **CU38** — un ajuste (merma/daño/pérdida/conteo) escribe un movimiento `AJUSTE` en
+>    `inventory_ledger` con `unit_cost = avg_cost` vigente y `reference_id = 'AJU-<id>'`.
 
 #### Tabla: `inventory_ledger` (Libro Mayor de Inventario)
 Historial y movimientos físicos valorados por Promedio Ponderado.

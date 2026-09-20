@@ -121,6 +121,50 @@ export interface TopSellingItem {
   image_url?: string;
 }
 
+export interface SalesTimelinePoint {
+  period: string;
+  date_label: string;
+  units_sold: number;
+  revenue: number;
+}
+
+export interface VariantSalesStock {
+  variant_id: number;
+  sku: string;
+  size: string;
+  color: string;
+  color_hex: string;
+  current_stock: number;
+  units_sold: number;
+}
+
+export interface BranchStockItem {
+  branch_id: number;
+  branch_name: string;
+  stock: number;
+}
+
+export interface ProductSalesTrend {
+  product_id: number;
+  product_name: string;
+  category_name: string;
+  base_price: number;
+  image_url?: string;
+  total_units_sold: number;
+  total_revenue: number;
+  current_total_stock: number;
+  weekly_velocity: number;
+  days_of_stock_left: number;
+  reorder_decision: string;
+  reorder_label: string;
+  reorder_badge_class: string;
+  reorder_recommendation: string;
+  suggested_reorder_units: number;
+  timeline: SalesTimelinePoint[];
+  variants_breakdown: VariantSalesStock[];
+  branches_stock: BranchStockItem[];
+}
+
 export interface DashboardMetrics {
   total_sales_revenue: number;
   total_orders_count: number;
@@ -253,6 +297,11 @@ export class AnaliticaService {
     pending_shipments: number;
   }> {
     return this.http.get<any>(`${this.baseUrl}/reports/executive-summary`);
+  }
+
+  // CU35: ANÁLISIS DE VENTAS POR PRENDA Y RECOMENDACIÓN DE PEDIDOS
+  getProductSalesTrend(productId: number, months: number = 6): Observable<ProductSalesTrend> {
+    return this.http.get<ProductSalesTrend>(`${this.baseUrl}/reports/product-sales-trend?product_id=${productId}&months=${months}`);
   }
 
   // ===================================================================

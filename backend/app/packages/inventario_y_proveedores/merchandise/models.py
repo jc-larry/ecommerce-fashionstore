@@ -19,6 +19,9 @@ class Inventory(Base):
     avg_cost: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     stock_minimo: Mapped[int] = mapped_column(default=5, nullable=False)
     stock_maximo: Mapped[int] = mapped_column(default=100, nullable=False)
+    # Estados de inventario discriminados (Examen 1 - MSc. Ing. Angélica Garzón)
+    stock_reservado: Mapped[int] = mapped_column(default=0, nullable=False)
+    stock_en_transito: Mapped[int] = mapped_column(default=0, nullable=False)
 
     branch: Mapped["Branch"] = relationship("Branch")
     variant: Mapped["ProductVariant"] = relationship("ProductVariant")

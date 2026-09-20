@@ -541,7 +541,7 @@ sequenceDiagram
 | **Actor iniciador** | Superadmin. |
 | **Tablas** | `audit_logs` (solo lectura) |
 | **Precondición** | Estar autenticado con el rol `SUPERADMIN`. |
-| **Flujo principal** | 1. El Superadmin entra a "Auditoría".<br>2. El sistema consulta `audit_logs` ordenada por fecha descendente.<br>3. El sistema formatea las fechas y el JSON de detalles (`new_values`) y presenta la tabla, con filtro por tipo de acción.<br>4. El actor revisa el historial (`LOGIN`, `LOGOUT`, `REGISTER`, `RECOVER`, `RESET_PASSWORD`, `INSERT`, `UPDATE`, `DELETE`). |
+| **Flujo principal** | 1. El Superadmin entra a "Auditoría" (`/admin/audit`).<br>2. El sistema consulta `audit_logs` ordenada por fecha descendente.<br>3. El sistema calcula y renderiza **4 tarjetas KPI ejecutivas** (Total Eventos, Seguridad & Accesos, Mutaciones DB y Operadores Activos) junto con **3 gráficas analíticas interactivas**: (a) Distribución por tipo de acción (`LOGIN`, `LOGOUT`, `INSERT`, `UPDATE`, `DELETE`), (b) Top módulos/tablas afectadas, y (c) Volumen temporal reciente.<br>4. El actor interactúa haciendo clic sobre cualquier barra para filtrar la bitácora automáticamente, o utiliza los selectores de búsqueda.<br>5. El actor revisa el historial formateado con operador, IP, módulo y detalles JSON de cambios. |
 | **Post condición** | Ninguna afectación de datos (solo lectura). |
 | **Excepciones** | **E1: Falta de permisos:** cualquier usuario sin rol `SUPERADMIN` recibe **HTTP 403**. |
 

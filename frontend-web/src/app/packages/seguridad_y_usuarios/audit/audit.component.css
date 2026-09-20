@@ -1,1 +1,14 @@
-/* Estilos comunes del panel en styles.css */
+/* Estilos específicos de gráficas de auditoría */
+.action-bar-item, .table-bar-item {
+  transition: all 0.2s ease-in-out;
+}
+
+.action-bar-item:hover, .table-bar-item:hover {
+  background-color: #f1f5f9 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}

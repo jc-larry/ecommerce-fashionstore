@@ -32,6 +32,20 @@ class Season(Base):
 
     products: Mapped[List["Product"]] = relationship("Product", back_populates="season")
 
+class Collection(Base):
+    """Colección temática o cápsula de moda (ej: Gala 2026, Streetwear) — RF05 / RF23."""
+    __tablename__ = "collections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(255))
+    season_id: Mapped[Optional[int]] = mapped_column(ForeignKey("seasons.id", ondelete="SET NULL"), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    banner_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    season: Mapped[Optional["Season"]] = relationship("Season")
+    products: Mapped[List["Product"]] = relationship("Product", back_populates="collection")
+
 class Color(Base):
     __tablename__ = "colors"
 
@@ -58,6 +72,7 @@ class Product(Base):
     compare_at_price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2))
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
     season_id: Mapped[Optional[int]] = mapped_column(ForeignKey("seasons.id", ondelete="SET NULL"))
+    collection_id: Mapped[Optional[int]] = mapped_column(ForeignKey("collections.id", ondelete="SET NULL"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Atributos de moda femenina para filtros y ficha técnica
@@ -74,6 +89,7 @@ class Product(Base):
 
     category: Mapped["Category"] = relationship("Category", back_populates="products")
     season: Mapped[Optional["Season"]] = relationship("Season", back_populates="products")
+    collection: Mapped[Optional["Collection"]] = relationship("Collection", back_populates="products")
     variants: Mapped[List["ProductVariant"]] = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     images: Mapped[List["ProductImage"]] = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     reviews: Mapped[List["ProductReview"]] = relationship("ProductReview", back_populates="product", cascade="all, delete-orphan")

@@ -281,10 +281,16 @@ widget web se oculta para personal, proveedor y repartidor; en móvil está en *
 
 ### CU35 · Reportes gerenciales [Media]
 
-Casa Matriz (`/admin/reports`): **kardex** por sucursal (`GET /analytics/reports/kardex`) con
-**exportación CSV** (`…/kardex/export-csv`), **más vendidos** (`…/top-selling`) y **resumen
-ejecutivo** (`…/executive-summary`). El resumen se puede **escuchar** (síntesis de voz del
-navegador, `speechSynthesis`).
+Casa Matriz (`/admin/reports`):
+1. **Kardex Físico-Valorado** por sucursal (`GET /analytics/reports/kardex`) con **exportación CSV** (`…/kardex/export-csv`).
+2. **Prendas Más Vendidas** (`GET /analytics/reports/top-selling`) por volumen de piezas e ingresos.
+3. **Resumen Ejecutivo por Voz** (`GET /analytics/reports/executive-summary`): síntesis de voz en tiempo real con Web Speech API (`speechSynthesis`).
+4. **Demanda Histórica y Dictamen de Reposición por Prenda** (`GET /analytics/reports/product-sales-trend`):
+   - Selector dinámico de prendas del catálogo.
+   - Serie temporal gráfica de ventas agrupadas por semana/mes con volumen e ingresos generados.
+   - Cálculo automático de **Velocidad Semanal de Ventas** y **Días de Cobertura de Stock**.
+   - **Dictamen Gerencial de Compra**: Semáforo algorítmico (`URGENTE_REORDENAR`, `CONVIENE_PEDIR`, `STOCK_ADECUADO`, `BAJA_ROTACION`) con justificación y **lote sugerido de unidades a pedir a proveedores**.
+   - Desglose multisede y detalle por variante (talla/color) para emitir pedidos con precisión de SKU.
 
 ### CU39 · Dashboard analítico [Media]
 

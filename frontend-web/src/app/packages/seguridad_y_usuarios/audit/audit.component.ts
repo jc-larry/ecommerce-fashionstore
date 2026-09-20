@@ -43,6 +43,110 @@ export class AuditComponent implements OnInit {
     return Array.from(new Set(this.logs.map((l) => l.table_name))).filter(Boolean);
   }
 
+  get totalEventsCount(): number {
+    return this.logs.length;
+  }
+
+  get securityEventsCount(): number {
+    return this.logs.filter((l) => ['LOGIN', 'LOGOUT'].includes((l.action || '').toUpperCase())).length;
+  }
+
+  get mutationEventsCount(): number {
+    return this.logs.filter((l) => ['INSERT', 'UPDATE', 'DELETE'].includes((l.action || '').toUpperCase())).length;
+  }
+
+  get activeUsersCount(): number {
+    const userIds = new Set(this.logs.map((l) => l.user_id).filter(Boolean));
+    return userIds.size;
+  }
+
+  // Gráfica 1: Distribución por Acción
+  get actionBreakdown(): { action: string; label: string; count: number; percent: number; colorClass: string; icon: string }[] {
+    const total = this.totalEventsCount || 1;
+    const counts: Record<string, number> = {};
+    for (const l of this.logs) {
+      const act = (l.action || 'OTRO').toUpperCase();
+      counts[act] = (counts[act] || 0) + 1;
+    }
+
+    const mapMeta: Record<string, { label: string; colorClass: string; icon: string }> = {
+      'LOGIN': { label: 'Inicio Sesión', colorClass: 'bg-info', icon: 'bi-box-arrow-in-right' },
+      'LOGOUT': { label: 'Cierre Sesión', colorClass: 'bg-secondary', icon: 'bi-box-arrow-right' },
+      'INSERT': { label: 'Inserciones', colorClass: 'bg-success', icon: 'bi-plus-circle' },
+      'UPDATE': { label: 'Modificaciones', colorClass: 'bg-primary', icon: 'bi-pencil-square' },
+      'DELETE': { label: 'Eliminaciones', colorClass: 'bg-danger', icon: 'bi-trash' },
+    };
+
+    return Object.keys(counts).map((act) => {
+      const meta = mapMeta[act] || { label: act, colorClass: 'bg-dark', icon: 'bi-activity' };
+      const count = counts[act];
+      return {
+        action: act,
+        label: meta.label,
+        count,
+        percent: Math.round((count / total) * 100),
+        colorClass: meta.colorClass,
+        icon: meta.icon
+      };
+    }).sort((a, b) => b.count - a.count);
+  }
+
+  // Gráfica 2: Actividad por Módulo / Tabla
+  get tableBreakdown(): { table: string; label: string; count: number; percent: number }[] {
+    const total = this.totalEventsCount || 1;
+    const counts: Record<string, number> = {};
+    for (const l of this.logs) {
+      const tbl = l.table_name || 'general';
+      counts[tbl] = (counts[tbl] || 0) + 1;
+    }
+
+    return Object.keys(counts).map((tbl) => {
+      const count = counts[tbl];
+      return {
+        table: tbl,
+        label: this.getTableLabel(tbl),
+        count,
+        percent: Math.round((count / total) * 100)
+      };
+    }).sort((a, b) => b.count - a.count).slice(0, 6);
+  }
+
+  // Gráfica 3: Actividad en el tiempo (últimos días)
+  get timelineBreakdown(): { date: string; count: number; heightPercent: number }[] {
+    const daysMap: Record<string, number> = {};
+    for (const l of this.logs) {
+      if (!l.timestamp) continue;
+      const d = new Date(l.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+      daysMap[d] = (daysMap[d] || 0) + 1;
+    }
+
+    const items = Object.keys(daysMap).map((d) => ({
+      date: d,
+      count: daysMap[d]
+    }));
+
+    const maxCount = Math.max(...items.map((i) => i.count), 1);
+    return items.slice(-7).map((i) => ({
+      date: i.date,
+      count: i.count,
+      heightPercent: Math.max(12, Math.round((i.count / maxCount) * 100))
+    }));
+  }
+
+  filterByAction(act: string): void {
+    this.actionFilter = this.actionFilter === act ? 'TODOS' : act;
+  }
+
+  filterByTable(tbl: string): void {
+    this.tableFilter = this.tableFilter === tbl ? 'TODAS' : tbl;
+  }
+
+  resetFilters(): void {
+    this.actionFilter = 'TODOS';
+    this.tableFilter = 'TODAS';
+    this.searchQuery = '';
+  }
+
   get filtered(): any[] {
     return this.logs.filter((l) => {
       const matchAction = this.actionFilter === 'TODOS' || l.action === this.actionFilter;

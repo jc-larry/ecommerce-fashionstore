@@ -230,3 +230,47 @@ class AnalyticsDashboardResponse(BaseModel):
     sales_by_category: List[Dict[str, Any]]
     sales_by_branch: List[Dict[str, Any]]
     daily_sales_last_7_days: List[Dict[str, Any]]
+
+
+class SalesTimelinePoint(BaseModel):
+    period: str
+    date_label: str
+    units_sold: int
+    revenue: float
+
+
+class VariantSalesStock(BaseModel):
+    variant_id: int
+    sku: str
+    size: str
+    color: str
+    color_hex: str
+    current_stock: int
+    units_sold: int
+
+
+class BranchStockItem(BaseModel):
+    branch_id: int
+    branch_name: str
+    stock: int
+
+
+class ProductSalesTrendResponse(BaseModel):
+    product_id: int
+    product_name: str
+    category_name: str
+    base_price: float
+    image_url: Optional[str] = None
+    total_units_sold: int
+    total_revenue: float
+    current_total_stock: int
+    weekly_velocity: float
+    days_of_stock_left: float
+    reorder_decision: str
+    reorder_label: str
+    reorder_badge_class: str
+    reorder_recommendation: str
+    suggested_reorder_units: int
+    timeline: List[SalesTimelinePoint]
+    variants_breakdown: List[VariantSalesStock]
+    branches_stock: List[BranchStockItem]

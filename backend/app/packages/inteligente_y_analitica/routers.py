@@ -50,6 +50,10 @@ from app.packages.inteligente_y_analitica.schemas import (
     ManagerReportTopSellingItem,
     ManagerReportKardexItem,
     AnalyticsDashboardResponse,
+    ProductSalesTrendResponse,
+    SalesTimelinePoint,
+    VariantSalesStock,
+    BranchStockItem,
 )
 from app.packages.reservas_y_citas.models import Reservation
 from app.packages.seguridad_y_usuarios.models import User
@@ -854,6 +858,191 @@ def get_executive_summary_voice(
         "active_reservations": active_reservations,
         "pending_shipments": pending_shipments,
     }
+
+
+@router.get("/reports/product-sales-trend", response_model=ProductSalesTrendResponse)
+def get_product_sales_trend(
+    product_id: int = Query(..., description="ID de la prenda o producto"),
+    months: int = Query(6, ge=1, le=24, description="Meses hacia atrás para analizar"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """[CU35] Análisis histórico de demanda y ventas por prenda para decidir pedidos y reposición de stock."""
+    prod = db.query(Product).filter(Product.id == product_id).first()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Prenda no encontrada.")
+
+    img = prod.images[0].image_url if prod.images else None
+    cat_name = prod.category.name if prod.category else "Sin categoría"
+    base_price = float(prod.base_price or 0.0)
+
+    variant_ids = [v.id for v in prod.variants]
+    if not variant_ids:
+        return ProductSalesTrendResponse(
+            product_id=prod.id,
+            product_name=prod.name,
+            category_name=cat_name,
+            base_price=base_price,
+            image_url=img,
+            total_units_sold=0,
+            total_revenue=0.0,
+            current_total_stock=0,
+            weekly_velocity=0.0,
+            days_of_stock_left=0.0,
+            reorder_decision="BAJA_ROTACION",
+            reorder_label="Sin Variantes / Sin Stock",
+            reorder_badge_class="secondary",
+            reorder_recommendation="Esta prenda no cuenta con variantes activas. Registre variantes antes de solicitar pedidos.",
+            suggested_reorder_units=0,
+            timeline=[],
+            variants_breakdown=[],
+            branches_stock=[],
+        )
+
+    # 1. Existencias actuales totales y por sucursal
+    branches_stock_map: Dict[int, Dict[str, Any]] = {}
+    inventories = db.query(Inventory).filter(Inventory.variant_id.in_(variant_ids)).all()
+    total_stock = 0
+    variant_stock_map: Dict[int, int] = {vid: 0 for vid in variant_ids}
+
+    for inv in inventories:
+        total_stock += inv.stock_actual
+        variant_stock_map[inv.variant_id] = variant_stock_map.get(inv.variant_id, 0) + inv.stock_actual
+        if inv.branch_id not in branches_stock_map:
+            branch = db.query(Branch).filter(Branch.id == inv.branch_id).first()
+            b_name = branch.name if branch else f"Sucursal #{inv.branch_id}"
+            branches_stock_map[inv.branch_id] = {"branch_id": inv.branch_id, "branch_name": b_name, "stock": 0}
+        branches_stock_map[inv.branch_id]["stock"] += inv.stock_actual
+
+    branches_stock = [BranchStockItem(**v) for v in branches_stock_map.values()]
+
+    # 2. Consultar ventas históricas en el rango de meses
+    since_date = datetime.now() - timedelta(days=months * 30)
+    order_items = (
+        db.query(OrderItem, Order.created_at)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(
+            Order.status == "PAGADA",
+            OrderItem.variant_id.in_(variant_ids),
+            Order.created_at >= since_date,
+        )
+        .order_by(Order.created_at.asc())
+        .all()
+    )
+
+    total_units_sold = 0
+    total_revenue = 0.0
+    variant_sold_map: Dict[int, int] = {vid: 0 for vid in variant_ids}
+
+    timeline_dict: Dict[str, Dict[str, Any]] = {}
+
+    for item, order_date in order_items:
+        qty = item.quantity
+        rev = float(item.unit_price * qty)
+        total_units_sold += qty
+        total_revenue += rev
+        variant_sold_map[item.variant_id] = variant_sold_map.get(item.variant_id, 0) + qty
+
+        if months <= 3:
+            period_key = order_date.strftime("%Y-W%W")
+            date_label = f"Semana {order_date.strftime('%W (%b)')}"
+        else:
+            period_key = order_date.strftime("%Y-%m")
+            date_label = order_date.strftime("%b %Y")
+
+        if period_key not in timeline_dict:
+            timeline_dict[period_key] = {
+                "period": period_key,
+                "date_label": date_label,
+                "units_sold": 0,
+                "revenue": 0.0,
+            }
+        timeline_dict[period_key]["units_sold"] += qty
+        timeline_dict[period_key]["revenue"] = round(timeline_dict[period_key]["revenue"] + rev, 2)
+
+    timeline = [
+        SalesTimelinePoint(
+            period=k,
+            date_label=v["date_label"],
+            units_sold=v["units_sold"],
+            revenue=round(v["revenue"], 2),
+        )
+        for k, v in sorted(timeline_dict.items(), key=lambda x: x[0])
+    ]
+
+    # 3. Desglose de variantes (Talla / Color)
+    variants_breakdown = []
+    for var in prod.variants:
+        size_name = var.size.name if var.size else "-"
+        color_name = var.color.name if var.color else "-"
+        color_hex = var.color.hex_code if var.color else "#CCCCCC"
+        variants_breakdown.append(
+            VariantSalesStock(
+                variant_id=var.id,
+                sku=var.sku,
+                size=size_name,
+                color=color_name,
+                color_hex=color_hex,
+                current_stock=variant_stock_map.get(var.id, 0),
+                units_sold=variant_sold_map.get(var.id, 0),
+            )
+        )
+
+    # 4. Cálculo de Velocidad y Decisión de Reabastecimiento
+    weeks_in_range = max(1.0, (months * 4.33))
+    weekly_velocity = round(total_units_sold / weeks_in_range, 2)
+    daily_velocity = weekly_velocity / 7.0 if weekly_velocity > 0 else 0.0
+
+    if daily_velocity > 0:
+        days_of_stock_left = round(total_stock / daily_velocity, 1)
+    else:
+        days_of_stock_left = 999.0 if total_stock > 0 else 0.0
+
+    if total_units_sold > 0 and days_of_stock_left <= 10:
+        decision = "URGENTE_REORDENAR"
+        label = "¡URGENTE! Agotamiento Inminente"
+        badge_class = "danger"
+        recom = f"Conviene realizar pedido urgente al proveedor. El stock actual ({total_stock} uds) solo cubre aprox. {int(days_of_stock_left)} días de ventas."
+        suggested_reorder = max(10, int(round((weekly_velocity * 4.33) - total_stock)))
+    elif total_units_sold > 0 and days_of_stock_left <= 25:
+        decision = "CONVIENE_PEDIR"
+        label = "Conviene Hacer Pedido"
+        badge_class = "warning"
+        recom = f"Se recomienda programar orden de compra. El stock actual cubre {int(days_of_stock_left)} días al ritmo de {weekly_velocity} uds/semana."
+        suggested_reorder = max(10, int(round((weekly_velocity * 4.33) - total_stock)))
+    elif total_units_sold > 0 and days_of_stock_left <= 60:
+        decision = "STOCK_ADECUADO"
+        label = "Stock Adecuado"
+        badge_class = "success"
+        recom = f"Existencias saludables. El inventario actual ({total_stock} uds) cubre aproximadamente {int(days_of_stock_left / 7)} semanas de demanda estimada."
+        suggested_reorder = 0
+    else:
+        decision = "BAJA_ROTACION"
+        label = "Baja Rotación / Stock Abundante"
+        badge_class = "info"
+        recom = f"Demanda baja o stock muy holgado ({total_stock} uds para más de 60 días). No se aconseja realizar nuevos pedidos en este momento."
+        suggested_reorder = 0
+
+    return ProductSalesTrendResponse(
+        product_id=prod.id,
+        product_name=prod.name,
+        category_name=cat_name,
+        base_price=base_price,
+        image_url=img,
+        total_units_sold=total_units_sold,
+        total_revenue=round(total_revenue, 2),
+        current_total_stock=total_stock,
+        weekly_velocity=weekly_velocity,
+        days_of_stock_left=days_of_stock_left,
+        reorder_decision=decision,
+        reorder_label=label,
+        reorder_badge_class=badge_class,
+        reorder_recommendation=recom,
+        suggested_reorder_units=suggested_reorder,
+        timeline=timeline,
+        variants_breakdown=variants_breakdown,
+        branches_stock=branches_stock,
+    )
 
 
 # ===================================================================

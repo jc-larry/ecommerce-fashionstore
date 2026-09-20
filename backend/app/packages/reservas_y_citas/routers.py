@@ -254,7 +254,7 @@ def create_reservation(
         inv = db.query(Inventory).filter(
             Inventory.branch_id == data.branch_id,
             Inventory.variant_id == item_in.variant_id,
-        ).first()
+        ).with_for_update().first()
 
         current_stock = inv.stock_actual if inv else 0
         if current_stock < item_in.quantity:

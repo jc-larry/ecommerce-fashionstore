@@ -10,7 +10,7 @@ import { MerchandiseComponent } from './packages/inventario_y_proveedores/mercha
 import { ValuationComponent } from './packages/inventario_y_proveedores/valuation/valuation.component';
 import { AdjustmentsComponent } from './packages/inventario_y_proveedores/adjustments/adjustments.component';
 import { UsuariosRolesComponent } from './packages/seguridad_y_usuarios/usuarios_roles/usuarios-roles.component';
-import { DashboardComponent } from './packages/dashboard/dashboard.component';
+import { DashboardComponent } from './dashboard/dashboard.component';
 import { EmployeesComponent } from './packages/catalogo_y_tiendas/employees/employees.component';
 import { AuditComponent } from './packages/seguridad_y_usuarios/audit/audit.component';
 import { StoreHomeComponent } from './packages/catalogo_y_tiendas/store/store-home.component';

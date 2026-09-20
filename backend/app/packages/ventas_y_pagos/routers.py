@@ -365,7 +365,7 @@ def process_checkout(
         inv = db.query(Inventory).filter(
             Inventory.branch_id == data.branch_id,
             Inventory.variant_id == var_id
-        ).first()
+        ).with_for_update().first()
         current_stock = inv.stock_actual if inv else 0
         if current_stock < qty:
             raise HTTPException(
@@ -417,7 +417,7 @@ def process_checkout(
         inv = db.query(Inventory).filter(
             Inventory.branch_id == data.branch_id,
             Inventory.variant_id == var_id
-        ).first()
+        ).with_for_update().first()
         inv.stock_actual -= qty
 
         db.add(InventoryLedger(
@@ -1095,7 +1095,7 @@ def convert_quotation_to_order(
         inv = db.query(Inventory).filter(
             Inventory.branch_id == data.branch_id,
             Inventory.variant_id == qi.variant_id
-        ).first()
+        ).with_for_update().first()
         avail = inv.stock_actual if inv else 0
         if avail < qi.quantity:
             raise HTTPException(
